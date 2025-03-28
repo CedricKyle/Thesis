@@ -53,15 +53,15 @@ const setTab = (tabName, parentTab = null) => {
           />
         </div>
         <div class="text-log">
-          <h1 class="text-[25px] text-secondaryColor">Countryside</h1>
-          <p class="text-[12px] text-gray-300">1984</p>
+          <h1 class="text-[25px] text-secondaryColor font-bold">Countryside</h1>
+          <p class="text-[12px] text-gray-300">Serving sizzling steaks since 1984!</p>
         </div>
       </div>
       <ul class="menu w-full text-base-content">
-        <li v-for="(tab, tabName) in tabs" :key="tabName">
+        <li v-for="(tab, tabName) in tabs" :key="tabName" class="m-2">
           <template v-if="tab.submenu">
             <details :open="currentTab in tab.submenu">
-              <summary class="flex items-center">
+              <summary class="flex">
                 <component :is="tab.icon" class="w-6 h-6 mr-3" />
                 {{ tabName }}
               </summary>
