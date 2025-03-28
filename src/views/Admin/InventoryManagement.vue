@@ -11,11 +11,22 @@ const WetGoods = defineAsyncComponent(
   () => import('@/components/Admin Components/Inventory Management/Inventory Tables/WetGoods.vue'),
 )
 
-import { ChevronDown, Plus, ImagePlus } from 'lucide-vue-next'
+import { ImagePlus } from 'lucide-vue-next'
 
 const selectCategory = ref('Food Products')
 const modal = ref(null)
 const today = ref('')
+const fileInput = ref(null)
+const fileName = ref('')
+
+// Add these new refs
+const priceError = ref('')
+const isPriceValid = ref(true)
+const qtyError = ref('')
+const maxQtyError = ref('')
+const isQtyValid = ref(true)
+const isMaxQtyValid = ref(true)
+const showSuccessToast = ref(false)
 
 onMounted(() => {
   today.value = new Date().toISOString().split('T')[0]
@@ -41,12 +52,147 @@ const toggleModal = () => {
   }
 }
 
-const fileInput = ref(null)
-const fileName = ref('')
-
 const handleFileUpload = (event) => {
   const file = event.target.files[0]
   fileName.value = file ? file.name : 'Attach a file...'
+  if (file) {
+    fileName.value = file.name
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      addProduct.value.img = e.target.result
+    }
+    reader.readAsDataURL(file)
+  } else {
+    fileName.value = 'Attach a file...'
+    addProduct.value.img = null
+  }
+}
+
+const addProduct = ref({
+  name: '',
+  price: '',
+  dateExpiry: '',
+  quantity: '',
+  maxQty: '',
+  img: null,
+})
+
+const closeModal = () => {
+  modal.value?.close()
+}
+
+const cancelForm = () => {
+  // Reset the form
+  addProduct.value = {
+    name: '',
+    price: '',
+    dateExpiry: '',
+    quantity: '',
+    maxQty: '',
+    img: null,
+  }
+  // Reset the filename display
+  fileName.value = ''
+  // Close the modal
+  closeModal()
+}
+
+// Add validation function
+const validatePrice = (value) => {
+  const price = Number(value)
+  if (isNaN(price)) {
+    priceError.value = 'Price must be a number'
+    isPriceValid.value = false
+    return false
+  }
+  if (price < 0) {
+    priceError.value = 'Price cannot be less than 0'
+    isPriceValid.value = false
+    return false
+  }
+  priceError.value = ''
+  isPriceValid.value = true
+  return true
+}
+
+// Add validation functions
+const validateQty = (value) => {
+  const qty = Number(value)
+  if (isNaN(qty)) {
+    qtyError.value = 'Quantity must be a number'
+    isQtyValid.value = false
+    return false
+  }
+  if (qty < 0) {
+    qtyError.value = 'Quantity cannot be less than 0'
+    isQtyValid.value = false
+    return false
+  }
+  if (addProduct.value.maxQty && qty > Number(addProduct.value.maxQty)) {
+    qtyError.value = 'Quantity cannot exceed Max Quantity'
+    isQtyValid.value = false
+    return false
+  }
+  qtyError.value = ''
+  isQtyValid.value = true
+  return true
+}
+
+const validateMaxQty = (value) => {
+  const maxQty = Number(value)
+  if (isNaN(maxQty)) {
+    maxQtyError.value = 'Max Quantity must be a number'
+    isMaxQtyValid.value = false
+    return false
+  }
+  if (maxQty < 0) {
+    maxQtyError.value = 'Max Quantity cannot be less than 0'
+    isMaxQtyValid.value = false
+    return false
+  }
+  // Revalidate quantity when max quantity changes
+  if (addProduct.value.quantity) {
+    validateQty(addProduct.value.quantity)
+  }
+  maxQtyError.value = ''
+  isMaxQtyValid.value = true
+  return true
+}
+
+// Update the submitProduct function
+const submitProduct = () => {
+  // Validate all fields before submitting
+  const isValid =
+    validatePrice(addProduct.value.price) &&
+    validateQty(addProduct.value.quantity) &&
+    validateMaxQty(addProduct.value.maxQty)
+
+  if (!isValid) {
+    return // Don't submit if any validation fails
+  }
+
+  console.log('Product Added:', { ...addProduct.value })
+  closeModal()
+
+  // Show success toast
+  showSuccessToast.value = true
+
+  // Hide toast after 3 seconds
+  setTimeout(() => {
+    showSuccessToast.value = false
+  }, 3000)
+
+  // Reset form
+  addProduct.value = {
+    name: '',
+    price: '',
+    dateExpiry: '',
+    quantity: '',
+    maxQty: '',
+    img: null,
+  }
+  fileName.value = ''
 }
 </script>
 
@@ -97,6 +243,7 @@ const handleFileUpload = (event) => {
                 <div class="col-span-2 flex flex-col">
                   <label class="text-[15px]">Produc Name</label>
                   <input
+                    v-model="addProduct.name"
                     type="text"
                     placeholder="Type here"
                     class="input w-full !outline-none border border-primaryColor bg-white"
@@ -106,15 +253,27 @@ const handleFileUpload = (event) => {
                 <div class="flex flex-col">
                   <label class="text-[15px]">Product Price</label>
                   <input
-                    type="text"
+                    v-model="addProduct.price"
+                    type="number"
+                    min="0"
+                    step="1"
                     placeholder="₱"
-                    class="input w-full !outline-none border border-primaryColor bg-white"
+                    class="input w-full !outline-none border"
+                    :class="{
+                      'border-primaryColor bg-white': isPriceValid,
+                      'border-red-500 bg-red-50': !isPriceValid,
+                    }"
+                    @input="validatePrice($event.target.value)"
                   />
+                  <div v-if="priceError" class="text-red-500 text-[10px]">
+                    {{ priceError }}
+                  </div>
                 </div>
 
                 <div class="flex flex-col">
                   <label class="text-[15px]">Expiry Date</label>
                   <input
+                    v-model="addProduct.dateExpiry"
                     :min="today"
                     type="date"
                     placeholder="0"
@@ -125,19 +284,41 @@ const handleFileUpload = (event) => {
                 <div class="flex flex-col">
                   <label class="text-[15px]">Quantity</label>
                   <input
+                    v-model="addProduct.quantity"
                     type="number"
+                    min="0"
+                    step="1"
                     placeholder="0"
-                    class="input w-full !outline-none border border-primaryColor bg-white"
+                    class="input w-full !outline-none border"
+                    :class="{
+                      'border-primaryColor bg-white': isQtyValid,
+                      'border-red-500 bg-red-50': !isQtyValid,
+                    }"
+                    @input="validateQty($event.target.value)"
                   />
+                  <div v-if="qtyError" class="text-red-500 text-[10px] mt-1">
+                    {{ qtyError }}
+                  </div>
                 </div>
 
                 <div class="flex flex-col">
                   <label class="text-[15px]">Max Quantity</label>
                   <input
+                    v-model="addProduct.maxQty"
                     type="number"
+                    min="0"
+                    step="1"
                     placeholder="0"
-                    class="input w-full !outline-none border border-primaryColor bg-white"
+                    class="input w-full !outline-none border"
+                    :class="{
+                      'border-primaryColor bg-white': isMaxQtyValid,
+                      'border-red-500 bg-red-50': !isMaxQtyValid,
+                    }"
+                    @input="validateMaxQty($event.target.value)"
                   />
+                  <div v-if="maxQtyError" class="text-red-500 text-[10px] mt-1">
+                    {{ maxQtyError }}
+                  </div>
                 </div>
 
                 <!-- Image Field-->
@@ -148,19 +329,42 @@ const handleFileUpload = (event) => {
                     @click="fileInput?.click()"
                   >
                     <span class="flex items-center">
-                      <template v-if="fileName">{{ fileName }}</template>
+                      <template v-if="addProduct.img">
+                        <img
+                          :src="addProduct.img"
+                          class="h-16 w-16 object-cover"
+                          alt="this is img uploaded"
+                        />
+                        <span>{{ fileName }}</span>
+                      </template>
                       <template v-else>
-                        <ImagePlus class="w-6 h-6 text-gray-500" />
+                        <ImagePlus class="w-6 h-6 text-gray-500 mr-3" />
+                        <span>{{ fileName || 'Click to upload image' }}</span>
                       </template>
                     </span>
                   </div>
-                  <input type="file" ref="fileInput" class="hidden" @change="handleFileUpload" />
+                  <input
+                    type="file"
+                    ref="fileInput"
+                    class="hidden"
+                    @change="handleFileUpload"
+                    accept="image/*"
+                  />
                 </div>
               </div>
               <div class="modal-action">
-                <!-- if there is a button in form, it will close the modal -->
-                <button class="btn bg-gray-400 border-none" @click="modal?.close()">Close</button>
-                <button class="btn bg-primaryColor border-none">Add Product</button>
+                <form class="flex gap-4">
+                  <button type="button" class="btn bg-gray-400 border-none" @click="cancelForm">
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    class="btn bg-primaryColor border-none"
+                    @click.prevent="submitProduct"
+                  >
+                    Add Product
+                  </button>
+                </form>
               </div>
             </div>
           </dialog>
@@ -172,6 +376,14 @@ const handleFileUpload = (event) => {
       <component v-if="selectedCategory" :is="selectedCategory" />
     </div>
   </div>
+
+  <Teleport to="body">
+    <div v-if="showSuccessToast" class="toast toast-top toast-end">
+      <div class="alert alert-success">
+        <span>Product added successfully!</span>
+      </div>
+    </div>
+  </Teleport>
 </template>
 
 <style scoped>
