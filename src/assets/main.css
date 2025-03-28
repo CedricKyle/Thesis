@@ -1,1 +1,29 @@
 @import 'tailwindcss';
+@plugin "daisyui";
+
+@font-face {
+  font-family: Poppins;
+  src: url('../assets/Font/Poppins-Regular.ttf');
+}
+
+@theme {
+  --color-primaryColor: oklch(45.5% 0.1064 127.38);
+  --color-secondaryColor: oklch(71.36% 0.1812 50.84);
+  --color-highlightColor: oklch(100% 0 0);
+  --color-neutralColor: oklch(0% 0 0);
+  --color-bgColor: oklch(93.78% 0.0174 286.06);
+
+  --font-Poppins: Poppins, sans-serif;
+}
+
+@layer components {
+  .bg-auth {
+    @apply h-screen flex items-center justify-center bg-gradient-to-t from-[#466114] via-[#dae0d0] to-white;
+  }
+}
+
+@layer base {
+  body {
+    font-family: Poppins, sans-serif;
+  }
+}
