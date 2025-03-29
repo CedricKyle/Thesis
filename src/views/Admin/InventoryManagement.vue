@@ -28,6 +28,16 @@ const isQtyValid = ref(true)
 const isMaxQtyValid = ref(true)
 const showSuccessToast = ref(false)
 
+// Add these new refs for category-specific products
+const foodProducts = ref([])
+const dryGoods = ref([])
+const wetGoods = ref([])
+
+// Add these refs for tracking IDs
+const foodProductsId = ref(1)
+const dryGoodsId = ref(1)
+const wetGoodsId = ref(1)
+
 onMounted(() => {
   today.value = new Date().toISOString().split('T')[0]
 })
@@ -172,13 +182,51 @@ const submitProduct = () => {
     return // Don't submit if any validation fails
   }
 
-  console.log('Product Added:', { ...addProduct.value })
+  let productId
+  // Assign ID based on category and increment the counter
+  switch (selectCategory.value) {
+    case 'Food Products':
+      productId = foodProductsId.value++
+      break
+    case 'Dry Goods':
+      productId = dryGoodsId.value++
+      break
+    case 'Wet Goods':
+      productId = wetGoodsId.value++
+      break
+    default:
+      console.error('Invalid category')
+      return
+  }
+
+  // Create product object with category and incremental ID
+  const newProduct = {
+    id: productId,
+    ...addProduct.value,
+    category: selectCategory.value,
+  }
+
+  // Add product to appropriate array based on category
+  switch (selectCategory.value) {
+    case 'Food Products':
+      foodProducts.value.push(newProduct)
+      break
+    case 'Dry Goods':
+      dryGoods.value.push(newProduct)
+      break
+    case 'Wet Goods':
+      wetGoods.value.push(newProduct)
+      break
+    default:
+      console.error('Invalid category')
+      return
+  }
+
+  console.log(`Product Added to ${selectCategory.value}:`, newProduct)
   closeModal()
 
-  // Show success toast
+  // Show success toast with category
   showSuccessToast.value = true
-
-  // Hide toast after 3 seconds
   setTimeout(() => {
     showSuccessToast.value = false
   }, 3000)
@@ -194,6 +242,20 @@ const submitProduct = () => {
   }
   fileName.value = ''
 }
+
+// Optional: Add a computed property to get current category's products
+const currentCategoryProducts = computed(() => {
+  switch (selectCategory.value) {
+    case 'Food Products':
+      return foodProducts.value
+    case 'Dry Goods':
+      return dryGoods.value
+    case 'Wet Goods':
+      return wetGoods.value
+    default:
+      return []
+  }
+})
 </script>
 
 <template>
@@ -222,7 +284,7 @@ const submitProduct = () => {
             class="select bg-primaryColor text-white border-none cursor-pointer"
             @change="updateCategory($event.target.value)"
           >
-            <option disabled selected>Select Category</option>
+            <!-- <option disabled selected>Select Category</option> -->
             <option value="Food Products">Food Products</option>
             <option value="Dry Goods">Dry Goods</option>
             <option value="Wet Goods">Wet Goods</option>
@@ -241,7 +303,7 @@ const submitProduct = () => {
                 class="input-container grid grid-cols-2 justify-center items-center w-full gap-6"
               >
                 <div class="col-span-2 flex flex-col">
-                  <label class="text-[15px]">Produc Name</label>
+                  <label class="text-[15px]">Product Name</label>
                   <input
                     v-model="addProduct.name"
                     type="text"
@@ -373,14 +435,18 @@ const submitProduct = () => {
     </div>
 
     <div class="table-container h-full">
-      <component v-if="selectedCategory" :is="selectedCategory" />
+      <component
+        v-if="selectedCategory"
+        :is="selectedCategory"
+        :products="currentCategoryProducts"
+      />
     </div>
   </div>
 
   <Teleport to="body">
     <div v-if="showSuccessToast" class="toast toast-top toast-end">
       <div class="alert alert-success">
-        <span>Product added successfully!</span>
+        <span>Product successfully added to {{ selectCategory }}!</span>
       </div>
     </div>
   </Teleport>
