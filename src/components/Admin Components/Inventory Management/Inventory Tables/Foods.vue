@@ -1,5 +1,7 @@
 <script setup>
-import { SquarePen, Trash2 } from 'lucide-vue-next'
+import { ref } from 'vue'
+import { SquarePen, Trash2, CircleCheckBig } from 'lucide-vue-next'
+
 defineProps({
   products: {
     type: Array,
@@ -7,6 +9,27 @@ defineProps({
     default: () => [],
   },
 })
+
+const emit = defineEmits(['edit-product', 'delete-product'])
+const deleteModal = ref(null)
+const productToDelete = ref(null)
+
+const handleEdit = (product) => {
+  emit('edit-product', product)
+}
+
+const handleDelete = (product) => {
+  productToDelete.value = product
+  deleteModal.value?.showModal()
+}
+
+const confirmDelete = () => {
+  if (productToDelete.value) {
+    emit('delete-product', productToDelete.value)
+    deleteModal.value?.close()
+    productToDelete.value = null
+  }
+}
 
 // Add a function to handle missing images
 const getImageUrl = (img) => {
@@ -80,12 +103,34 @@ const getImageUrl = (img) => {
           </td>
           <td>
             <div class="flex gap-2">
-              <button class="btn btn-sm bg-primaryColor border-none"><SquarePen class="" /></button>
-              <button class="btn btn-sm btn-error"><Trash2 /></button>
+              <button
+                @click="handleEdit(product)"
+                class="btn btn-sm bg-primaryColor border-none hover:bg-primaryColor/80"
+              >
+                <SquarePen class="" />
+              </button>
+              <button @click="handleDelete(product)" class="btn btn-sm btn-error hover:bg-red-600">
+                <Trash2 />
+              </button>
             </div>
           </td>
         </tr>
       </tbody>
     </table>
   </div>
+
+  <!-- Delete Confirmation Modal -->
+  <dialog ref="deleteModal" class="modal">
+    <div class="modal-box bg-white w-96">
+      <p class="py-4 text-center text-black text-lg">
+        Are you sure you want to delete {{ productToDelete?.name }}?
+      </p>
+      <div class="modal-action justify-center gap-4">
+        <button class="btn btn-error" @click="confirmDelete">Delete</button>
+        <button class="btn" @click="deleteModal?.close()">Cancel</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Success Modal will be handled by parent component -->
 </template>
