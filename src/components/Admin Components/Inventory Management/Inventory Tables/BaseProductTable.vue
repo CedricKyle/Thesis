@@ -109,7 +109,10 @@ const getImageUrl = (img) => {
               >
                 <SquarePen class="" />
               </button>
-              <button @click="handleDelete(product)" class="btn btn-sm btn-error hover:bg-red-600">
+              <button
+                @click="handleDelete(product)"
+                class="btn btn-sm btn-error hover:bg-red-400/80 border-none"
+              >
                 <Trash2 />
               </button>
             </div>
