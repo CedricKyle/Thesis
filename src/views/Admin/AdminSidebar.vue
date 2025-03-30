@@ -11,7 +11,13 @@ import { ref, defineAsyncComponent } from 'vue'
 //this is import icons
 import { UserCog, Landmark, ChartNoAxesColumnIncreasing, Archive, Mail } from 'lucide-vue-next'
 
-const currentTab = ref('HRDashboard')
+// Set initial tab to HRDashboard
+const currentTab = ref('Dashboard')
+
+// Add a ref to track which parent menu should be open
+const openParentMenu = ref('Human Resource')
+
+//this is loading state
 const isLoading = ref(false)
 
 // Define a simple loading spinner component
@@ -65,11 +71,11 @@ const tabs = {
   CRM: { component: CRMManagement, icon: Mail },
 }
 
+// Modify the setTab function to track parent menu
 const setTab = (tabName, parentTab = null) => {
+  currentTab.value = tabName
   if (parentTab) {
-    currentTab.value = tabName
-  } else {
-    currentTab.value = tabName
+    openParentMenu.value = parentTab
   }
 }
 </script>
@@ -94,7 +100,7 @@ const setTab = (tabName, parentTab = null) => {
       <ul class="menu w-full text-base-content">
         <li v-for="(tab, tabName) in tabs" :key="tabName" class="m-2">
           <template v-if="tab.submenu">
-            <details :open="currentTab in tab.submenu">
+            <details :open="tabName === openParentMenu">
               <summary class="flex">
                 <component :is="tab.icon" class="w-6 h-6 mr-3" />
                 {{ tabName }}
@@ -135,14 +141,14 @@ const setTab = (tabName, parentTab = null) => {
     </div>
 
     <!-- Main Content -->
-    <div class="flex-1 p-6 bg-bgColor">
+    <div class="flex-1 p-6 bg-bgColor overflow-y-auto max-h-screen">
       <Transition
         enter-active-class="transition-opacity duration-300"
         leave-active-class="transition-opacity duration-300"
         enter-from-class="opacity-0"
         leave-to-class="opacity-0"
       >
-        <div class="h-full">
+        <div class="min-h-full">
           <component
             v-if="
               currentTab &&
