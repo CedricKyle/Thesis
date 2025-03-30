@@ -5,24 +5,58 @@ import FinancialManagement from './FinancialManagement.vue'
 import InventoryManagement from './InventoryManagement.vue'
 import SalesManagement from './SalesManagement.vue'
 
-//this is sub menu
-import PayrollManagement from '../Human Resource/PayrollManagement.vue'
-import Recruitment from '../Human Resource/Recruitment.vue'
+//this is sub menu for hr management
+import { ref, defineAsyncComponent } from 'vue'
 
 //this is import icons
 import { UserCog, Landmark, ChartNoAxesColumnIncreasing, Archive, Mail } from 'lucide-vue-next'
 
-import { ref } from 'vue'
+const currentTab = ref('HRDashboard')
+const isLoading = ref(false)
 
-const currentTab = ref('Human Resource')
+// Define a simple loading spinner component
+const LoadingSpinner = {
+  template: `
+    <div class="flex items-center justify-center h-full">
+      <span class="loading loading-spinner loading-lg text-secondaryColor"></span>
+    </div>
+  `,
+}
+
+// Create async components with loading state
+const AsyncHRDashboard = defineAsyncComponent({
+  loader: () => import('../Human Resource/HRDashboard.vue'),
+  loadingComponent: LoadingSpinner,
+  delay: 1000, // delay in ms before showing loading state
+  onLoadingStart: () => {
+    isLoading.value = true
+  },
+  onLoadingComplete: () => {
+    isLoading.value = false
+  },
+})
 
 const tabs = {
   'Human Resource': {
     component: HumanResourceManagement,
     icon: UserCog,
     submenu: {
-      Payroll: PayrollManagement,
-      Recruitment: Recruitment,
+      Dashboard: AsyncHRDashboard, // Use async component
+      Employees: defineAsyncComponent({
+        loader: () => import('../Human Resource/Employees.vue'),
+        loadingComponent: LoadingSpinner,
+        delay: 1000,
+      }),
+      Attendance: defineAsyncComponent({
+        loader: () => import('../Human Resource/Attendance.vue'),
+        loadingComponent: LoadingSpinner,
+        delay: 1000,
+      }),
+      'Attendance Report': defineAsyncComponent({
+        loader: () => import('../Human Resource/AttendanceReport.vue'),
+        loadingComponent: LoadingSpinner,
+        delay: 1000,
+      }),
     },
   },
   Finance: { component: FinancialManagement, icon: Landmark },
@@ -102,12 +136,23 @@ const setTab = (tabName, parentTab = null) => {
 
     <!-- Main Content -->
     <div class="flex-1 p-6 bg-bgColor">
-      <component
-        v-if="
-          currentTab && (tabs[currentTab]?.component || tabs['Human Resource'].submenu[currentTab])
-        "
-        :is="tabs[currentTab]?.component || tabs['Human Resource'].submenu[currentTab]"
-      ></component>
+      <Transition
+        enter-active-class="transition-opacity duration-300"
+        leave-active-class="transition-opacity duration-300"
+        enter-from-class="opacity-0"
+        leave-to-class="opacity-0"
+      >
+        <div class="h-full">
+          <component
+            v-if="
+              currentTab &&
+              (tabs[currentTab]?.component || tabs['Human Resource'].submenu[currentTab])
+            "
+            :is="tabs[currentTab]?.component || tabs['Human Resource'].submenu[currentTab]"
+            :key="currentTab"
+          ></component>
+        </div>
+      </Transition>
     </div>
   </div>
 </template>
