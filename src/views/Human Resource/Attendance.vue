@@ -146,6 +146,10 @@ const handleSubmit = () => {
   }
 }
 
+const showToast = ref(false)
+const toastMessage = ref('')
+const toastType = ref('success')
+
 // Update confirmAndSave to use store's attendanceRecords
 const confirmAndSave = () => {
   const workingHours = calculateHours(newAttendance.value.signIn, newAttendance.value.signOut)
@@ -173,6 +177,13 @@ const confirmAndSave = () => {
   }
   formErrors.value = {}
   showConfirmModal.value = false
+
+  toastMessage.value = 'Attendance added successfully'
+  toastType.value = 'success'
+  showToast.value = true
+  setTimeout(() => {
+    showToast.value = false
+  }, 3000)
 }
 
 // Filtered and sorted records
@@ -223,18 +234,40 @@ const confirmDelete = () => {
   )
   showDeleteModal.value = false
   selectedRecord.value = null
+
+  toastMessage.value = 'Record deleted successfully'
+  toastType.value = 'error'
+  showToast.value = true
+  setTimeout(() => {
+    showToast.value = false
+  }, 3000)
 }
 </script>
 
 <template>
+  <!-- When attendance is added successfully -->
+  <Teleport to="body">
+    <div v-if="showToast" class="toast toast-top toast-end">
+      <div
+        class="alert"
+        :class="{
+          'alert-error': toastType === 'error',
+          'alert-success': toastType === 'success',
+        }"
+      >
+        <span>{{ toastMessage }}</span>
+      </div>
+    </div>
+  </Teleport>
+
   <!-- name of each tab group should be unique -->
   <div class="tabs tabs-border bg-primaryColor border border-gray-200/50 max-h-[800px]">
     <!-- Attendance -->
     <input type="radio" name="my_tabs_2" class="tab" aria-label="Attendance" checked="checked" />
-    <div class="tab-content bg-bgColor p-10 min-h-[600px]">
+    <div class="tab-content bg-white p-2 min-h-[600px]">
       <!-- Search and Filter Section -->
-      <div class="flex justify-between mb-4">
-        <label class="input">
+      <div class="flex justify-between mb-2">
+        <label class="input bg-white border-primaryColor text-black !outline-none">
           <svg class="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
             <g
               stroke-linejoin="round"
@@ -247,13 +280,7 @@ const confirmDelete = () => {
               <path d="m21 21-4.3-4.3"></path>
             </g>
           </svg>
-          <input
-            v-model="searchQuery"
-            type="search"
-            required
-            placeholder="Search"
-            class="focus:outline-none"
-          />
+          <input v-model="searchQuery" type="search" required placeholder="Search" class="" />
         </label>
       </div>
 
@@ -281,9 +308,9 @@ const confirmDelete = () => {
             <tr
               v-for="record in paginatedRecords"
               :key="record.id"
-              class="hover:bg-gray-200/30 hover:text-black border-b border-gray-200/50"
+              class="hover:bg-gray-100 bg-white border-b border-gray-200"
             >
-              <td>{{ record.id }}</td>
+              <th>{{ record.id }}</th>
               <td>{{ record.name }}</td>
               <td>{{ formatDate(record.date) }}</td>
               <td>{{ record.signIn }}</td>
@@ -321,10 +348,10 @@ const confirmDelete = () => {
 
         <!-- Daisy UI Pagination -->
         <div class="flex justify-center py-4 bg-white">
-          <div class="join">
+          <div class="join gap-1">
             <!-- Previous button -->
             <button
-              class="join-item btn btn-xs"
+              class="join-item btn btn-xs !bg-gray-200 text-gray-600"
               :class="{ 'btn-disabled': currentPage === 1 }"
               @click="currentPage > 1 && currentPage--"
             >
@@ -334,7 +361,7 @@ const confirmDelete = () => {
             <!-- Page numbers -->
             <template v-for="page in totalPages" :key="page">
               <button
-                class="join-item btn btn-xs"
+                class="join-item btn btn-xs bg-primaryColor border-none text-white"
                 :class="{ 'btn-active': currentPage === page }"
                 @click="currentPage = page"
               >
@@ -344,7 +371,7 @@ const confirmDelete = () => {
 
             <!-- Next button -->
             <button
-              class="join-item btn btn-xs"
+              class="join-item btn btn-xs !bg-gray-200 text-gray-600"
               :class="{ 'btn-disabled': currentPage === totalPages }"
               @click="currentPage < totalPages && currentPage++"
             >
@@ -356,30 +383,61 @@ const confirmDelete = () => {
 
       <!-- View/Edit Modal -->
       <dialog :open="showViewModal" class="modal">
-        <div class="modal-box">
+        <div class="modal-box bg-white text-black">
           <h3 class="font-bold text-lg">Attendance Details</h3>
-          <div v-if="selectedRecord" class="py-4">
-            <p>Employee: {{ selectedRecord.name }}</p>
-            <p>Date: {{ formatDate(selectedRecord.date) }}</p>
-            <p>Sign In: {{ selectedRecord.signIn }}</p>
-            <p>Sign Out: {{ selectedRecord.signOut }}</p>
-            <p>Department: {{ selectedRecord.department }}</p>
-            <p>Status: {{ selectedRecord.status }}</p>
+          <div
+            class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
+          ></div>
+          <div v-if="selectedRecord" class="pt-4 flex flex-col gap-2">
+            <div class="flex flex-row">
+              <div class="w-40 text-gray-500">Employee</div>
+              <div class="">{{ selectedRecord.name }}</div>
+            </div>
+            <div class="flex flex-row">
+              <div class="w-40 text-gray-500">Date</div>
+              <div class="">{{ formatDate(selectedRecord.date) }}</div>
+            </div>
+            <div class="flex flex-row">
+              <div class="w-40 text-gray-500">Sign In</div>
+              <div class="">{{ selectedRecord.signIn }}</div>
+            </div>
+            <div class="flex flex-row">
+              <div class="w-40 text-gray-500">Sign Out</div>
+              <div class="">{{ selectedRecord.signOut }}</div>
+            </div>
+            <div class="flex flex-row">
+              <div class="w-40 text-gray-500">Department</div>
+              <div class="">{{ selectedRecord.department }}</div>
+            </div>
+            <div class="flex flex-row">
+              <div class="w-40 text-gray-500">Status</div>
+              <div class="">{{ selectedRecord.status }}</div>
+            </div>
           </div>
           <div class="modal-action">
-            <button class="btn" @click="showViewModal = false">Close</button>
+            <button
+              class="btn bg-gray-200 text-gray-600 border-none shadow-none"
+              @click="showViewModal = false"
+            >
+              Close
+            </button>
           </div>
         </div>
       </dialog>
 
       <!-- Delete Confirmation Modal -->
       <dialog :open="showDeleteModal" class="modal">
-        <div class="modal-box">
+        <div class="modal-box bg-white text-black">
           <h3 class="font-bold text-lg">Confirm Delete</h3>
           <p class="py-4">Are you sure you want to delete this record?</p>
           <div class="modal-action">
             <button class="btn btn-error" @click="confirmDelete">Delete</button>
-            <button class="btn" @click="showDeleteModal = false">Cancel</button>
+            <button
+              class="btn bg-gray-200 text-gray-600 border-none shadow-none"
+              @click="showDeleteModal = false"
+            >
+              Cancel
+            </button>
           </div>
         </div>
       </dialog>
@@ -387,7 +445,7 @@ const confirmDelete = () => {
 
     <!-- Add Attendance -->
     <input type="radio" name="my_tabs_2" class="tab" aria-label="Add Attendance" />
-    <div class="tab-content bg-bgColor p-10 min-h-[600px]">
+    <div class="tab-content bg-white p-10 min-h-[600px]">
       <div class="form-container flex justify-center items-center">
         <div
           class="form-group flex flex-col w-1/3 bg-white h-[550px] p-6 justify-between shadow-lg border border-gray-200/50"
@@ -395,7 +453,7 @@ const confirmDelete = () => {
           <div class="title">
             <h1 class="text-black text-2xl">Add Attendance</h1>
           </div>
-          <div class="form-group">
+          <div class="form-group overflow-y-auto">
             <fieldset class="fieldset">
               <div class="form-control">
                 <legend class="fieldset-legend text-black">Employee name</legend>
@@ -483,7 +541,7 @@ const confirmDelete = () => {
               </div>
             </fieldset>
           </div>
-          <div class="action-buttons flex justify-end">
+          <div class="action-buttons flex justify-end mt-5">
             <button
               @click="handleSubmit"
               class="btn bg-primaryColor text-white border-none hover:bg-primaryColor/80"
@@ -501,25 +559,46 @@ const confirmDelete = () => {
 
     <!-- Confirmation Modal -->
     <dialog :open="showConfirmModal" class="modal">
-      <div class="modal-box">
+      <div class="modal-box bg-white text-black">
         <h3 class="font-bold text-lg">Confirm Attendance</h3>
-        <div class="py-4">
-          <p class="mb-2">Please confirm the following attendance details:</p>
-          <div class="text-sm space-y-1">
-            <p>
-              <span class="font-semibold">Employee:</span> {{ newAttendance?.employeeName || '-' }}
-            </p>
-            <p><span class="font-semibold">Date:</span> {{ newAttendance?.date || '-' }}</p>
-            <p><span class="font-semibold">Sign In:</span> {{ newAttendance?.signIn || '-' }}</p>
-            <p><span class="font-semibold">Sign Out:</span> {{ newAttendance?.signOut || '-' }}</p>
-            <p>
-              <span class="font-semibold">Department:</span> {{ newAttendance?.department || '-' }}
-            </p>
+        <div
+          class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
+        ></div>
+        <div class="pt-4 flex flex-col gap-2">
+          <div class="flex flex-row">
+            <div class="w-40 text-gray-500">Employee</div>
+            <div class="">{{ newAttendance?.employeeName || '-' }}</div>
+          </div>
+          <div class="flex flex-row">
+            <div class="w-40 text-gray-500">Date</div>
+            <div class="">{{ newAttendance?.date || '-' }}</div>
+          </div>
+          <div class="flex flex-row">
+            <div class="w-40 text-gray-500">Sign In</div>
+            <div class="">{{ newAttendance?.signIn || '-' }}</div>
+          </div>
+          <div class="flex flex-row">
+            <div class="w-40 text-gray-500">Sign Out</div>
+            <div class="">{{ newAttendance?.signOut || '-' }}</div>
+          </div>
+          <div class="flex flex-row">
+            <div class="w-40 text-gray-500">Department</div>
+            <div class="">{{ newAttendance?.department || '-' }}</div>
           </div>
         </div>
         <div class="modal-action">
-          <button @click="confirmAndSave" class="btn btn-primary">Confirm</button>
-          <button @click="showConfirmModal = false" class="btn">Cancel</button>
+          <button
+            @click="confirmAndSave"
+            class="btn bg-primaryColor border-none shadow-none text-white"
+          >
+            Confirm
+          </button>
+          <button
+            class="btn bg-gray-200 text-gray-600 border-none shadow-none"
+            @click="showConfirmModal = false"
+          >
+            Cancel
+          </button>
         </div>
       </div>
       <form method="dialog" class="modal-backdrop">
