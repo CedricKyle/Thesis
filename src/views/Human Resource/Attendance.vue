@@ -155,7 +155,7 @@ const totalPages = computed(() =>
     <Toast :show="state.toast.show" :message="state.toast.message" :type="state.toast.type" />
 
     <!-- Tabs container with proper classes -->
-    <div class="tabs tabs-border bg-primaryColor border border-gray-200/50 max-h-[800px]">
+    <div class="tabs tabs-border bg-primaryColor border border-gray-200/50 max-h-[800px] shadow-md">
       <!-- Attendance List Tab -->
       <input type="radio" name="my_tabs_2" class="tab" aria-label="Attendance" checked="checked" />
       <div class="tab-content bg-white p-2 min-h-[600px]">
