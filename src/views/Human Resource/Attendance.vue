@@ -29,6 +29,7 @@ const state = ref({
   showViewModal: false,
   showDeleteModal: false,
   selectedRecord: null,
+  selectedDate: new Date().toISOString().split('T')[0],
   toast: {
     show: false,
     message: '',
@@ -122,6 +123,12 @@ const handleSort = (column) => {
 const filteredRecords = computed(() => {
   let records = [...attendanceRecords.value]
 
+  // Filter by selected date first
+  records = records.filter((record) => {
+    const recordDate = new Date(record.date).toISOString().split('T')[0]
+    return recordDate === state.value.selectedDate
+  })
+
   if (state.value.searchQuery) {
     const query = state.value.searchQuery.toLowerCase()
     records = records.filter(
@@ -157,10 +164,25 @@ const totalPages = computed(() =>
     <!-- Tabs container with proper classes -->
     <div class="tabs tabs-border bg-primaryColor border border-gray-200/50 max-h-[800px] shadow-md">
       <!-- Attendance List Tab -->
-      <input type="radio" name="my_tabs_2" class="tab" aria-label="Attendance" checked="checked" />
+      <input
+        type="radio"
+        name="my_tabs_2"
+        class="tab"
+        aria-label="Attendance List"
+        checked="checked"
+      />
       <div class="tab-content bg-white p-2 min-h-[600px]">
-        <!-- Search Section -->
-        <div class="flex justify-between mb-2">
+        <!-- Add this new date filter section -->
+        <div class="flex justify-between items-center gap-4 mb-4">
+          <div class="flex items-center gap-2">
+            <input
+              type="date"
+              v-model="state.selectedDate"
+              class="input input-bordered input-sm w-auto !outline-none hover:shadow-md bg-white text-black border-primaryColor"
+            />
+          </div>
+
+          <!-- Move existing search here -->
           <label class="input bg-white border-primaryColor text-black !outline-none">
             <svg class="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
               <g
