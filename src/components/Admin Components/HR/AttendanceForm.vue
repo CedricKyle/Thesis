@@ -133,11 +133,11 @@ const handleSubmit = () => {
 </template>
 
 <style scoped>
-input[type='date']::-webkit-calendar-picker-indicator,
+/* input[type='date']::-webkit-calendar-picker-indicator,
 input[type='time']::-webkit-calendar-picker-indicator {
   filter: invert(0%) brightness(0%);
   cursor: pointer;
-}
+} */
 
 .fieldset-legend {
   font-size: 0.875rem;

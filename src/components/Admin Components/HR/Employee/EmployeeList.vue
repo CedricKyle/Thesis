@@ -9,7 +9,7 @@ const store = useEmployeeStore()
 <template>
   <div class="flex flex-col gap-8 mt-4">
     <!-- search container -->
-    <label class="input bg-white border-primaryColor text-black !outline-none">
+    <label class="input-search">
       <svg class="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
         <g
           stroke-linejoin="round"

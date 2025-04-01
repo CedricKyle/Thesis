@@ -20,10 +20,19 @@
   .bg-auth {
     @apply h-screen flex items-center justify-center bg-gradient-to-t from-[#466114] via-[#dae0d0] to-white;
   }
+  .input-search {
+    @apply input bg-white border-primaryColor text-black !outline-none;
+  }
 }
 
 @layer base {
   body {
     font-family: Poppins, sans-serif;
+  }
+
+  input[type='date']::-webkit-calendar-picker-indicator,
+  input[type='time']::-webkit-calendar-picker-indicator {
+    filter: invert(0%) brightness(0%);
+    cursor: pointer;
   }
 }

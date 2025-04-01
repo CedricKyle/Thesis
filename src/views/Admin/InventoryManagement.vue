@@ -140,7 +140,7 @@ const showToast = (message) => {
   <div class="flex flex-col h-full w-full gap-5">
     <div class="action-container flex justify-between">
       <div class="search-field w-[280px]">
-        <label class="input !outline-non bg-primaryColor">
+        <label class="input-search">
           <svg class="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
             <g
               stroke-linejoin=""

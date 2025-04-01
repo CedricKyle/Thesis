@@ -235,9 +235,4 @@ const handleFileUpload = async (event) => {
 .input-field-container {
   min-height: 85px;
 }
-
-input[type='date']::-webkit-calendar-picker-indicator {
-  filter: invert(0%) brightness(0%);
-  cursor: pointer;
-}
 </style>

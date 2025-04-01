@@ -418,10 +418,3 @@ const resetForm = () => {
     />
   </div>
 </template>
-
-<style scoped>
-input[type='date']::-webkit-calendar-picker-indicator {
-  filter: invert(0%) brightness(0%);
-  cursor: pointer;
-}
-</style>
