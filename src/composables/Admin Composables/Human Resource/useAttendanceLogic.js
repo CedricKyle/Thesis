@@ -22,6 +22,11 @@ export function useAttendanceLogic() {
   }
 
   const calculateHours = (signIn, signOut) => {
+    // Return empty string if either signIn or signOut is empty/undefined
+    if (!signIn || !signOut || signIn.trim() === '' || signOut.trim() === '') {
+      return '-'
+    }
+
     const [inHours, inMinutes] = signIn.split(':')
     const [outHours, outMinutes] = signOut.split(':')
 

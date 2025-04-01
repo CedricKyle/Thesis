@@ -1,7 +1,7 @@
 <script setup>
-import { ref, computed, defineAsyncComponent, onMounted } from 'vue'
+import { ref, computed, defineAsyncComponent } from 'vue'
 import ProductForm from '@/components/Admin Components/Inventory Management/Inventory Tables/ProductForm.vue'
-import useProductManagement from '@/composables/Admin Composables/Inventory/useProductManagement'
+import { useInventoryStore } from '@/stores/inventory'
 //tables
 const Foods = defineAsyncComponent(
   () => import('@/components/Admin Components/Inventory Management/Inventory Tables/Foods.vue'),
@@ -13,7 +13,7 @@ const WetGoods = defineAsyncComponent(
   () => import('@/components/Admin Components/Inventory Management/Inventory Tables/WetGoods.vue'),
 )
 
-const { addProduct, updateProduct, deleteProduct, getProductsByCategory } = useProductManagement()
+const inventoryStore = useInventoryStore()
 
 const searchQuery = ref('')
 const selectedCategory = ref('Food Products')
@@ -39,7 +39,7 @@ const currentCategoryComponent = computed(() => {
 // Computed property for filtered products
 const filteredProducts = computed(() => {
   const query = searchQuery.value.toLowerCase()
-  const products = getProductsByCategory(selectedCategory.value)
+  const products = inventoryStore.getProductsByCategory(selectedCategory.value)
 
   if (!query) return products
 
@@ -100,7 +100,7 @@ const handleSubmit = (formData) => {
       productData.value = { ...formData }
       updateConfirmModal.value?.showModal()
     } else {
-      addProduct(formData, selectedCategory.value)
+      inventoryStore.addProduct(formData, selectedCategory.value)
       showToast(`Product successfully added to ${selectedCategory.value}!`)
       closeModal()
     }
@@ -110,14 +110,14 @@ const handleSubmit = (formData) => {
 }
 
 const proceedWithSubmit = () => {
-  updateProduct(productData.value, selectedCategory.value)
+  inventoryStore.updateProduct(productData.value, selectedCategory.value)
   showToast('Product updated successfully!')
   updateConfirmModal.value?.close()
   closeModal()
 }
 
 const handleDeleteProduct = (product) => {
-  deleteProduct(product, selectedCategory.value)
+  inventoryStore.deleteProduct(product, selectedCategory.value)
   showToast('Product deleted successfully!')
 }
 

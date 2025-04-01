@@ -105,15 +105,15 @@ const getImageUrl = (img) => {
             <div class="flex gap-2">
               <button
                 @click="handleEdit(product)"
-                class="btn btn-sm bg-primaryColor border-none hover:bg-primaryColor/80"
+                class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost"
               >
-                <SquarePen class="" />
+                <SquarePen class="h-5 w-5" />
               </button>
               <button
                 @click="handleDelete(product)"
-                class="btn btn-sm btn-error hover:bg-red-400/80 border-none"
+                class="btn btn-sm btn-circle hover:bg-red-400 border-none btn-ghost"
               >
-                <Trash2 />
+                <Trash2 class="h-5 w-5" />
               </button>
             </div>
           </td>

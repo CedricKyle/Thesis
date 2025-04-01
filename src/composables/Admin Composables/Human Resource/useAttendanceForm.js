@@ -27,7 +27,6 @@ export function useAttendanceForm() {
     const requiredFields = {
       date: 'Date',
       signIn: 'Sign in time',
-      signOut: 'Sign out time',
       department: 'Department',
     }
 
@@ -38,8 +37,8 @@ export function useAttendanceForm() {
       }
     })
 
-    // Time validation
-    if (newAttendance.value.signIn && newAttendance.value.signOut) {
+    // Time validation - only validate if signOut is provided
+    if (newAttendance.value.signOut?.trim() && newAttendance.value.signIn) {
       const isValidTime = validateTimeOrder(newAttendance.value.signIn, newAttendance.value.signOut)
       if (!isValidTime) {
         formErrors.value.signOut = 'Sign out time must be after sign in time'
