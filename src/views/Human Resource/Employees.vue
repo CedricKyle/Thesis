@@ -2,7 +2,6 @@
 import EmployeeList from '@/components/Admin Components/HR/Employee/EmployeeList.vue'
 import EmployeeForm from '@/components/Admin Components/HR/Employee/EmployeeForm.vue'
 import EmployeeView from '@/components/Admin Components/HR/Employee/EmployeeView.vue'
-import DepartmentManagement from '@/components/Admin Components/HR/Employee/DepartmentManagement.vue'
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
 
 const store = useEmployeeStore()
@@ -27,12 +26,6 @@ const store = useEmployeeStore()
       <input type="radio" name="my_tabs_2" class="tab" aria-label="Add Employee" />
       <div class="tab-content bg-white p-5">
         <EmployeeForm />
-      </div>
-
-      <!-- Department Management Tab -->
-      <input type="radio" name="my_tabs_2" class="tab" aria-label="Departments" />
-      <div class="tab-content bg-white p-2">
-        <DepartmentManagement />
       </div>
     </div>
 

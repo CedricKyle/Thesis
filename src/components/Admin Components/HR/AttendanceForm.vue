@@ -1,6 +1,7 @@
 <script setup>
 import { useAttendanceForm } from '@/composables/Admin Composables/Human Resource/useAttendanceForm'
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
+import { useAttendanceLogic } from '@/composables/Admin Composables/Human Resource/useAttendanceLogic'
 import { storeToRefs } from 'pinia'
 import { ref, computed, watch, onMounted } from 'vue'
 
@@ -13,7 +14,7 @@ const props = defineProps({
 
 const emit = defineEmits(['submit', 'showConfirm'])
 
-const { newAttendance, formErrors, validateForm } = useAttendanceForm()
+const { newAttendance, formErrors, validateForm, resetForm } = useAttendanceForm()
 
 // Get employees from employee store
 const employeeStore = useEmployeeStore()
@@ -81,26 +82,13 @@ const handleSubmit = () => {
 
     console.log('Form submitting:', attendanceData) // Debug log
     emit('show-confirm', attendanceData)
+
+    // Reset the form after successful submission
+    resetForm()
   }
 }
 
 // Add these helper functions
-function calculateWorkingHours(signIn, signOut) {
-  if (!signIn || !signOut) return '0'
-
-  const [inHours, inMinutes] = signIn.split(':')
-  const [outHours, outMinutes] = signOut.split(':')
-
-  const inTime = parseInt(inHours) * 60 + parseInt(inMinutes)
-  const outTime = parseInt(outHours) * 60 + parseInt(outMinutes)
-
-  const diffMinutes = outTime - inTime
-  const hours = Math.floor(diffMinutes / 60)
-  const minutes = diffMinutes % 60
-
-  return `${hours}.${minutes.toString().padStart(2, '0')}`
-}
-
 function calculateStatus(signIn) {
   if (!signIn) return 'Absent'
 
@@ -112,6 +100,8 @@ function calculateStatus(signIn) {
   if (signInTime <= startTime + 15) return 'Late'
   return 'Absent'
 }
+
+const { calculateHours } = useAttendanceLogic() // Import if you need to calculate hours in this component
 </script>
 
 <template>

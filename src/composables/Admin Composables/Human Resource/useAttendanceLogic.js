@@ -3,10 +3,9 @@ import { ref, computed } from 'vue'
 export function useAttendanceLogic() {
   // Time constants
   const TIME_CONSTANTS = {
-    WORK_START: 8 * 60, // 8:00 AM in minutes
-    GRACE_PERIOD: 8 * 60 + 15, // 8:15 AM in minutes
-    ABSENT_THRESHOLD: 12 * 60, // 12:00 PM in minutes
-    STANDARD_END: 17 * 60, // 5:00 PM in minutes
+    WORK_START: 8 * 60, // 8:00 AM = 480 minutes
+    GRACE_PERIOD: 8 * 60 + 15, // 8:15 AM = 495 minutes
+    STANDARD_END: 17 * 60, // 5:00 PM = 1020 minutes
   }
 
   // Utility functions
@@ -41,12 +40,27 @@ export function useAttendanceLogic() {
   }
 
   const determineStatus = (signIn) => {
+    // Only mark as absent if there's no sign-in time
+    if (!signIn || signIn.trim() === '') return 'Absent'
+
     const [hours, minutes] = signIn.split(':')
     const signInTimeInMinutes = parseInt(hours) * 60 + parseInt(minutes)
 
-    if (signInTimeInMinutes <= TIME_CONSTANTS.WORK_START) return 'Present'
-    if (signInTimeInMinutes <= TIME_CONSTANTS.GRACE_PERIOD) return 'Present'
-    if (signInTimeInMinutes >= TIME_CONSTANTS.ABSENT_THRESHOLD) return 'Absent'
+    console.log('Time check:', {
+      signIn,
+      signInTimeInMinutes,
+      gracePeriod: TIME_CONSTANTS.GRACE_PERIOD,
+      isWithinGrace: signInTimeInMinutes <= TIME_CONSTANTS.GRACE_PERIOD,
+    })
+
+    // Case 1: Sign-in within grace period (up to 8:15 AM)
+    if (signInTimeInMinutes <= TIME_CONSTANTS.GRACE_PERIOD) {
+      console.log('Should be Present - within grace period')
+      return 'Present'
+    }
+
+    // Case 2: Sign-in after grace period (will be marked as Late instead of Absent)
+    console.log('Should be Late - after grace period')
     return 'Late'
   }
 

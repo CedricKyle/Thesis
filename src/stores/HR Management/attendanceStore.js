@@ -1,8 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
+import { useAttendanceLogic } from '@/composables/Admin Composables/Human Resource/useAttendanceLogic'
 
 export const useAttendanceStore = defineStore('attendance', () => {
+  const { determineStatus, calculateHours } = useAttendanceLogic()
+
   // State
   const attendanceRecords = ref([])
   const error = ref(null)
@@ -92,6 +95,9 @@ export const useAttendanceStore = defineStore('attendance', () => {
         throw new Error('Attendance record already exists for this employee on this date')
       }
 
+      const status = determineStatus(record.signIn)
+      const workingHours = calculateHours(record.signIn, record.signOut)
+
       const newRecord = {
         id: generateId(),
         employeeId: record.employeeId,
@@ -100,8 +106,8 @@ export const useAttendanceStore = defineStore('attendance', () => {
         date: new Date(record.date),
         signIn: record.signIn,
         signOut: record.signOut,
-        workingHours: calculateWorkingHours(record.signIn, record.signOut),
-        status: calculateStatus(record.signIn),
+        workingHours: workingHours,
+        status: status,
         createdAt: new Date(),
       }
 
@@ -117,34 +123,6 @@ export const useAttendanceStore = defineStore('attendance', () => {
   }
 
   // Helper functions
-  function calculateWorkingHours(signIn, signOut) {
-    if (!signIn || !signOut) return '0'
-
-    const [inHours, inMinutes] = signIn.split(':')
-    const [outHours, outMinutes] = signOut.split(':')
-
-    const inTime = parseInt(inHours) * 60 + parseInt(inMinutes)
-    const outTime = parseInt(outHours) * 60 + parseInt(outMinutes)
-
-    const diffMinutes = outTime - inTime
-    const hours = Math.floor(diffMinutes / 60)
-    const minutes = diffMinutes % 60
-
-    return `${hours}.${minutes.toString().padStart(2, '0')}`
-  }
-
-  function calculateStatus(signIn) {
-    if (!signIn) return 'Absent'
-
-    const [hours, minutes] = signIn.split(':')
-    const signInTime = parseInt(hours) * 60 + parseInt(minutes)
-    const startTime = 8 * 60 // 8:00 AM
-
-    if (signInTime <= startTime) return 'Present'
-    if (signInTime <= startTime + 15) return 'Late'
-    return 'Late'
-  }
-
   function generateId() {
     return attendanceRecords.value.length > 0
       ? Math.max(...attendanceRecords.value.map((r) => r.id)) + 1
@@ -175,6 +153,8 @@ export const useAttendanceStore = defineStore('attendance', () => {
       attendanceRecords.value = records.map((record) => ({
         ...record,
         date: new Date(record.date),
+        status: determineStatus(record.signIn),
+        workingHours: calculateHours(record.signIn, record.signOut),
       }))
     }
   }

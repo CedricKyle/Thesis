@@ -80,10 +80,9 @@ const confirmAndSave = async () => {
   try {
     console.log('New Attendance Data:', newAttendance.value)
 
-    // No need to find employee again, we already have the data
     const attendanceData = {
       name: newAttendance.value.employeeName,
-      employeeId: newAttendance.value.employeeId, // This should now be available
+      employeeId: newAttendance.value.employeeId,
       department: newAttendance.value.department,
       date: newAttendance.value.date,
       signIn: newAttendance.value.signIn,
@@ -98,6 +97,18 @@ const confirmAndSave = async () => {
     resetForm()
     state.value.showConfirmModal = false
     showToast('Attendance added successfully')
+
+    // Reset the form in AttendanceForm component
+    if (newAttendance.value) {
+      newAttendance.value = {
+        employeeName: '',
+        employeeId: '',
+        department: '',
+        date: '',
+        signIn: '',
+        signOut: '',
+      }
+    }
   } catch (error) {
     console.error('Error adding attendance:', error)
     showToast(error.message || 'Failed to add attendance', 'error')
