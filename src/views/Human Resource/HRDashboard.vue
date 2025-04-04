@@ -39,22 +39,16 @@ const filteredStats = computed(() => {
     present: recordsForDate.filter((r) => r.status === 'Present').length,
     absent: recordsForDate.filter((r) => r.status === 'Absent').length,
     late: recordsForDate.filter((r) => r.status === 'Late').length,
-    onLeave: recordsForDate.filter((r) => r.status === 'On Leave').length,
   }
 })
 
 // Chart data based on filtered stats
 const filteredChartData = computed(() => ({
-  labels: ['Present', 'Absent', 'Late', 'On Leave'],
+  labels: ['Present', 'Absent', 'Late'],
   datasets: [
     {
-      data: [
-        filteredStats.value.present,
-        filteredStats.value.absent,
-        filteredStats.value.late,
-        filteredStats.value.onLeave,
-      ],
-      backgroundColor: ['#466114', '#ef4444', '#F87A14', '#866135'],
+      data: [filteredStats.value.present, filteredStats.value.absent, filteredStats.value.late],
+      backgroundColor: ['#466114', '#ef4444', '#F87A14'],
       borderColor: '#ffffff',
       borderWidth: 2,
       hoverOffset: 4,

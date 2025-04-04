@@ -1,5 +1,8 @@
 <script setup>
 import { useAttendanceForm } from '@/composables/Admin Composables/Human Resource/useAttendanceForm'
+import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
+import { storeToRefs } from 'pinia'
+import { ref, computed, watch, onMounted } from 'vue'
 
 const props = defineProps({
   departments: {
@@ -12,10 +15,102 @@ const emit = defineEmits(['submit', 'showConfirm'])
 
 const { newAttendance, formErrors, validateForm } = useAttendanceForm()
 
+// Get employees from employee store
+const employeeStore = useEmployeeStore()
+const { employees } = storeToRefs(employeeStore)
+
+// Map department names to match the employee store format
+const departmentMap = {
+  'HR Department': 'HR Department',
+  'Finance Department': 'Finance Department',
+  'Sales Department': 'Sales Department',
+  'Supply Chain Department': 'Supply Chain Department',
+  'CRM Department': 'CRM Department',
+}
+
+// Updated filteredEmployees computed
+const filteredEmployees = computed(() => {
+  if (!newAttendance.value.department) return []
+
+  console.log('Selected Department:', newAttendance.value.department)
+  return employees.value.filter((emp) => emp.department === newAttendance.value.department)
+})
+
+// Watch for department changes to reset selected employee
+watch(
+  () => newAttendance.value.department,
+  () => {
+    newAttendance.value.employeeName = ''
+  },
+)
+
+const isLoading = ref(false)
+const hasAvailableEmployees = computed(() => filteredEmployees.value.length > 0)
+
+// Load employees when component mounts
+onMounted(() => {
+  employeeStore.loadEmployees()
+})
+
 const handleSubmit = () => {
-  if (validateForm()) {
-    emit('showConfirm', newAttendance.value)
+  if (!hasAvailableEmployees.value) {
+    formErrors.value.employeeName = 'No employees available in selected department'
+    return
   }
+
+  if (validateForm()) {
+    // Find the selected employee from filteredEmployees
+    const selectedEmployee = filteredEmployees.value.find(
+      (emp) => emp.fullName === newAttendance.value.employeeName,
+    )
+
+    if (!selectedEmployee) {
+      formErrors.value.employeeName = 'Please select an employee'
+      return
+    }
+
+    // Important: Pass the complete data including employeeId
+    const attendanceData = {
+      employeeName: selectedEmployee.fullName,
+      employeeId: selectedEmployee.id,
+      department: newAttendance.value.department,
+      date: newAttendance.value.date,
+      signIn: newAttendance.value.signIn,
+      signOut: newAttendance.value.signOut,
+    }
+
+    console.log('Form submitting:', attendanceData) // Debug log
+    emit('show-confirm', attendanceData)
+  }
+}
+
+// Add these helper functions
+function calculateWorkingHours(signIn, signOut) {
+  if (!signIn || !signOut) return '0'
+
+  const [inHours, inMinutes] = signIn.split(':')
+  const [outHours, outMinutes] = signOut.split(':')
+
+  const inTime = parseInt(inHours) * 60 + parseInt(inMinutes)
+  const outTime = parseInt(outHours) * 60 + parseInt(outMinutes)
+
+  const diffMinutes = outTime - inTime
+  const hours = Math.floor(diffMinutes / 60)
+  const minutes = diffMinutes % 60
+
+  return `${hours}.${minutes.toString().padStart(2, '0')}`
+}
+
+function calculateStatus(signIn) {
+  if (!signIn) return 'Absent'
+
+  const [hours, minutes] = signIn.split(':')
+  const signInTime = parseInt(hours) * 60 + parseInt(minutes)
+  const startTime = 8 * 60 // 8:00 AM
+
+  if (signInTime <= startTime) return 'Present'
+  if (signInTime <= startTime + 15) return 'Late'
+  return 'Absent'
 }
 </script>
 
@@ -29,19 +124,45 @@ const handleSubmit = () => {
       </div>
       <div class="form-group overflow-y-auto">
         <fieldset class="fieldset">
+          <!-- Department -->
+          <div class="form-control">
+            <legend class="fieldset-legend text-black">Department</legend>
+            <select
+              v-model="newAttendance.department"
+              class="select focus:outline-none bg-white border text-black"
+              :class="{
+                'border-red-500': formErrors.department,
+                'border-gray-200': !formErrors.department,
+              }"
+            >
+              <option value="" disabled selected>Select Department</option>
+              <option value="HR Department">HR Department</option>
+              <option value="Finance Department">Finance Department</option>
+              <option value="Sales Department">Sales Department</option>
+              <option value="Supply Chain Department">Supply Chain Department</option>
+              <option value="CRM Department">CRM Department</option>
+            </select>
+            <span v-if="formErrors.department" class="text-red-500 text-sm mt-1">
+              {{ formErrors.department }}
+            </span>
+          </div>
           <!-- Employee name -->
           <div class="form-control">
-            <legend class="fieldset-legend text-black">Employee name</legend>
-            <input
+            <legend class="fieldset-legend text-black">Employee</legend>
+            <select
               v-model="newAttendance.employeeName"
-              type="text"
-              class="input focus:outline-none bg-white border text-black"
+              class="select focus:outline-none bg-white border text-black disabled:opacity-50"
               :class="{
                 'border-red-500': formErrors.employeeName,
                 'border-gray-200': !formErrors.employeeName,
               }"
-              placeholder="Enter employee name"
-            />
+              :disabled="!newAttendance.department"
+            >
+              <option value="" disabled selected>Select Employee</option>
+              <option v-for="emp in filteredEmployees" :key="emp.id" :value="emp.fullName">
+                {{ emp.fullName }}
+              </option>
+            </select>
             <span v-if="formErrors.employeeName" class="text-red-500 text-sm mt-1">
               {{ formErrors.employeeName }}
             </span>
@@ -97,27 +218,6 @@ const handleSubmit = () => {
               {{ formErrors.date }}
             </span>
           </div>
-
-          <!-- Department -->
-          <div class="form-control">
-            <legend class="fieldset-legend text-black">Department</legend>
-            <select
-              v-model="newAttendance.department"
-              class="select focus:outline-none bg-white border text-black"
-              :class="{
-                'border-red-500': formErrors.department,
-                'border-gray-200': !formErrors.department,
-              }"
-            >
-              <option value="" disabled selected>Select Department</option>
-              <option v-for="dept in departments" :key="dept" :value="dept">
-                {{ dept }}
-              </option>
-            </select>
-            <span v-if="formErrors.department" class="text-red-500 text-sm mt-1">
-              {{ formErrors.department }}
-            </span>
-          </div>
         </fieldset>
       </div>
       <div class="action-buttons flex justify-end mt-5">
@@ -130,15 +230,15 @@ const handleSubmit = () => {
       </div>
     </div>
   </div>
+
+  <!-- Add debug info temporarily -->
+  <div v-if="newAttendance.department" class="text-sm text-gray-600">
+    <p>Selected Department: {{ newAttendance.department }}</p>
+    <p>Available Employees: {{ filteredEmployees.length }}</p>
+  </div>
 </template>
 
 <style scoped>
-/* input[type='date']::-webkit-calendar-picker-indicator,
-input[type='time']::-webkit-calendar-picker-indicator {
-  filter: invert(0%) brightness(0%);
-  cursor: pointer;
-} */
-
 .fieldset-legend {
   font-size: 0.875rem;
   margin-bottom: 0.5rem;

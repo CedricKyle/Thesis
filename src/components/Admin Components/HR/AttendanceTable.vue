@@ -23,7 +23,7 @@ const emit = defineEmits(['sort', 'view', 'delete'])
         <tr>
           <th @click="emit('sort', 'id')" class="cursor-pointer">
             <div class="flex items-center gap-1">
-              Id
+              No.
               <ArrowUpDown
                 class="h-4 w-4"
                 :class="{

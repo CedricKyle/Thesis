@@ -1,62 +1,79 @@
 import { ref } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useAttendanceLogic } from './useAttendanceLogic'
+import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
 
 export function useAttendanceForm() {
   const { calculateHours, determineStatus } = useAttendanceLogic()
+  const employeeStore = useEmployeeStore()
+  const { employees } = storeToRefs(employeeStore)
 
   const newAttendance = ref({
     employeeName: '',
+    department: '',
     signIn: '',
     signOut: '',
     date: '',
-    department: '',
   })
 
   const formErrors = ref({})
-  const departments = ['HR', 'Finance', 'Sales', 'Supply Chain', 'CRM']
+  const departments = [
+    'HR Department',
+    'Finance Department',
+    'Sales Department',
+    'Supply Chain Department',
+    'CRM Department',
+  ]
   const validateForm = () => {
     formErrors.value = {}
     let isValid = true
 
-    if (!newAttendance.value.employeeName?.trim()) {
-      formErrors.value.employeeName = 'Employee name is required'
+    // Required fields validation
+    if (!newAttendance.value.department) {
+      formErrors.value.department = 'Department is required'
       isValid = false
     }
 
-    // Required field validation
-    const requiredFields = {
-      date: 'Date',
-      signIn: 'Sign in time',
-      department: 'Department',
-    }
-
-    Object.entries(requiredFields).forEach(([field, label]) => {
-      if (!newAttendance.value[field]?.trim()) {
-        formErrors.value[field] = `${label} is required`
+    if (!newAttendance.value.employeeName) {
+      formErrors.value.employeeName = 'Employee is required'
+      isValid = false
+    } else {
+      // Validate that the employee exists
+      const employeeExists = employees.value.some(
+        (emp) => emp.fullName === newAttendance.value.employeeName,
+      )
+      if (!employeeExists) {
+        formErrors.value.employeeName = 'Selected employee does not exist'
         isValid = false
       }
-    })
+    }
 
-    // Time validation - only validate if signOut is provided
-    if (newAttendance.value.signOut?.trim() && newAttendance.value.signIn) {
-      const isValidTime = validateTimeOrder(newAttendance.value.signIn, newAttendance.value.signOut)
-      if (!isValidTime) {
+    if (!newAttendance.value.signIn) {
+      formErrors.value.signIn = 'Sign in time is required'
+      isValid = false
+    }
+
+    // For date, only check if it's not empty
+    if (!newAttendance.value.date) {
+      formErrors.value.date = 'Date is required'
+      isValid = false
+    }
+
+    // Time validation if both sign in and sign out are provided
+    if (newAttendance.value.signIn && newAttendance.value.signOut) {
+      const [inHours, inMinutes] = newAttendance.value.signIn.split(':')
+      const [outHours, outMinutes] = newAttendance.value.signOut.split(':')
+
+      const inTime = parseInt(inHours) * 60 + parseInt(inMinutes)
+      const outTime = parseInt(outHours) * 60 + parseInt(outMinutes)
+
+      if (outTime <= inTime) {
         formErrors.value.signOut = 'Sign out time must be after sign in time'
         isValid = false
       }
     }
 
     return isValid
-  }
-
-  const validateTimeOrder = (signIn, signOut) => {
-    const [inHours, inMinutes] = signIn.split(':')
-    const [outHours, outMinutes] = signOut.split(':')
-
-    const inTime = parseInt(inHours) * 60 + parseInt(inMinutes)
-    const outTime = parseInt(outHours) * 60 + parseInt(outMinutes)
-
-    return outTime > inTime
   }
 
   const resetForm = () => {
@@ -76,5 +93,6 @@ export function useAttendanceForm() {
     departments,
     validateForm,
     resetForm,
+    employees,
   }
 }

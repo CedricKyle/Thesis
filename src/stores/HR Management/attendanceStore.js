@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
 
 export const useAttendanceStore = defineStore('attendance', () => {
   // State
@@ -71,6 +72,79 @@ export const useAttendanceStore = defineStore('attendance', () => {
   }))
 
   // Actions
+  async function addRecord(record) {
+    try {
+      console.log('Record received:', record)
+
+      if (!record.employeeId || !record.name) {
+        throw new Error('Employee information is required')
+      }
+
+      // Check for duplicate attendance
+      const existingRecord = attendanceRecords.value.find(
+        (att) =>
+          att.employeeId === record.employeeId &&
+          new Date(att.date).toISOString().split('T')[0] ===
+            new Date(record.date).toISOString().split('T')[0],
+      )
+
+      if (existingRecord) {
+        throw new Error('Attendance record already exists for this employee on this date')
+      }
+
+      const newRecord = {
+        id: generateId(),
+        employeeId: record.employeeId,
+        name: record.name,
+        department: record.department,
+        date: new Date(record.date),
+        signIn: record.signIn,
+        signOut: record.signOut,
+        workingHours: calculateWorkingHours(record.signIn, record.signOut),
+        status: calculateStatus(record.signIn),
+        createdAt: new Date(),
+      }
+
+      console.log('New record to be added:', newRecord)
+
+      attendanceRecords.value.push(newRecord)
+      saveToLocalStorage()
+      return newRecord
+    } catch (error) {
+      console.error('Failed to add record:', error)
+      throw error
+    }
+  }
+
+  // Helper functions
+  function calculateWorkingHours(signIn, signOut) {
+    if (!signIn || !signOut) return '0'
+
+    const [inHours, inMinutes] = signIn.split(':')
+    const [outHours, outMinutes] = signOut.split(':')
+
+    const inTime = parseInt(inHours) * 60 + parseInt(inMinutes)
+    const outTime = parseInt(outHours) * 60 + parseInt(outMinutes)
+
+    const diffMinutes = outTime - inTime
+    const hours = Math.floor(diffMinutes / 60)
+    const minutes = diffMinutes % 60
+
+    return `${hours}.${minutes.toString().padStart(2, '0')}`
+  }
+
+  function calculateStatus(signIn) {
+    if (!signIn) return 'Absent'
+
+    const [hours, minutes] = signIn.split(':')
+    const signInTime = parseInt(hours) * 60 + parseInt(minutes)
+    const startTime = 8 * 60 // 8:00 AM
+
+    if (signInTime <= startTime) return 'Present'
+    if (signInTime <= startTime + 15) return 'Late'
+    return 'Late'
+  }
+
   function generateId() {
     return attendanceRecords.value.length > 0
       ? Math.max(...attendanceRecords.value.map((r) => r.id)) + 1
@@ -82,23 +156,6 @@ export const useAttendanceStore = defineStore('attendance', () => {
     setTimeout(() => {
       error.value = null
     }, 3000)
-  }
-
-  async function addRecord(record) {
-    try {
-      const newRecord = {
-        id: generateId(),
-        ...record,
-        date: new Date(record.date),
-        createdAt: new Date(),
-      }
-      attendanceRecords.value.push(newRecord)
-      saveToLocalStorage()
-      return newRecord
-    } catch (error) {
-      setError('Failed to add record')
-      throw error
-    }
   }
 
   async function deleteRecord(id) {
@@ -123,7 +180,12 @@ export const useAttendanceStore = defineStore('attendance', () => {
   }
 
   function saveToLocalStorage() {
-    localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords.value))
+    try {
+      localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords.value))
+    } catch (error) {
+      console.error('Error saving to localStorage:', error)
+      throw error
+    }
   }
 
   function handleSort(column) {

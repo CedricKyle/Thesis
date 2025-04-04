@@ -8,11 +8,13 @@ import AttendanceTable from '@/components/Admin Components/HR/AttendanceTable.vu
 import Pagination from '@/components/Admin Components/HR/Pagination.vue'
 import Toast from '@/components/Admin Components/HR/Toast.vue'
 import AttendanceForm from '@/components/Admin Components/HR/AttendanceForm.vue'
+import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
 
 // Store setup
 const attendanceStore = useAttendanceStore()
 const { attendanceRecords } = storeToRefs(attendanceStore)
 const { addRecord, deleteRecord, loadRecords } = attendanceStore
+const error = ref('')
 
 // Form and logic setup
 const { newAttendance, formErrors, departments, validateForm, resetForm } =
@@ -39,9 +41,15 @@ const state = ref({
   },
 })
 
+// Employee store setup
+const employeeStore = useEmployeeStore()
+const { employees } = storeToRefs(employeeStore)
+
 // Load records when component mounts
 onMounted(() => {
   loadRecords()
+  employeeStore.loadEmployees()
+  console.log('Available employees:', employees.value)
 })
 
 // Toast handlers
@@ -58,8 +66,11 @@ const showToast = (message, type = 'success') => {
 
 // Form submission handler
 const handleFormSubmit = (formData) => {
-  // Store the form data temporarily
+  console.log('Form data received:', formData)
+  console.log('Employee name from form:', formData.employeeName)
+  // Store the form data
   newAttendance.value = formData
+  console.log('newAttendance after assignment:', newAttendance.value)
   // Show confirmation modal
   state.value.showConfirmModal = true
 }
@@ -67,25 +78,29 @@ const handleFormSubmit = (formData) => {
 // Update confirmAndSave
 const confirmAndSave = async () => {
   try {
-    const workingHours = calculateHours(newAttendance.value.signIn, newAttendance.value.signOut)
-    const status = determineStatus(newAttendance.value.signIn)
+    console.log('New Attendance Data:', newAttendance.value)
 
-    await addRecord({
+    // No need to find employee again, we already have the data
+    const attendanceData = {
       name: newAttendance.value.employeeName,
-      date: new Date(newAttendance.value.date),
+      employeeId: newAttendance.value.employeeId, // This should now be available
+      department: newAttendance.value.department,
+      date: newAttendance.value.date,
       signIn: newAttendance.value.signIn,
       signOut: newAttendance.value.signOut,
-      workingHours,
-      department: newAttendance.value.department,
-      status,
-    })
+    }
+
+    console.log('Sending attendance data:', attendanceData)
+
+    await addRecord(attendanceData)
 
     // Reset form and close modal
     resetForm()
     state.value.showConfirmModal = false
     showToast('Attendance added successfully')
   } catch (error) {
-    showToast('Failed to add attendance', 'error')
+    console.error('Error adding attendance:', error)
+    showToast(error.message || 'Failed to add attendance', 'error')
   }
 }
 
@@ -312,6 +327,10 @@ console.log(filteredRecords.value)
             <div class="">{{ newAttendance?.employeeName || '-' }}</div>
           </div>
           <div class="flex flex-row">
+            <div class="w-40 text-gray-500">Department</div>
+            <div class="">{{ newAttendance?.department || '-' }}</div>
+          </div>
+          <div class="flex flex-row">
             <div class="w-40 text-gray-500">Date</div>
             <div class="">{{ newAttendance?.date || '-' }}</div>
           </div>
@@ -322,10 +341,6 @@ console.log(filteredRecords.value)
           <div class="flex flex-row">
             <div class="w-40 text-gray-500">Sign Out</div>
             <div class="">{{ newAttendance?.signOut || '-' }}</div>
-          </div>
-          <div class="flex flex-row">
-            <div class="w-40 text-gray-500">Department</div>
-            <div class="">{{ newAttendance?.department || '-' }}</div>
           </div>
         </div>
         <div class="modal-action">
@@ -344,6 +359,11 @@ console.log(filteredRecords.value)
         </div>
       </div>
     </dialog>
+
+    <!-- Show error if exists -->
+    <div v-if="error" class="alert alert-error">
+      {{ error }}
+    </div>
   </div>
 </template>
 

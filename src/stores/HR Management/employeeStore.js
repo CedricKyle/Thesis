@@ -46,7 +46,49 @@ export const useEmployeeStore = defineStore('employee', () => {
 
   // Actions
   function addEmployee(employeeData) {
-    employees.value.push(employeeData)
+    try {
+      const newEmployee = {
+        ...employeeData,
+        createdAt: new Date().toISOString(),
+        status: 'Active', // You might want to add a status field
+      }
+
+      employees.value.push(newEmployee)
+      saveToLocalStorage()
+      return newEmployee
+    } catch (error) {
+      console.error('Error adding employee:', error)
+      throw error
+    }
+  }
+
+  function updateEmployee(id, updates) {
+    try {
+      const index = employees.value.findIndex((emp) => emp.id === id)
+      if (index !== -1) {
+        employees.value[index] = {
+          ...employees.value[index],
+          ...updates,
+          updatedAt: new Date().toISOString(),
+        }
+        saveToLocalStorage()
+        return employees.value[index]
+      }
+      return null
+    } catch (error) {
+      console.error('Error updating employee:', error)
+      throw error
+    }
+  }
+
+  function deleteEmployee(id) {
+    try {
+      employees.value = employees.value.filter((emp) => emp.id !== id)
+      saveToLocalStorage()
+    } catch (error) {
+      console.error('Error deleting employee:', error)
+      throw error
+    }
   }
 
   function setSelectedEmployee(employee) {
@@ -68,6 +110,43 @@ export const useEmployeeStore = defineStore('employee', () => {
     }
   }
 
+  // Local Storage Functions
+  function saveToLocalStorage() {
+    try {
+      localStorage.setItem('employees', JSON.stringify(employees.value))
+    } catch (error) {
+      console.error('Error saving to localStorage:', error)
+      throw error
+    }
+  }
+
+  function loadEmployees() {
+    try {
+      const savedEmployees = localStorage.getItem('employees')
+      if (savedEmployees) {
+        employees.value = JSON.parse(savedEmployees)
+      }
+    } catch (error) {
+      console.error('Error loading employees:', error)
+      employees.value = []
+    }
+  }
+
+  // Search and Filter Functions
+  function searchEmployees(query) {
+    searchQuery.value = query
+  }
+
+  function resetFilters() {
+    searchQuery.value = ''
+    currentPage.value = 1
+    sortBy.value = 'id'
+    sortDesc.value = false
+  }
+
+  // Initialize employees from localStorage when store is created
+  loadEmployees()
+
   return {
     // State
     employees,
@@ -86,8 +165,13 @@ export const useEmployeeStore = defineStore('employee', () => {
 
     // Actions
     addEmployee,
+    updateEmployee,
+    deleteEmployee,
     setSelectedEmployee,
     closeViewModal,
     handleSort,
+    loadEmployees,
+    searchEmployees,
+    resetFilters,
   }
 })
