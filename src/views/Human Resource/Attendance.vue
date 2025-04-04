@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useAttendanceStore } from '@/composables/Admin Composables/Human Resource/useAttendanceStore'
+import { storeToRefs } from 'pinia'
+import { useAttendanceStore } from '@/stores/HR Management/attendanceStore'
 import { useAttendanceForm } from '@/composables/Admin Composables/Human Resource/useAttendanceForm'
 import { useAttendanceLogic } from '@/composables/Admin Composables/Human Resource/useAttendanceLogic'
 import AttendanceTable from '@/components/Admin Components/HR/AttendanceTable.vue'
@@ -10,7 +11,8 @@ import AttendanceForm from '@/components/Admin Components/HR/AttendanceForm.vue'
 
 // Store setup
 const attendanceStore = useAttendanceStore()
-const { attendanceRecords, addRecord, deleteRecord, loadRecords } = attendanceStore
+const { attendanceRecords } = storeToRefs(attendanceStore)
+const { addRecord, deleteRecord, loadRecords } = attendanceStore
 
 // Form and logic setup
 const { newAttendance, formErrors, departments, validateForm, resetForm } =
@@ -121,6 +123,8 @@ const handleSort = (column) => {
 
 // Computed properties
 const filteredRecords = computed(() => {
+  if (!attendanceRecords.value) return []
+
   let records = [...attendanceRecords.value]
 
   // Filter by selected date first
@@ -155,6 +159,8 @@ const paginatedRecords = computed(() => {
 const totalPages = computed(() =>
   Math.ceil(filteredRecords.value.length / state.value.itemsPerPage),
 )
+
+console.log(filteredRecords.value)
 </script>
 
 <template>

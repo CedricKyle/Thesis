@@ -1,5 +1,5 @@
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
 import { useEmployeeValidation } from '@/composables/Admin Composables/Human Resource/useEmployeeValidation'
 import { useProfileImage } from '@/composables/Admin Composables/Human Resource/useProfileImage'
@@ -40,6 +40,30 @@ const newEmployee = ref({
   },
   profileImage: '',
 })
+
+//department jobs
+const departmentJobs = {
+  'HR Department': ['HR Manager'],
+  'Finance Department': ['Accountant'],
+  'Sales Department': ['Sales Manager'],
+  'Customer Service Department': ['Customer Service Representative'],
+  'Supply Chain Department': ['Supply Chain Manager'],
+}
+
+const availableJobs = computed(() => {
+  if (!newEmployee.value.department) {
+    return []
+  }
+  return departmentJobs[newEmployee.value.department] || []
+})
+
+watch(
+  () => newEmployee.value.department,
+  (newDepartment) => {
+    //Reset job title when department changes
+    newEmployee.value.jobTitle = ''
+  },
+)
 
 // Watch for profile image changes
 watch(profileImage, (newValue) => {
@@ -224,15 +248,14 @@ const resetForm = () => {
             <legend class="fieldset-legend text-black text-xs">Job Title</legend>
             <select
               v-model="newEmployee.jobTitle"
-              class="select focus:outline-none bg-white border-black text-black"
+              class="select focus:outline-none bg-white border-black text-black disabled:opacity-50"
               :class="{ 'border-red-500': formErrors.professional.jobTitle }"
+              :disabled="!newEmployee.department"
             >
               <option disabled value="">Select Job Title</option>
-              <option>HR Manager</option>
-              <option>Financial Analyst</option>
-              <option>Sales Manager</option>
-              <option>Supply Chain Manager</option>
-              <option>Customer Service Representative</option>
+              <option v-for="job in availableJobs" :key="job" :value="job">
+                {{ job }}
+              </option>
             </select>
             <span v-if="formErrors.professional.jobTitle" class="text-red-500 text-xs mt-1">
               {{ formErrors.professional.jobTitle }}
@@ -333,7 +356,7 @@ const resetForm = () => {
             <input
               v-model="newEmployee.email"
               type="email"
-              placeholder="@example.com"
+              placeholder=""
               class="border-b-1 w-full outline-none border-gray-300 p-0 pt-3 text-black"
               :class="{ 'border-red-500': formErrors.personal.email }"
             />

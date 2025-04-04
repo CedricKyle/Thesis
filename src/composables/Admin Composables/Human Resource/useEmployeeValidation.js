@@ -93,6 +93,17 @@ export function useEmployeeValidation() {
       errors.maritalStatus = ''
     }
 
+    const emailRegex = /^[^\s@]+@gmail\.com$/
+    if (!employee.email) {
+      errors.email = 'Email is required'
+      isValid = false
+    } else if (!emailRegex.test(employee.email)) {
+      errors.email = 'Only Gmail accounts are allowed (countryside@gmail.com)'
+      isValid = false
+    } else {
+      errors.email = ''
+    }
+
     const phoneRegex = /^09\d{9}$/
     if (!employee.contactNumber) {
       errors.contactNumber = 'Contact number is required'
@@ -100,19 +111,11 @@ export function useEmployeeValidation() {
     } else if (!phoneRegex.test(employee.contactNumber)) {
       errors.contactNumber = 'Invalid Philippine contact number (format: 09XXXXXXXXX)'
       isValid = false
+    } else if (employee.contactNumber === employee.emergencyContact?.contactNumber) {
+      errors.contactNumber = 'Contact number cannot be the same as emergency contact number'
+      isValid = false
     } else {
       errors.contactNumber = ''
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!employee.email) {
-      errors.email = 'Email is required'
-      isValid = false
-    } else if (!emailRegex.test(employee.email)) {
-      errors.email = 'Invalid email format'
-      isValid = false
-    } else {
-      errors.email = ''
     }
 
     if (!employee.address) {
@@ -142,6 +145,9 @@ export function useEmployeeValidation() {
       isValid = false
     } else if (!phoneRegex.test(employee.emergencyContact.contactNumber)) {
       errors.contactNumber = 'Invalid Philippine contact number (format: 09XXXXXXXXX)'
+      isValid = false
+    } else if (employee.emergencyContact.contactNumber === employee.contactNumber) {
+      errors.contactNumber = 'Emergency contact number cannot be the same as primary contact number'
       isValid = false
     } else {
       errors.contactNumber = ''
@@ -175,7 +181,7 @@ export function useEmployeeValidation() {
 
   const VALIDATION_RULES = {
     PHONE_REGEX: /^09\d{9}$/,
-    EMAIL_REGEX: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+    EMAIL_REGEX: /^[^\s@]+@gmail\.com$/,
     MIN_NAME_LENGTH: 2,
     MIN_AGE: 18,
   }

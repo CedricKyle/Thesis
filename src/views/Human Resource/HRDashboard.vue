@@ -12,7 +12,8 @@ import { computed, ref, watch, onMounted } from 'vue'
 // Import Chart.js components
 import { Pie } from 'vue-chartjs'
 import { Chart as ChartJS, Title, Tooltip, Legend, ArcElement, CategoryScale } from 'chart.js'
-import { useAttendanceStore } from '@/composables/Admin Composables/Human Resource/useAttendanceStore'
+import { useAttendanceStore } from '@/stores/HR Management/attendanceStore'
+import { storeToRefs } from 'pinia'
 
 // Register Chart.js components
 ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale)
@@ -21,10 +22,13 @@ ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale)
 const selectedDate = ref(new Date().toISOString().split('T')[0]) // Default to today
 
 const attendanceStore = useAttendanceStore()
-const { attendanceRecords, stats, loadRecords } = attendanceStore
+const { attendanceRecords } = storeToRefs(attendanceStore)
+const { loadRecords } = attendanceStore
 
 // Filtered stats based on selected date
 const filteredStats = computed(() => {
+  if (!attendanceRecords.value) return { present: 0, absent: 0, late: 0, onLeave: 0 }
+
   const dateToCheck = new Date(selectedDate.value)
   const recordsForDate = attendanceRecords.value.filter((record) => {
     const recordDate = new Date(record.date)
@@ -351,5 +355,35 @@ input[type='date'] {
 input[type='date']::-webkit-calendar-picker-indicator {
   filter: invert(0%) brightness(0%);
   cursor: pointer;
+}
+
+/* For both Webkit browsers (Chrome, Safari, Edge) */
+.todo-content::-webkit-scrollbar,
+.todo-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.todo-content::-webkit-scrollbar-track,
+.todo-list::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.todo-content::-webkit-scrollbar-thumb,
+.todo-list::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.todo-content::-webkit-scrollbar-thumb:hover,
+.todo-list::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* For Firefox */
+.todo-content,
+.todo-list {
+  scrollbar-width: thin;
+  scrollbar-color: #888 #f1f1f1;
 }
 </style>
