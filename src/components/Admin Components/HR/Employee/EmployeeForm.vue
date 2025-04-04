@@ -328,8 +328,6 @@ const resetForm = () => {
               <option disabled value="">Select Marital Status</option>
               <option>Single</option>
               <option>Married</option>
-              <option>Divorced</option>
-              <option>Widowed</option>
             </select>
             <span v-if="formErrors.personal.maritalStatus" class="text-red-500 text-xs mt-1">
               {{ formErrors.personal.maritalStatus }}
@@ -341,7 +339,7 @@ const resetForm = () => {
             <input
               v-model="newEmployee.contactNumber"
               type="text"
-              placeholder="09XXXXXXXXX"
+              placeholder="09xxxxxxxxx"
               maxlength="11"
               class="border-b-1 w-full outline-none border-gray-300 p-0 pt-3 text-black"
               :class="{ 'border-red-500': formErrors.personal.contactNumber }"
@@ -399,7 +397,7 @@ const resetForm = () => {
             <input
               v-model="newEmployee.emergencyContact.contactNumber"
               type="text"
-              placeholder="09XXXXXXXXX"
+              placeholder="09xxxxxxxxx"
               maxlength="11"
               class="border-b-1 w-full outline-none border-gray-300 p-0 pt-3 text-black"
               :class="{ 'border-red-500': formErrors.emergencyContact.contactNumber }"

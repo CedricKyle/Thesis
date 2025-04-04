@@ -15,12 +15,16 @@ const store = useEmployeeStore()
 
       <div v-if="store.selectedEmployee" class="pt-4 flex flex-col gap-2">
         <!-- Employee Image -->
-        <div class="flex justify-center mb-4">
-          <div class="w-24 h-24 rounded-full overflow-hidden">
+        <div class="flex justify-center mb-4 flex-col items-center">
+          <div class="w-24 h-24 rounded-full overflow-hidden ring ring-secondaryColor">
             <img
               :src="store.selectedEmployee.profileImage || profilePlaceholder"
               class="w-full h-full object-cover"
             />
+          </div>
+          <div class="name-container">
+            <h3 class="font-bold text-lg">{{ store.selectedEmployee.fullName }}</h3>
+            <p class="text-gray-500 text-sm text-center">{{ store.selectedEmployee.jobTitle }}</p>
           </div>
         </div>
 

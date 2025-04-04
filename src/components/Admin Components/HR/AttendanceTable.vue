@@ -34,12 +34,22 @@ const emit = defineEmits(['sort', 'view', 'delete'])
               />
             </div>
           </th>
-          <!-- <th>Date</th> -->
-          <th>Department</th>
+          <th @click="emit('sort', 'department')" class="cursor-pointer">
+            <div class="flex items-start justify-start gap-1">
+              Department
+              <ArrowUpDown
+                class="h-4 w-4"
+                :class="{
+                  'opacity-100': sortBy === 'department',
+                  'opacity-50': sortBy !== 'department',
+                  'rotate-180': sortBy === 'department' && sortDesc,
+                }"
+              />
+            </div>
+          </th>
           <th>Sign In</th>
           <th>Sign Out</th>
           <th>Working Hours</th>
-
           <th>Status</th>
           <th>Action</th>
         </tr>

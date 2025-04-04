@@ -149,28 +149,29 @@ const handleSort = (column) => {
 
 // Computed properties
 const filteredRecords = computed(() => {
-  // Get all employees
-  const allEmployees = employees.value || []
+  if (!attendanceRecords.value || !employees.value) return []
 
-  // Get existing attendance records for the selected date
-  let existingRecords = attendanceRecords.value.filter((record) => {
+  // Get all employees first
+  const allEmployees = employees.value
+
+  // Get records for the selected date
+  const dateRecords = attendanceRecords.value.filter((record) => {
     const recordDate = new Date(record.date).toISOString().split('T')[0]
     return recordDate === state.value.selectedDate
   })
 
-  // Create a map of employees who already have attendance records
-  const attendanceMap = new Map(existingRecords.map((record) => [record.employeeId, record]))
+  // Create a map of employees who have attendance records
+  const attendanceMap = new Map(dateRecords.map((record) => [record.employeeId, record]))
 
-  // Create records for all employees, including those without attendance
-  const allRecords = allEmployees.map((employee) => {
+  // Create a complete list of records, including absent employees
+  let records = allEmployees.map((employee) => {
     const existingRecord = attendanceMap.get(employee.id)
-
     if (existingRecord) {
       return existingRecord
     } else {
       // Create an "absent" record for employees without attendance
       return {
-        id: `absent-${employee.id}`, // Temporary ID for display purposes
+        id: `absent-${employee.id}`,
         employeeId: employee.id,
         name: employee.fullName,
         department: employee.department,
@@ -184,22 +185,30 @@ const filteredRecords = computed(() => {
     }
   })
 
-  // Apply search filter if exists
+  // Apply search filter
   if (state.value.searchQuery) {
     const query = state.value.searchQuery.toLowerCase()
-    return allRecords.filter(
+    records = records.filter(
       (record) =>
         record.name.toLowerCase().includes(query) ||
         record.department.toLowerCase().includes(query),
     )
   }
 
-  // Sort records
-  return allRecords.sort((a, b) => {
-    const comparison =
-      state.value.sortBy === 'id' ? a.employeeId - b.employeeId : a.name.localeCompare(b.name)
+  // Apply sorting
+  records.sort((a, b) => {
+    let comparison
+    if (state.value.sortBy === 'name') {
+      comparison = a.name.localeCompare(b.name)
+    } else if (state.value.sortBy === 'department') {
+      comparison = a.department.localeCompare(b.department)
+    } else {
+      comparison = 0
+    }
     return state.value.sortDesc ? -comparison : comparison
   })
+
+  return records
 })
 
 const paginatedRecords = computed(() => {

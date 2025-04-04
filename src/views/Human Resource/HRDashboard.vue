@@ -14,6 +14,7 @@ import { Pie } from 'vue-chartjs'
 import { Chart as ChartJS, Title, Tooltip, Legend, ArcElement, CategoryScale } from 'chart.js'
 import { useAttendanceStore } from '@/stores/HR Management/attendanceStore'
 import { storeToRefs } from 'pinia'
+import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
 
 // Register Chart.js components
 ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale)
@@ -25,9 +26,14 @@ const attendanceStore = useAttendanceStore()
 const { attendanceRecords } = storeToRefs(attendanceStore)
 const { loadRecords } = attendanceStore
 
+// Add employee store
+const employeeStore = useEmployeeStore()
+const { employees } = storeToRefs(employeeStore)
+
 // Filtered stats based on selected date
 const filteredStats = computed(() => {
-  if (!attendanceRecords.value) return { present: 0, absent: 0, late: 0, onLeave: 0 }
+  if (!attendanceRecords.value || !employees.value)
+    return { present: 0, absent: 0, late: 0, onLeave: 0 }
 
   const dateToCheck = new Date(selectedDate.value)
   const recordsForDate = attendanceRecords.value.filter((record) => {
@@ -35,9 +41,15 @@ const filteredStats = computed(() => {
     return recordDate.toDateString() === dateToCheck.toDateString()
   })
 
+  // Create a map of employees who have attendance records for the day
+  const attendanceMap = new Map(recordsForDate.map((record) => [record.employeeId, record]))
+
+  // Count total employees who are absent (no attendance record for the day)
+  const absentCount = employees.value.filter((emp) => !attendanceMap.has(emp.id)).length
+
   return {
     present: recordsForDate.filter((r) => r.status === 'Present').length,
-    absent: recordsForDate.filter((r) => r.status === 'Absent').length,
+    absent: absentCount, // Use the calculated absent count
     late: recordsForDate.filter((r) => r.status === 'Late').length,
     onLeave: recordsForDate.filter((r) => r.status === 'On Leave').length,
   }
@@ -147,6 +159,7 @@ const chartOptions = ref({
 // Load data on component mount
 onMounted(() => {
   loadRecords()
+  employeeStore.loadEmployees()
   const savedTodos = localStorage.getItem('todoList')
   if (savedTodos) {
     todoList.value = JSON.parse(savedTodos)
