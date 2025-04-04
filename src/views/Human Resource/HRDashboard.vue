@@ -39,16 +39,22 @@ const filteredStats = computed(() => {
     present: recordsForDate.filter((r) => r.status === 'Present').length,
     absent: recordsForDate.filter((r) => r.status === 'Absent').length,
     late: recordsForDate.filter((r) => r.status === 'Late').length,
+    onLeave: recordsForDate.filter((r) => r.status === 'On Leave').length,
   }
 })
 
 // Chart data based on filtered stats
 const filteredChartData = computed(() => ({
-  labels: ['Present', 'Absent', 'Late'],
+  labels: ['Present', 'Absent', 'Late', 'On Leave'],
   datasets: [
     {
-      data: [filteredStats.value.present, filteredStats.value.absent, filteredStats.value.late],
-      backgroundColor: ['#466114', '#ef4444', '#F87A14'],
+      data: [
+        filteredStats.value.present,
+        filteredStats.value.absent,
+        filteredStats.value.late,
+        filteredStats.value.onLeave,
+      ],
+      backgroundColor: ['#466114', '#ef4444', '#F87A14', '#866135'],
       borderColor: '#ffffff',
       borderWidth: 2,
       hoverOffset: 4,
@@ -146,12 +152,6 @@ onMounted(() => {
     todoList.value = JSON.parse(savedTodos)
   }
 })
-
-// Update refresh function to actually refresh the data if needed
-const refreshData = () => {
-  // You can add real-time data fetching here if needed
-  console.log('Data refreshed')
-}
 </script>
 
 <template>

@@ -149,31 +149,57 @@ const handleSort = (column) => {
 
 // Computed properties
 const filteredRecords = computed(() => {
-  if (!attendanceRecords.value) return []
+  // Get all employees
+  const allEmployees = employees.value || []
 
-  let records = [...attendanceRecords.value]
-
-  // Filter by selected date first
-  records = records.filter((record) => {
+  // Get existing attendance records for the selected date
+  let existingRecords = attendanceRecords.value.filter((record) => {
     const recordDate = new Date(record.date).toISOString().split('T')[0]
     return recordDate === state.value.selectedDate
   })
 
+  // Create a map of employees who already have attendance records
+  const attendanceMap = new Map(existingRecords.map((record) => [record.employeeId, record]))
+
+  // Create records for all employees, including those without attendance
+  const allRecords = allEmployees.map((employee) => {
+    const existingRecord = attendanceMap.get(employee.id)
+
+    if (existingRecord) {
+      return existingRecord
+    } else {
+      // Create an "absent" record for employees without attendance
+      return {
+        id: `absent-${employee.id}`, // Temporary ID for display purposes
+        employeeId: employee.id,
+        name: employee.fullName,
+        department: employee.department,
+        date: new Date(state.value.selectedDate),
+        signIn: '-',
+        signOut: '-',
+        workingHours: '-',
+        status: 'Absent',
+        createdAt: new Date(),
+      }
+    }
+  })
+
+  // Apply search filter if exists
   if (state.value.searchQuery) {
     const query = state.value.searchQuery.toLowerCase()
-    records = records.filter(
+    return allRecords.filter(
       (record) =>
         record.name.toLowerCase().includes(query) ||
         record.department.toLowerCase().includes(query),
     )
   }
 
-  records.sort((a, b) => {
-    const comparison = state.value.sortBy === 'id' ? a.id - b.id : a.name.localeCompare(b.name)
+  // Sort records
+  return allRecords.sort((a, b) => {
+    const comparison =
+      state.value.sortBy === 'id' ? a.employeeId - b.employeeId : a.name.localeCompare(b.name)
     return state.value.sortDesc ? -comparison : comparison
   })
-
-  return records
 })
 
 const paginatedRecords = computed(() => {
@@ -185,6 +211,16 @@ const paginatedRecords = computed(() => {
 const totalPages = computed(() =>
   Math.ceil(filteredRecords.value.length / state.value.itemsPerPage),
 )
+
+const stats = computed(() => {
+  const records = filteredRecords.value
+  return {
+    present: records.filter((r) => r.status === 'Present').length,
+    late: records.filter((r) => r.status === 'Late').length,
+    absent: records.filter((r) => r.status === 'Absent').length,
+    onLeave: records.filter((r) => r.status === 'On Leave').length,
+  }
+})
 
 console.log(filteredRecords.value)
 </script>
@@ -299,7 +335,7 @@ console.log(filteredRecords.value)
         </div>
         <div class="modal-action">
           <button
-            class="btn bg-gray-200 text-gray-600 border-none shadow-none"
+            class="btn btn-sm bg-gray-200 text-gray-600 border-none shadow-none"
             @click="state.showViewModal = false"
           >
             Close
@@ -314,9 +350,9 @@ console.log(filteredRecords.value)
         <h3 class="font-bold text-lg">Confirm Delete</h3>
         <p class="py-4">Are you sure you want to delete this record?</p>
         <div class="modal-action">
-          <button class="btn btn-error" @click="confirmDelete">Delete</button>
+          <button class="btn btn-error btn-sm" @click="confirmDelete">Delete</button>
           <button
-            class="btn bg-gray-200 text-gray-600 border-none shadow-none"
+            class="btn btn-sm bg-gray-200 text-gray-600 border-none shadow-none"
             @click="state.showDeleteModal = false"
           >
             Cancel

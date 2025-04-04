@@ -94,7 +94,7 @@ const store = useEmployeeStore()
 
       <div class="modal-action">
         <button
-          class="btn bg-gray-200 text-gray-600 border-none shadow-none"
+          class="btn btn-sm bg-gray-200 text-gray-600 border-none shadow-none"
           @click="store.closeViewModal"
         >
           Close

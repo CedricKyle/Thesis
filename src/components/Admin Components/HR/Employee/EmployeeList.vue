@@ -70,7 +70,7 @@ const store = useEmployeeStore()
             <td>{{ employee.contactNumber }}</td>
             <td class="flex gap-2">
               <button
-                class="btn btn-sm btn-circle btn-ghost"
+                class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost"
                 @click="store.setSelectedEmployee(employee)"
               >
                 <Eye class="w-4 h-4" />
