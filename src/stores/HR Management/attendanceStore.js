@@ -16,6 +16,14 @@ export const useAttendanceStore = defineStore('attendance', () => {
   const sortDesc = ref(false)
   const selectedDate = ref(new Date().toISOString().split('T')[0])
 
+  // Add new state for reports
+  const reportFilters = ref({
+    startDate: '',
+    endDate: '',
+    department: '',
+    employeeId: '',
+  })
+
   // Getters
   const filteredRecords = computed(() => {
     let records = [...attendanceRecords.value]
@@ -73,6 +81,100 @@ export const useAttendanceStore = defineStore('attendance', () => {
       },
     ],
   }))
+
+  // Add new getters for reports
+  const getAttendanceReport = computed(() => {
+    if (
+      !reportFilters.value.startDate ||
+      !reportFilters.value.endDate ||
+      !reportFilters.value.employeeId
+    ) {
+      return []
+    }
+
+    const startDate = new Date(reportFilters.value.startDate)
+    const endDate = new Date(reportFilters.value.endDate)
+
+    // Create a map of existing attendance records
+    const attendanceMap = new Map(
+      attendanceRecords.value
+        .filter((record) => record.employeeId === reportFilters.value.employeeId)
+        .map((record) => [new Date(record.date).toDateString(), record]),
+    )
+
+    // Generate array of all dates in range
+    const allDates = []
+    const currentDate = new Date(startDate)
+
+    while (currentDate <= endDate) {
+      const dateString = currentDate.toDateString()
+      const existingRecord = attendanceMap.get(dateString)
+
+      if (existingRecord) {
+        // Calculate working hours for present/late records
+        let workingHours = 0
+        if (existingRecord.signIn && existingRecord.signOut) {
+          const [inHours, inMinutes] = existingRecord.signIn.split(':').map(Number)
+          const [outHours, outMinutes] = existingRecord.signOut.split(':').map(Number)
+
+          const inTime = parseInt(inHours) * 60 + parseInt(inMinutes)
+          const outTime = parseInt(outHours) * 60 + parseInt(outMinutes)
+
+          // Only calculate hours if sign out is after sign in
+          if (outTime > inTime) {
+            workingHours = (outTime - inTime) / 60
+          }
+        }
+
+        allDates.push({
+          ...existingRecord,
+          date: new Date(currentDate).toLocaleDateString(),
+          workingHours: parseFloat(workingHours.toFixed(2)),
+          status: existingRecord.status || determineStatus(existingRecord.signIn),
+        })
+      } else {
+        // Create absent record if no attendance found
+        allDates.push({
+          date: new Date(currentDate).toLocaleDateString(),
+          signIn: '-',
+          signOut: '-',
+          workingHours: 0,
+          status: 'Absent',
+          employeeId: reportFilters.value.employeeId,
+        })
+      }
+
+      // Move to next day
+      currentDate.setDate(currentDate.getDate() + 1)
+    }
+
+    return allDates
+  })
+
+  const reportSummary = computed(() => {
+    if (getAttendanceReport.value.length === 0) return null
+
+    const records = getAttendanceReport.value
+    const totalDays = records.length
+    const totalHours = records.reduce((sum, record) => {
+      return sum + (Number(record.workingHours) || 0)
+    }, 0)
+
+    const presentDays = records.filter((r) => r.status === 'Present').length
+    const lateDays = records.filter((r) => r.status === 'Late').length
+    const absentDays = records.filter((r) => r.status === 'Absent').length
+    const onLeaveDays = records.filter((r) => r.status === 'On Leave').length
+
+    return {
+      totalDays,
+      totalHours: totalHours.toFixed(2),
+      presentDays,
+      lateDays,
+      absentDays,
+      onLeaveDays,
+      averageHoursPerDay: (totalHours / (presentDays + lateDays)).toFixed(2) || '0.00',
+    }
+  })
 
   // Actions
   async function addRecord(record) {
@@ -203,6 +305,34 @@ export const useAttendanceStore = defineStore('attendance', () => {
     saveToLocalStorage()
   }
 
+  // Add new actions for reports
+  function setReportFilters(filters) {
+    reportFilters.value = {
+      ...reportFilters.value,
+      ...filters,
+    }
+  }
+
+  function getAttendanceByDateRange(startDate, endDate, employeeId) {
+    return attendanceRecords.value.filter((record) => {
+      const recordDate = new Date(record.date)
+      return (
+        recordDate >= new Date(startDate) &&
+        recordDate <= new Date(endDate) &&
+        record.employeeId === employeeId
+      )
+    })
+  }
+
+  function resetReportFilters() {
+    reportFilters.value = {
+      startDate: '',
+      endDate: '',
+      department: '',
+      employeeId: '',
+    }
+  }
+
   return {
     // State
     attendanceRecords,
@@ -228,5 +358,13 @@ export const useAttendanceStore = defineStore('attendance', () => {
     handleSort,
     updateRecord,
     resetState,
+
+    // Add new returns
+    reportFilters,
+    getAttendanceReport,
+    reportSummary,
+    setReportFilters,
+    getAttendanceByDateRange,
+    resetReportFilters,
   }
 })

@@ -8,7 +8,7 @@ const store = useEmployeeStore()
 <template>
   <dialog :open="store.showViewModal" class="modal">
     <div class="modal-box bg-white text-black">
-      <h3 class="font-bold text-lg">Employee Details</h3>
+      <h3 class="font-bold text-md">Employee Details</h3>
       <div
         class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
       ></div>
@@ -29,7 +29,7 @@ const store = useEmployeeStore()
         </div>
 
         <!-- Professional Information -->
-        <div class="mb-4">
+        <div class="mb-4 text-sm">
           <h4 class="font-semibold mb-2">Professional Information</h4>
           <div class="flex flex-row">
             <div class="w-40 text-gray-500">Employee ID</div>
@@ -50,7 +50,7 @@ const store = useEmployeeStore()
         </div>
 
         <!-- Personal Information -->
-        <div class="mb-4">
+        <div class="mb-4 text-sm">
           <h4 class="font-semibold mb-2">Personal Information</h4>
           <div class="flex flex-row">
             <div class="w-40 text-gray-500">Full Name</div>
@@ -83,7 +83,7 @@ const store = useEmployeeStore()
         </div>
 
         <!-- Emergency Contact -->
-        <div>
+        <div class="text-sm">
           <h4 class="font-semibold mb-2">Emergency Contact</h4>
           <div class="flex flex-row">
             <div class="w-40 text-gray-500">Full Name</div>

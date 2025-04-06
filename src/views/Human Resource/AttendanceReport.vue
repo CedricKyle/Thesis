@@ -1,11 +1,60 @@
 <script setup>
+import { ref, computed, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useAttendanceStore } from '@/stores/HR Management/attendanceStore'
+import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
+import { useAttendanceLogic } from '@/composables/Admin Composables/Human Resource/useAttendanceLogic'
 import { Eye, X, SquarePen } from 'lucide-vue-next'
+
+// Store setup
+const attendanceStore = useAttendanceStore()
+const employeeStore = useEmployeeStore()
+
+// Get reactive references
+const { reportFilters, getAttendanceReport, reportSummary } = storeToRefs(attendanceStore)
+const { employees } = storeToRefs(employeeStore)
+
+// Form state
+const formData = ref({
+  department: '',
+  employeeName: '',
+  startDate: '',
+  endDate: '',
+})
+
+// Computed properties
+const filteredEmployees = computed(() => {
+  if (!formData.value.department) return []
+  return employees.value.filter((emp) => emp.department === formData.value.department)
+})
+
+// Handle form submission
+const handleSubmit = () => {
+  const selectedEmployee = employees.value.find(
+    (emp) => emp.fullName === formData.value.employeeName,
+  )
+
+  if (!selectedEmployee) return
+
+  attendanceStore.setReportFilters({
+    startDate: formData.value.startDate,
+    endDate: formData.value.endDate,
+    department: formData.value.department,
+    employeeId: selectedEmployee.id,
+  })
+}
+
+// Load initial data
+onMounted(() => {
+  employeeStore.loadEmployees()
+  attendanceStore.loadRecords()
+})
 </script>
 
 <template>
   <div class="attendance-report-container min-h-screen overflow-y-auto">
     <div class="report-container w-full flex flex-col justify-between gap-4 text-black">
-      <!-- find employee name -->
+      <!-- Search Form -->
       <div class="p-5 bg-white rounded-md shadow-md">
         <div class="flex flex-col gap-4">
           <div class="report-title">
@@ -16,8 +65,11 @@ import { Eye, X, SquarePen } from 'lucide-vue-next'
           <div class="flex gap-4 w-full">
             <div class="">
               <legend class="fieldset-legend text-black text-xs">Department</legend>
-              <select class="select focus:outline-none bg-white border-black text-black">
-                <option disabled value="">Select Department</option>
+              <select
+                v-model="formData.department"
+                class="select focus:outline-none bg-white border-black text-black input-sm"
+              >
+                <option value="">Select Department</option>
                 <option>HR Department</option>
                 <option>Finance Department</option>
                 <option>Sales Department</option>
@@ -28,88 +80,135 @@ import { Eye, X, SquarePen } from 'lucide-vue-next'
 
             <div class="w-full">
               <legend class="fieldset-legend text-black text-xs">Employee</legend>
-              <select class="select focus:outline-none bg-white border-black text-black">
-                <option disabled value=" ">Select Employee</option>
+              <select
+                v-model="formData.employeeName"
+                class="select focus:outline-none bg-white border-black text-black input-sm"
+                :disabled="!formData.department"
+              >
+                <option value="">Select Employee</option>
+                <option v-for="emp in filteredEmployees" :key="emp.id" :value="emp.fullName">
+                  {{ emp.fullName }}
+                </option>
               </select>
             </div>
           </div>
 
-          <!-- Date and Action Button -->
+          <!-- Date Range -->
           <div class="flex gap-4 w-full justify-between items-end">
             <div class="flex gap-8 w-full">
               <div class="">
                 <legend class="fieldset-legend text-black text-xs">From</legend>
-                <input type="date" class="border-black border-1 rounded-md p-2" />
+                <input
+                  v-model="formData.startDate"
+                  type="date"
+                  class="border-black border-1 rounded-md p-2 input-xs"
+                />
               </div>
 
               <div class="w-full">
                 <legend class="fieldset-legend text-black text-xs">To</legend>
-                <input type="date" class="border-black border-1 rounded-md p-2" />
+                <input
+                  v-model="formData.endDate"
+                  type="date"
+                  class="border-black border-1 rounded-md p-2 input-xs"
+                />
               </div>
             </div>
 
             <div class="action-button">
-              <button class="btn bg-primaryColor border-none btn-sm px-4 py-2">Submit</button>
+              <button
+                @click="handleSubmit"
+                class="btn bg-primaryColor border-none btn-sm px-6 py-4 text-xs font-thin"
+              >
+                Generate Report
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      <!-- attendance records -->
-      <div class="bg-white shadow-md rounded-md p-5">
-        <!-- employee name -->
+      <!-- Employee Summary -->
+      <div v-if="reportSummary" class="bg-white shadow-md rounded-md p-5">
         <div class="flex gap-4 flex-col">
           <div class="">
-            <h1 class="font-semibold">Employee Name</h1>
+            <h1 class="font-semibold">{{ formData.employeeName }}</h1>
           </div>
-          <div class="">
-            <p>Worked Hours in Days</p>
+          <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div class="stat-box p-3 bg-gray-50 rounded-md">
+              <p class="text-gray-600">Total Days</p>
+              <p class="text-xl font-semibold">{{ reportSummary.totalDays }}</p>
+            </div>
+            <div class="stat-box p-3 bg-gray-50 rounded-md">
+              <p class="text-gray-600">Present Days</p>
+              <p class="text-xl font-semibold">{{ reportSummary.presentDays }}</p>
+            </div>
+            <div class="stat-box p-3 bg-gray-50 rounded-md">
+              <p class="text-gray-600">Absent Days</p>
+              <p class="text-xl font-semibold text-red-600">{{ reportSummary.absentDays }}</p>
+            </div>
+            <div class="stat-box p-3 bg-gray-50 rounded-md">
+              <p class="text-gray-600">Late Days</p>
+              <p class="text-xl font-semibold">{{ reportSummary.lateDays }}</p>
+            </div>
+            <div class="stat-box p-3 bg-gray-50 rounded-md">
+              <p class="text-gray-600">Total Hours</p>
+              <p class="text-xl font-semibold">{{ reportSummary.totalHours }}</p>
+            </div>
+            <div class="stat-box p-3 bg-gray-50 rounded-md">
+              <p class="text-gray-600">Average Hours/Day</p>
+              <p class="text-xl font-semibold">{{ reportSummary.averageHoursPerDay }}</p>
+            </div>
           </div>
         </div>
       </div>
 
-      <!-- full attendance summary -->
-      <div class="bg-white shadow-md rounded-md p-5">
+      <!-- Attendance Summary Table -->
+      <div v-if="getAttendanceReport.length > 0" class="bg-white shadow-md rounded-md p-5">
         <div class="flex gap-4 flex-col">
           <div class="">
             <h1 class="font-semibold">Attendance Summary</h1>
           </div>
 
-          <!-- table content -->
           <div class="overflow-x-auto border border-gray-300/50 shadow-lg">
             <table class="table text-black">
-              <!-- head -->
               <thead class="bg-primaryColor text-white">
                 <tr>
                   <th>Date</th>
                   <th>Time In</th>
                   <th>Time Out</th>
                   <th>Worked Hours</th>
-                  <th>Action</th>
+                  <th>Status</th>
                 </tr>
               </thead>
               <tbody>
-                <!-- row 1 -->
-                <tr class="hover:bg-gray-50 border-b-1 border-gray-200">
-                  <th></th>
-                  <td></td>
-                  <td></td>
-                  <td></td>
+                <tr
+                  v-for="record in getAttendanceReport"
+                  :key="record.date"
+                  class="hover:bg-gray-50 border-b-1 border-gray-200"
+                >
+                  <td>{{ record.date }}</td>
+                  <td>{{ record.signIn || '-' }}</td>
+                  <td>{{ record.signOut || '-' }}</td>
                   <td>
-                    <button
-                      class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost"
+                    {{
+                      typeof record.workingHours === 'number'
+                        ? parseFloat(record.workingHours).toFixed(2)
+                        : '-'
+                    }}
+                  </td>
+                  <td>
+                    <span
+                      :class="{
+                        'base-class': true,
+                        'px-2 py-1 rounded-full text-xs': true,
+                        'bg-green-100 text-green-800': record.status === 'Present',
+                        'bg-red-100 text-red-800': record.status === 'Absent',
+                        'bg-yellow-100 text-yellow-800': record.status === 'Late',
+                        'bg-blue-100 text-blue-800': record.status === 'On Leave',
+                      }"
                     >
-                      <Eye class="h-4 w-4" />
-                    </button>
-
-                    <button
-                      class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost"
-                    >
-                      <SquarePen class="h-4 w-4" />
-                    </button>
-                    <button class="btn btn-sm btn-circle hover:bg-red-400 border-none btn-ghost">
-                      <X class="h-4 w-4" />
-                    </button>
+                      {{ record.status }}
+                    </span>
                   </td>
                 </tr>
               </tbody>
@@ -120,3 +219,14 @@ import { Eye, X, SquarePen } from 'lucide-vue-next'
     </div>
   </div>
 </template>
+
+<style scoped>
+.fieldset-legend {
+  margin-bottom: 0.5rem;
+}
+
+input[type='date']::-webkit-calendar-picker-indicator {
+  filter: invert(0%) brightness(0%);
+  cursor: pointer;
+}
+</style>
