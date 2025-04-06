@@ -141,7 +141,7 @@ const { calculateHours } = useAttendanceLogic() // Import if you need to calcula
             <legend class="fieldset-legend text-black">Employee</legend>
             <select
               v-model="newAttendance.employeeName"
-              class="select focus:outline-none bg-white border text-black disabled:opacity-50"
+              class="select focus:outline-none bg-white border text-black"
               :class="{
                 'border-red-500': formErrors.employeeName,
                 'border-gray-200': !formErrors.employeeName,

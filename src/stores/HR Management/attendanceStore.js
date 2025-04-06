@@ -166,13 +166,13 @@ export const useAttendanceStore = defineStore('attendance', () => {
     const onLeaveDays = records.filter((r) => r.status === 'On Leave').length
 
     return {
-      totalDays,
-      totalHours: totalHours.toFixed(2),
-      presentDays,
-      lateDays,
-      absentDays,
-      onLeaveDays,
-      averageHoursPerDay: (totalHours / (presentDays + lateDays)).toFixed(2) || '0.00',
+      'Total Days': totalDays,
+      'Total Hours': totalHours.toFixed(2),
+      'Present Days': presentDays,
+      'Late Days': lateDays,
+      'Absent Days': absentDays,
+      'On Leave Days': onLeaveDays,
+      'Average Hours/Day': (totalHours / (presentDays + lateDays)).toFixed(2) || '0.00',
     }
   })
 

@@ -209,7 +209,7 @@ const resetForm = () => {
           </div>
         </div>
 
-        <div class="title font-bold text-lg">Professional Information</div>
+        <div class="title font-bold text-md">Professional Information</div>
 
         <div class="form-control flex flex-col gap-5">
           <div class="">
@@ -248,7 +248,7 @@ const resetForm = () => {
             <legend class="fieldset-legend text-black text-xs">Job Title</legend>
             <select
               v-model="newEmployee.jobTitle"
-              class="select focus:outline-none bg-white border-black text-black disabled:opacity-50"
+              class="select focus:outline-none bg-white border-black text-black"
               :class="{ 'border-red-500': formErrors.professional.jobTitle }"
               :disabled="!newEmployee.department"
             >
@@ -270,7 +270,7 @@ const resetForm = () => {
       class="personal-container w-[70%] border border-gray-200 p-5 rounded-md shadow-md overflow-y-auto"
     >
       <div class="container flex flex-col gap-2">
-        <div class="title font-bold text-lg">Personal Information</div>
+        <div class="title font-bold text-md">Personal Information</div>
         <div
           class="divider m-0 before:bg-gray-200 after:bg-gray-200 before:h-[3px] after:h-[3px]"
         ></div>
