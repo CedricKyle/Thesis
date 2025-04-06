@@ -187,7 +187,7 @@ onMounted(() => {
             <!--Card Content-->
             <div class="card-header flex flex-row gap-2 justify-between">
               <div class="">
-                <h1 class="">Present</h1>
+                <h1 class="text-gray-600">Present</h1>
               </div>
               <div class="">
                 <EllipsisVertical class="w-4 h-4" />
@@ -212,7 +212,7 @@ onMounted(() => {
             <!--Card Content-->
             <div class="card-header flex flex-row gap-2 justify-between">
               <div class="">
-                <h1 class="">Absent</h1>
+                <h1 class="text-gray-600">Absent</h1>
               </div>
               <div class="">
                 <EllipsisVertical class="w-4 h-4" />
@@ -237,7 +237,7 @@ onMounted(() => {
             <!--Card Content-->
             <div class="card-header flex flex-row gap-2 justify-between">
               <div class="">
-                <h1 class="">Late</h1>
+                <h1 class="text-gray-600">Late</h1>
               </div>
               <div class="">
                 <EllipsisVertical class="w-4 h-4" />
@@ -262,7 +262,7 @@ onMounted(() => {
             <!--Card Content-->
             <div class="card-header flex flex-row gap-2 justify-between">
               <div class="">
-                <h1 class="">On Leave</h1>
+                <h1 class="text-gray-600">On Leave</h1>
               </div>
               <div class="">
                 <EllipsisVertical class="w-4 h-4" />

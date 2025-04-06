@@ -4,12 +4,20 @@ import CRMManagement from './CRMManagement.vue'
 import FinancialManagement from './FinancialManagement.vue'
 import InventoryManagement from './InventoryManagement.vue'
 import SalesManagement from './SalesManagement.vue'
+import UserManagement from '../Users Management/UserManagement.vue'
 
 //this is sub menu for hr management
 import { ref, defineAsyncComponent } from 'vue'
 
 //this is import icons
-import { UserCog, Landmark, ChartNoAxesColumnIncreasing, Archive, Mail } from 'lucide-vue-next'
+import {
+  UserCog,
+  Landmark,
+  ChartNoAxesColumnIncreasing,
+  Archive,
+  Mail,
+  Users,
+} from 'lucide-vue-next'
 
 // Set initial tab to HRDashboard
 const currentTab = ref('Dashboard')
@@ -43,6 +51,10 @@ const AsyncHRDashboard = defineAsyncComponent({
 })
 
 const tabs = {
+  'Users Management': {
+    component: UserManagement,
+    icon: Users,
+  },
   'Human Resource': {
     component: HumanResourceManagement,
     icon: UserCog,

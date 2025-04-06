@@ -107,7 +107,7 @@ const { calculateHours } = useAttendanceLogic() // Import if you need to calcula
 <template>
   <div class="form-container flex justify-center items-center">
     <div
-      class="form-group flex flex-col w-1/3 bg-white h-[550px] p-6 justify-between shadow-lg border border-gray-200/50"
+      class="form-group flex flex-col w-1/3 bg-white h-[500px] p-6 justify-between shadow-lg border border-gray-200/50"
     >
       <div class="title">
         <h1 class="text-black text-2xl">Add Attendance</h1>
@@ -116,10 +116,10 @@ const { calculateHours } = useAttendanceLogic() // Import if you need to calcula
         <fieldset class="fieldset">
           <!-- Department -->
           <div class="form-control">
-            <legend class="fieldset-legend text-black">Department</legend>
+            <legend class="fieldset-legend text-black !m-0 !text-xs">Department</legend>
             <select
               v-model="newAttendance.department"
-              class="select focus:outline-none bg-white border text-black"
+              class="select focus:outline-none bg-white border text-black input-sm"
               :class="{
                 'border-red-500': formErrors.department,
                 'border-gray-200': !formErrors.department,
@@ -138,10 +138,10 @@ const { calculateHours } = useAttendanceLogic() // Import if you need to calcula
           </div>
           <!-- Employee name -->
           <div class="form-control">
-            <legend class="fieldset-legend text-black">Employee</legend>
+            <legend class="fieldset-legend text-black !m-0 !text-xs">Employee</legend>
             <select
               v-model="newAttendance.employeeName"
-              class="select focus:outline-none bg-white border text-black"
+              class="select focus:outline-none bg-white border text-black input-sm"
               :class="{
                 'border-red-500': formErrors.employeeName,
                 'border-gray-200': !formErrors.employeeName,
@@ -160,11 +160,11 @@ const { calculateHours } = useAttendanceLogic() // Import if you need to calcula
 
           <!-- Sign In -->
           <div class="form-control">
-            <legend class="fieldset-legend text-black">Sign In</legend>
+            <legend class="fieldset-legend text-black !m-0 !text-xs">Time In</legend>
             <input
               v-model="newAttendance.signIn"
               type="time"
-              class="input focus:outline-none bg-white border text-black"
+              class="input focus:outline-none bg-white border text-black input-sm"
               :class="{
                 'border-red-500': formErrors.signIn,
                 'border-gray-200': !formErrors.signIn,
@@ -177,11 +177,11 @@ const { calculateHours } = useAttendanceLogic() // Import if you need to calcula
 
           <!-- Sign Out -->
           <div class="form-control">
-            <legend class="fieldset-legend text-black">Sign Out</legend>
+            <legend class="fieldset-legend text-black !m-0 !text-xs">Time Out</legend>
             <input
               v-model="newAttendance.signOut"
               type="time"
-              class="input focus:outline-none bg-white border text-black"
+              class="input focus:outline-none bg-white border text-black input-sm"
               :class="{
                 'border-red-500': formErrors.signOut,
                 'border-gray-200': !formErrors.signOut,
@@ -194,11 +194,11 @@ const { calculateHours } = useAttendanceLogic() // Import if you need to calcula
 
           <!-- Date -->
           <div class="form-control">
-            <legend class="fieldset-legend text-black">Date</legend>
+            <legend class="fieldset-legend text-black !m-0 !text-xs">Date</legend>
             <input
               v-model="newAttendance.date"
               type="date"
-              class="input focus:outline-none bg-white border text-black"
+              class="input focus:outline-none bg-white border text-black input-sm"
               :class="{
                 'border-red-500': formErrors.date,
                 'border-gray-200': !formErrors.date,
@@ -213,7 +213,7 @@ const { calculateHours } = useAttendanceLogic() // Import if you need to calcula
       <div class="action-buttons flex justify-end mt-5">
         <button
           @click="handleSubmit"
-          class="btn bg-primaryColor text-white border-none hover:bg-primaryColor/80"
+          class="btn bg-primaryColor text-white border-none hover:bg-primaryColor/80 btn-sm"
         >
           Add Attendance
         </button>

@@ -9,7 +9,7 @@ const store = useEmployeeStore()
 <template>
   <div class="flex flex-col gap-8 mt-4">
     <!-- search container -->
-    <label class="input-search">
+    <label class="input-search input-sm">
       <svg class="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
         <g
           stroke-linejoin="round"
@@ -22,7 +22,13 @@ const store = useEmployeeStore()
           <path d="m21 21-4.3-4.3"></path>
         </g>
       </svg>
-      <input v-model="store.searchQuery" type="search" required placeholder="Search" class="" />
+      <input
+        v-model="store.searchQuery"
+        type="search"
+        required
+        placeholder="Search"
+        class="input-sm"
+      />
     </label>
 
     <!-- table container -->
@@ -70,7 +76,7 @@ const store = useEmployeeStore()
             <td>{{ employee.contactNumber }}</td>
             <td class="flex gap-2">
               <button
-                class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost"
+                class="btn btn-xs btn-circle hover:bg-primaryColor/80 border-none btn-ghost"
                 @click="store.setSelectedEmployee(employee)"
               >
                 <Eye class="w-4 h-4" />
@@ -87,7 +93,7 @@ const store = useEmployeeStore()
         v-for="page in store.totalPages"
         :key="page"
         @click="store.currentPage = page"
-        class="btn btn-sm"
+        class="btn btn-xs border-none rounded-none"
         :class="store.currentPage === page ? 'bg-primaryColor text-white' : 'bg-gray-200'"
       >
         {{ page }}

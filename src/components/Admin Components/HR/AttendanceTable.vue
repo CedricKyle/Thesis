@@ -47,8 +47,8 @@ const emit = defineEmits(['sort', 'view', 'delete'])
               />
             </div>
           </th>
-          <th>Sign In</th>
-          <th>Sign Out</th>
+          <th>Time In</th>
+          <th>Time Out</th>
           <th>Working Hours</th>
           <th>Status</th>
           <th>Action</th>

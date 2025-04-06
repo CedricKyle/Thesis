@@ -260,7 +260,7 @@ console.log(filteredRecords.value)
           </div>
 
           <!-- Move existing search here -->
-          <label class="input-search">
+          <label class="input-search input-sm">
             <svg class="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
               <g
                 stroke-linejoin="round"
