@@ -1,5 +1,5 @@
 import './assets/main.css'
-
+import 'tabulator-tables/dist/css/tabulator.min.css'
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'

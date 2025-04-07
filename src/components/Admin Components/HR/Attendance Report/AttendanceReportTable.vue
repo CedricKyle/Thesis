@@ -1,21 +1,87 @@
 <script setup>
+import { ref, onMounted, watch } from 'vue'
 import { Printer } from 'lucide-vue-next'
+import { TabulatorFull as Tabulator } from 'tabulator-tables'
 
-defineProps({
+const props = defineProps({
   records: {
     type: Array,
     required: true,
   },
 })
 
-defineEmits(['generate-pdf'])
+const emit = defineEmits(['generate-pdf'])
+const tableRef = ref(null)
+let table = null
 
-const statusClasses = {
-  Present: 'bg-green-100 text-green-800',
-  Absent: 'bg-red-100 text-red-800',
-  Late: 'bg-yellow-100 text-yellow-800',
-  'On Leave': 'bg-blue-100 text-blue-800',
-}
+// Define columns for Tabulator
+const columns = [
+  {
+    title: 'Date',
+    field: 'date',
+    sorter: 'string',
+    headerSort: true,
+  },
+  {
+    title: 'Time In',
+    field: 'signIn',
+    formatter: (cell) => cell.getValue() || '-',
+  },
+  {
+    title: 'Time Out',
+    field: 'signOut',
+    formatter: (cell) => cell.getValue() || '-',
+  },
+  {
+    title: 'Worked Hours',
+    field: 'workingHours',
+    formatter: (cell) => {
+      const value = cell.getValue()
+      return typeof value === 'number' ? parseFloat(value).toFixed(2) : '-'
+    },
+  },
+  {
+    title: 'Status',
+    field: 'status',
+    formatter: function (cell) {
+      const status = cell.getValue()
+      const statusClasses = {
+        Present: 'bg-green-100 text-green-800',
+        Absent: 'bg-red-100 text-red-800',
+        Late: 'bg-yellow-100 text-yellow-800',
+        'On Leave': 'bg-blue-100 text-blue-800',
+      }
+      return `<span class="px-2 py-1 text-xs font-medium rounded-full ${statusClasses[status]}">${status}</span>`
+    },
+    headerSort: true,
+  },
+]
+
+onMounted(() => {
+  table = new Tabulator(tableRef.value, {
+    data: props.records,
+    columns: columns,
+    layout: 'fitColumns',
+    responsiveLayout: 'collapse',
+    height: '100%',
+    pagination: true,
+    paginationSize: 10,
+    paginationSizeSelector: [10, 25, 50],
+    placeholder: 'No attendance records available',
+    cssClass: 'custom-tabulator',
+  })
+})
+
+// Watch for data changes
+watch(
+  () => props.records,
+  (newData) => {
+    if (table) {
+      table.setData(newData)
+    }
+  },
+  { deep: true },
+)
 </script>
 
 <template>
@@ -33,40 +99,7 @@ const statusClasses = {
       </div>
 
       <div class="overflow-x-auto border border-gray-300/50 shadow-lg">
-        <table class="table text-black">
-          <thead class="bg-primaryColor text-white">
-            <tr>
-              <th>Date</th>
-              <th>Time In</th>
-              <th>Time Out</th>
-              <th>Worked Hours</th>
-              <th>Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="record in records"
-              :key="record.date"
-              class="hover:bg-gray-50 border-b-1 border-gray-200"
-            >
-              <td>{{ record.date }}</td>
-              <td>{{ record.signIn || '-' }}</td>
-              <td>{{ record.signOut || '-' }}</td>
-              <td>
-                {{
-                  typeof record.workingHours === 'number'
-                    ? parseFloat(record.workingHours).toFixed(2)
-                    : '-'
-                }}
-              </td>
-              <td>
-                <span class="px-2 py-1 rounded-full text-xs" :class="statusClasses[record.status]">
-                  {{ record.status }}
-                </span>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <div ref="tableRef"></div>
       </div>
     </div>
   </div>

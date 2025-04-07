@@ -23,6 +23,56 @@
   .input-search {
     @apply input bg-white border-primaryColor text-black !outline-none;
   }
+
+  /* Tabulator Theme Styles */
+
+  /* Header Styling */
+  .tabulator-header {
+    background-color: #466114 !important;
+    color: white !important;
+  }
+
+  .tabulator-col {
+    background-color: #466114 !important;
+    color: white !important;
+    border: none !important;
+  }
+
+  .tabulator-col-content {
+    color: white !important;
+  }
+
+  /* Make sure no other styles override our header */
+  .tabulator .tabulator-header .tabulator-col {
+    background-color: #466114 !important;
+    border-right: none !important;
+  }
+
+  /* Additional specificity for the header */
+  .tabulator .tabulator-header {
+    border-bottom: none !important;
+    background-color: #466114 !important;
+  }
+
+  /* Row styling */
+  .tabulator-row.tabulator-row-even {
+    background-color: white;
+  }
+
+  .tabulator-row.tabulator-row-odd {
+    background-color: #f8f8f8;
+  }
+
+  /* Placeholder styling */
+  .tabulator-placeholder {
+    background-color: white !important;
+  }
+
+  .tabulator-placeholder .tabulator-placeholder-contents {
+    color: #666 !important;
+    font-weight: normal !important;
+    font-size: 14px !important;
+  }
 }
 
 @layer base {

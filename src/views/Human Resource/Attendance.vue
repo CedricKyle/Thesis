@@ -239,7 +239,7 @@ console.log(filteredRecords.value)
     <Toast :show="state.toast.show" :message="state.toast.message" :type="state.toast.type" />
 
     <!-- Tabs container with proper classes -->
-    <div class="tabs tabs-border bg-primaryColor border border-gray-200/50 max-h-[800px] shadow-md">
+    <div class="tabs tabs-border bg-primaryColor border border-gray-200/50 shadow-md">
       <!-- Attendance List Tab -->
       <input
         type="radio"
@@ -248,7 +248,7 @@ console.log(filteredRecords.value)
         aria-label="Attendance List"
         checked="checked"
       />
-      <div class="tab-content bg-white p-2 min-h-[600px]">
+      <div class="tab-content bg-white p-2">
         <!-- Add this new date filter section -->
         <div class="flex justify-between items-center gap-4 mb-4">
           <div class="flex items-center gap-2">
@@ -293,11 +293,11 @@ console.log(filteredRecords.value)
           @delete="handleDelete"
         />
 
-        <Pagination
+        <!-- <Pagination
           :current-page="state.currentPage"
           :total-pages="totalPages"
           @page-change="(page) => (state.currentPage = page)"
-        />
+        /> -->
       </div>
 
       <!-- Add Attendance Tab -->

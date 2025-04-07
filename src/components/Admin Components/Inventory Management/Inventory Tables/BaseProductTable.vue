@@ -1,8 +1,9 @@
 <script setup>
-import { ref } from 'vue'
+import { ref, onMounted, watch } from 'vue'
+import { TabulatorFull as Tabulator } from 'tabulator-tables'
 import { SquarePen, Trash2 } from 'lucide-vue-next'
 
-defineProps({
+const props = defineProps({
   products: {
     type: Array,
     required: true,
@@ -11,8 +12,10 @@ defineProps({
 })
 
 const emit = defineEmits(['edit-product', 'delete-product'])
+const tableRef = ref(null)
 const deleteModal = ref(null)
 const productToDelete = ref(null)
+let table = null
 
 const handleEdit = (product) => {
   emit('edit-product', product)
@@ -31,95 +34,142 @@ const confirmDelete = () => {
   }
 }
 
-// Add a function to handle missing images
-const getImageUrl = (img) => {
-  return img || '/path/to/default-image.png' // Replace with your default image path
-}
+// Define columns for Tabulator
+const columns = [
+  {
+    title: 'Id',
+    field: 'id',
+    width: 150,
+    formatter: function (cell) {
+      const product = cell.getRow().getData()
+      return `
+        <div class="flex justify-between items-center">
+          <div>${product.id}</div>
+          <div class="w-10 h-10 rounded-sm overflow-hidden">
+            ${
+              product.img
+                ? `<img src="${product.img}" class="w-full h-full object-cover" alt="${product.name}"/>`
+                : `<div class="w-full h-full bg-gray-200 flex items-center justify-center">
+                  <span class="text-gray-400 text-xs">No image</span>
+                </div>`
+            }
+          </div>
+        </div>`
+    },
+    headerSort: true,
+  },
+  {
+    title: 'Product Name',
+    field: 'name',
+    width: 200,
+    headerSort: true,
+  },
+  {
+    title: 'Price',
+    field: 'price',
+    formatter: (cell) => `₱${cell.getValue()}`,
+    headerSort: true,
+  },
+  {
+    title: 'Quantity',
+    field: 'quantity',
+    formatter: (cell) => `<span class="font-bold">${cell.getValue()}</span>`,
+    headerSort: true,
+  },
+  {
+    title: 'Expiry Date',
+    field: 'dateExpiry',
+    headerSort: true,
+  },
+  {
+    title: 'Max Qty',
+    field: 'maxQty',
+    formatter: (cell) => `<span class="font-bold">${cell.getValue()}</span>`,
+    headerSort: true,
+  },
+  {
+    title: 'Status',
+    field: 'quantity',
+    formatter: function (cell) {
+      const quantity = Number(cell.getValue())
+      const maxQty = Number(cell.getRow().getData().maxQty)
+
+      let status, className
+      if (quantity >= maxQty * 0.5) {
+        status = 'In Stock'
+        className = 'badge badge-success'
+      } else if (quantity > 0) {
+        status = 'Low Stock'
+        className = 'badge badge-warning'
+      } else {
+        status = 'No Stock'
+        className = 'badge badge-error'
+      }
+
+      return `<span class="${className}">${status}</span>`
+    },
+    headerSort: true,
+  },
+  {
+    title: 'Action',
+    formatter: function () {
+      return `
+        <div class="flex gap-2">
+          <button class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost edit-button">
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+              <path d="m15 5 4 4"/>
+            </svg>
+          </button>
+          <button class="btn btn-sm btn-circle hover:bg-red-400 border-none btn-ghost delete-button">
+            <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+            </svg>
+          </button>
+        </div>`
+    },
+    cellClick: function (e, cell) {
+      const product = cell.getRow().getData()
+      if (e.target.closest('.edit-button')) {
+        handleEdit(product)
+      } else if (e.target.closest('.delete-button')) {
+        handleDelete(product)
+      }
+    },
+    headerSort: false,
+  },
+]
+
+onMounted(() => {
+  table = new Tabulator(tableRef.value, {
+    data: props.products,
+    columns: columns,
+    layout: 'fitColumns',
+    responsiveLayout: 'collapse',
+    height: '100%',
+    pagination: true,
+    paginationSize: 10,
+    paginationSizeSelector: [10, 25, 50],
+    placeholder: 'No products available',
+    cssClass: 'custom-tabulator',
+  })
+})
+
+// Watch for data changes
+watch(
+  () => props.products,
+  (newData) => {
+    if (table) {
+      table.setData(newData)
+    }
+  },
+  { deep: true },
+)
 </script>
 
 <template>
-  <div class="overflow-x-auto bg-white">
-    <table class="table">
-      <!-- head -->
-      <thead class="bg-primaryColor">
-        <tr class="text-white">
-          <th class="w-35">Id</th>
-          <th class="w-80">Product Name</th>
-          <th class="">Price</th>
-          <th class="">Quantity</th>
-          <th class="">Expiry Date</th>
-          <th class="">Max Qty</th>
-          <th class="">Status</th>
-          <th class="w-30">Action</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr v-if="products.length === 0">
-          <td colspan="8" class="text-center py-4 text-black">No products available</td>
-        </tr>
-        <tr v-for="product in products" :key="product.id" class="text-black border-b-gray-200">
-          <th>
-            <div class="flex justify-between items-center">
-              <div class="">{{ product.id }}</div>
-
-              <div class="w-10 h-10 rounded-sm overflow-hidden">
-                <img
-                  v-if="product.img"
-                  :src="product.img"
-                  class="w-full h-full object-cover"
-                  :alt="product.name"
-                />
-                <div v-else class="w-full h-full bg-gray-200 flex items-center justify-center">
-                  <span class="text-gray-400 text-xs">No image</span>
-                </div>
-              </div>
-            </div>
-          </th>
-          <td class="">
-            {{ product.name }}
-          </td>
-          <td>₱{{ product.price }}</td>
-          <td class="font-bold">{{ product.quantity }}</td>
-          <td>{{ product.dateExpiry }}</td>
-          <td class="font-bold">{{ product.maxQty }}</td>
-          <td>
-            <span
-              :class="{
-                'badge badge-success': Number(product.quantity) >= Number(product.maxQty * 0.5),
-                'badge badge-warning':
-                  Number(product.quantity) < Number(product.maxQty * 0.5) &&
-                  Number(product.quantity) > 0,
-                'badge badge-error': Number(product.quantity) === 0,
-              }"
-            >
-              {{
-                Number(product.quantity) >= Number(product.maxQty * 0.5)
-                  ? 'In Stock'
-                  : Number(product.quantity) > 0
-                    ? 'Low Stock'
-                    : 'No Stock'
-              }}
-            </span>
-          </td>
-          <td>
-            <div class="flex gap-2">
-              <button
-                @click="handleEdit(product)"
-                class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost"
-              >
-                <SquarePen class="h-5 w-5" />
-              </button>
-              <button
-                @click="handleDelete(product)"
-                class="btn btn-sm btn-circle hover:bg-red-400 border-none btn-ghost"
-              >
-                <Trash2 class="h-5 w-5" />
-              </button>
-            </div>
-          </td>
-        </tr>
-      </tbody>
-    </table>
+  <div class="w-full bg-white shadow-md rounded-md">
+    <div ref="tableRef"></div>
   </div>
 
   <!-- Delete Confirmation Modal -->
@@ -134,6 +184,4 @@ const getImageUrl = (img) => {
       </div>
     </div>
   </dialog>
-
-  <!-- Success Modal will be handled by parent component -->
 </template>
