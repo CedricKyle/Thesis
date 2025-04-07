@@ -5,18 +5,21 @@ import FinancialManagement from './FinancialManagement.vue'
 import InventoryManagement from './InventoryManagement.vue'
 import SalesManagement from './SalesManagement.vue'
 import UserManagement from '../Users Management/UserManagement.vue'
+import UserRolesManagement from '../Users Management/UserRolesManagement.vue'
 
 //this is sub menu for hr management
 import { ref, defineAsyncComponent } from 'vue'
 
 //this is import icons
 import {
-  UserCog,
+  Building2,
   Landmark,
   ChartNoAxesColumnIncreasing,
   Archive,
   Mail,
   Users,
+  LockKeyhole,
+  ChevronDown,
 } from 'lucide-vue-next'
 
 // Set initial tab to HRDashboard
@@ -51,13 +54,21 @@ const AsyncHRDashboard = defineAsyncComponent({
 })
 
 const tabs = {
-  'Users Management': {
+  Finance: { component: FinancialManagement, icon: Landmark },
+  Sales: { component: SalesManagement, icon: ChartNoAxesColumnIncreasing },
+  Inventory: { component: InventoryManagement, icon: Archive },
+  CRM: { component: CRMManagement, icon: Mail },
+  Users: {
     component: UserManagement,
     icon: Users,
   },
+  Roles: {
+    component: UserRolesManagement,
+    icon: LockKeyhole,
+  },
   'Human Resource': {
     component: HumanResourceManagement,
-    icon: UserCog,
+    icon: Building2,
     submenu: {
       Dashboard: AsyncHRDashboard, // Use async component
       Employees: defineAsyncComponent({
@@ -77,10 +88,6 @@ const tabs = {
       }),
     },
   },
-  Finance: { component: FinancialManagement, icon: Landmark },
-  Sales: { component: SalesManagement, icon: ChartNoAxesColumnIncreasing },
-  Inventory: { component: InventoryManagement, icon: Archive },
-  CRM: { component: CRMManagement, icon: Mail },
 }
 
 // Modify the setTab function to track parent menu
@@ -113,9 +120,13 @@ const setTab = (tabName, parentTab = null) => {
         <li v-for="(tab, tabName) in tabs" :key="tabName" class="m-2">
           <template v-if="tab.submenu">
             <details :open="tabName === openParentMenu">
-              <summary class="flex">
-                <component :is="tab.icon" class="w-6 h-6 mr-3" />
-                {{ tabName }}
+              <summary
+                class="flex items-center w-full px-4 py-2 transition hover:text-gray-300 relative"
+              >
+                <div class="flex items-center flex-1">
+                  <component :is="tab.icon" class="w-6 h-6 mr-3" />
+                  {{ tabName }}
+                </div>
               </summary>
               <ul class="pl-10">
                 <li v-for="(subComp, subTab) in tab.submenu" :key="subTab">
