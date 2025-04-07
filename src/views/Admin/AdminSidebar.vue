@@ -8,7 +8,7 @@ import UserManagement from '../Users Management/UserManagement.vue'
 import UserRolesManagement from '../Users Management/UserRolesManagement.vue'
 
 //this is sub menu for hr management
-import { ref, defineAsyncComponent } from 'vue'
+import { ref, defineAsyncComponent, onMounted } from 'vue'
 
 //this is import icons
 import {
@@ -21,6 +21,9 @@ import {
   LockKeyhole,
   ChevronDown,
 } from 'lucide-vue-next'
+
+import { useRouter } from 'vue-router'
+const router = useRouter()
 
 // Set initial tab to HRDashboard
 const currentTab = ref('Dashboard')
@@ -90,13 +93,77 @@ const tabs = {
   },
 }
 
-// Modify the setTab function to track parent menu
+// Modify the setTab function to handle both component switching and routing
 const setTab = (tabName, parentTab = null) => {
   currentTab.value = tabName
   if (parentTab) {
     openParentMenu.value = parentTab
   }
+
+  // Handle routing based on tab name
+  switch (tabName) {
+    case 'Roles':
+      router.push({ name: 'Roles' })
+      break
+    case 'Users':
+      router.push({ name: 'Users' })
+      break
+    case 'Finance':
+      router.push({ name: 'Finance' })
+      break
+    case 'Sales':
+      router.push({ name: 'Sales' })
+      break
+    case 'Inventory':
+      router.push({ name: 'Inventory' })
+      break
+    case 'CRM':
+      router.push({ name: 'CRM' })
+      break
+    case 'Dashboard':
+      router.push({ name: 'HRDashboard' })
+      break
+    case 'Employees':
+      router.push({ name: 'Employees' })
+      break
+    case 'Attendance':
+      router.push({ name: 'Attendance' })
+      break
+    case 'Attendance Report':
+      router.push({ name: 'AttendanceReport' })
+      break
+    default:
+      // If no specific route, just update the component
+      break
+  }
 }
+
+// Add a method to handle the current route
+onMounted(() => {
+  // Set initial tab based on route
+  const route = router.currentRoute.value
+  const routeToTab = {
+    Roles: 'Roles',
+    CreateRole: 'Roles',
+    Users: 'Users',
+    Finance: 'Finance',
+    Sales: 'Sales',
+    Inventory: 'Inventory',
+    CRM: 'CRM',
+    HRDashboard: 'Dashboard',
+    Employees: 'Employees',
+    Attendance: 'Attendance',
+    AttendanceReport: 'Attendance Report',
+  }
+
+  if (routeToTab[route.name]) {
+    currentTab.value = routeToTab[route.name]
+    // If it's an HR route, open the HR submenu
+    if (['HRDashboard', 'Employees', 'Attendance', 'AttendanceReport'].includes(route.name)) {
+      openParentMenu.value = 'Human Resource'
+    }
+  }
+})
 </script>
 
 <template>
@@ -165,23 +232,7 @@ const setTab = (tabName, parentTab = null) => {
 
     <!-- Main Content -->
     <div class="flex-1 p-6 bg-bgColor overflow-y-auto max-h-screen">
-      <Transition
-        enter-active-class="transition-opacity duration-300"
-        leave-active-class="transition-opacity duration-300"
-        enter-from-class="opacity-0"
-        leave-to-class="opacity-0"
-      >
-        <div class="min-h-full">
-          <component
-            v-if="
-              currentTab &&
-              (tabs[currentTab]?.component || tabs['Human Resource'].submenu[currentTab])
-            "
-            :is="tabs[currentTab]?.component || tabs['Human Resource'].submenu[currentTab]"
-            :key="currentTab"
-          ></component>
-        </div>
-      </Transition>
+      <router-view></router-view>
     </div>
   </div>
 </template>
