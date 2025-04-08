@@ -23,6 +23,12 @@
   .input-search {
     @apply input bg-white border-primaryColor text-black !outline-none;
   }
+  .btn-primaryStyle {
+    @apply btn bg-primaryColor text-white border-none shadow-none btn-sm font-thin hover:bg-primaryColor/80;
+  }
+  .btn-secondaryStyle {
+    @apply btn bg-gray-100 text-gray-500 border-none shadow-none btn-sm font-thin hover:bg-gray-100 hover:text-gray-700;
+  }
 
   /* Tabulator Theme Styles */
 

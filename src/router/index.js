@@ -11,7 +11,7 @@ import HRDashboard from '@/views/Human Resource/HRDashboard.vue'
 import Employees from '@/views/Human Resource/Employees.vue'
 import Attendance from '@/views/Human Resource/Attendance.vue'
 import AttendanceReport from '@/views/Human Resource/AttendanceReport.vue'
-
+import CreateUserForm from '@/components/Users & Role/Roles/CreateUserForm.vue'
 const routes = [
   {
     path: '/',
@@ -35,6 +35,11 @@ const routes = [
         path: 'users',
         name: 'Users',
         component: UserManagement,
+      },
+      {
+        path: 'users/create',
+        name: 'CreateUser',
+        component: CreateUserForm,
       },
       {
         path: 'finance',

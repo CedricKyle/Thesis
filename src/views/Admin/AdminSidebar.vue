@@ -146,6 +146,7 @@ onMounted(() => {
     Roles: 'Roles',
     CreateRole: 'Roles',
     Users: 'Users',
+    CreateUser: 'Users',
     Finance: 'Finance',
     Sales: 'Sales',
     Inventory: 'Inventory',

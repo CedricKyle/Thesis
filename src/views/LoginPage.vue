@@ -1,5 +1,5 @@
 <script setup>
-import { User, KeyRound } from 'lucide-vue-next'
+import { Lock, IdCard } from 'lucide-vue-next'
 import { ref } from 'vue'
 
 const userId = ref('')
@@ -27,26 +27,28 @@ const userPassword = ref('')
             <div class="flex flex-col items-center w-full gap-3">
               <!-- User ID Input -->
               <div class="relative w-full">
-                <input
-                  v-model="userId"
-                  type="text"
-                  class="input w-full text-black pr-10 bg-white placeholder:text-gray-500 !outline-none"
-                  placeholder="User ID"
-                />
-                <User class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500" size="20" />
+                <label class="input bg-white">
+                  <IdCard class="text-gray-500" />
+                  <input
+                    type="text"
+                    placeholder="User ID"
+                    required
+                    class="placeholder:text-gray-500 text-black"
+                  />
+                </label>
               </div>
               <!-- Password Input -->
               <div class="relative w-full">
-                <input
-                  v-model="userPassword"
-                  type="password"
-                  class="input w-full text-black pr-10 bg-white placeholder:text-gray-500 !outline-none"
-                  placeholder="Password"
-                />
-                <KeyRound
-                  class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
-                  size="20"
-                />
+                <label class="input bg-white">
+                  <Lock class="text-gray-500 w-5 h-5" />
+                  <input
+                    type="password"
+                    required
+                    placeholder="Password"
+                    minlength="8"
+                    class="placeholder:text-gray-500 text-black"
+                  />
+                </label>
               </div>
               <!-- Submit Button -->
               <button type="submit" class="btn bg-secondaryColor border-none w-full">Login</button>
