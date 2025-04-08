@@ -33,6 +33,10 @@ const roleToEdit = ref(null)
 const deleteConfirmModal = ref(null)
 const roleToDelete = ref(null)
 
+// Add these new refs for duplicate confirmation
+const duplicateConfirmModal = ref(null)
+const roleToDuplicate = ref(null)
+
 // Define columns for Tabulator
 const columns = [
   {
@@ -65,6 +69,12 @@ const columns = [
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
           </button>
+          <button class="btn btn-sm btn-circle hover:bg-secondaryColor border-none btn-ghost duplicate-button">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 9h-9a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2z" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
+          </button>
           <button class="btn btn-sm btn-circle hover:bg-red-400 border-none btn-ghost delete-button">
             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 6 6 18M6 6l12 12" />
@@ -79,6 +89,8 @@ const columns = [
         handleEdit(record)
       } else if (e.target.closest('.delete-button')) {
         handleDelete(record)
+      } else if (e.target.closest('.duplicate-button')) {
+        handleDuplicate(record)
       }
     },
   },
@@ -244,7 +256,7 @@ const handleSubmit = () => {
     ).map((checkbox) => checkbox.nextElementSibling.textContent.trim())
 
     roleDataToUpdate.value = {
-      roleName: roleName.value,
+      'role name': roleName.value,
       description: description.value,
       permissions: checkedPermissions,
     }
@@ -295,6 +307,43 @@ const formatPermissions = (permissions) => {
       return `${section}:\n${perms.map((p) => `  • ${p}`).join('\n')}`
     })
     .join('\n\n')
+}
+
+// Add handleDuplicate function
+const handleDuplicate = (rowData) => {
+  roleToDuplicate.value = rowData
+  duplicateConfirmModal.value?.showModal()
+}
+
+// Modify confirmDuplicate function
+const confirmDuplicate = () => {
+  if (roleToDuplicate.value) {
+    try {
+      // Create new role data with "Copy of" prefix
+      const newRoleData = {
+        'role name': `Copy of ${roleToDuplicate.value['role name']}`,
+        description: roleToDuplicate.value.description,
+        permissions: [...roleToDuplicate.value.permissions],
+        'last modified': new Date().toLocaleString(),
+      }
+
+      // Add the new role
+      rolesStore.addRole(newRoleData)
+      duplicateConfirmModal.value?.close()
+      roleToDuplicate.value = null
+      showToast('success', 'Role duplicated successfully!')
+
+      // The table will automatically update due to the watch on roles
+    } catch (error) {
+      showToast('error', 'Failed to duplicate role')
+    }
+  }
+}
+
+// Add cancelDuplicate function
+const cancelDuplicate = () => {
+  duplicateConfirmModal.value?.close()
+  roleToDuplicate.value = null
 }
 </script>
 
@@ -364,7 +413,7 @@ const formatPermissions = (permissions) => {
           <div class="flex flex-col gap-2">
             <div class="flex flex-row">
               <div class="w-32 text-gray-500">Role Name:</div>
-              <div class="text-black">{{ roleDataToUpdate.roleName }}</div>
+              <div class="text-black">{{ roleDataToUpdate['role name'] }}</div>
             </div>
             <div class="flex flex-row">
               <div class="w-32 text-gray-500">Description:</div>
@@ -439,6 +488,46 @@ const formatPermissions = (permissions) => {
         <div class="modal-action justify-center gap-4">
           <button class="btn-errorStyle" @click="confirmDelete">Delete</button>
           <button class="btn-secondaryStyle" @click="cancelDelete">Cancel</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Add Duplicate Confirmation Modal -->
+    <dialog ref="duplicateConfirmModal" class="modal">
+      <div class="modal-box bg-white w-96">
+        <h3 class="font-bold text-lg text-black">Confirm Duplicate</h3>
+        <div
+          class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
+        ></div>
+
+        <div v-if="roleToDuplicate" class="py-4">
+          <p class="text-center text-black">
+            Are you sure you want to duplicate the role
+            <span class="font-bold">{{ roleToDuplicate['role name'] }}</span
+            >?
+          </p>
+
+          <div class="mt-4 flex flex-col gap-2">
+            <div class="flex flex-row">
+              <div class="w-32 text-gray-500">New Name:</div>
+              <div class="text-black">Copy of {{ roleToDuplicate['role name'] }}</div>
+            </div>
+            <div class="flex flex-row">
+              <div class="w-32 text-gray-500">Description:</div>
+              <div class="text-black">{{ roleToDuplicate.description }}</div>
+            </div>
+            <div class="flex flex-col">
+              <div class="text-gray-500 mb-2">Permissions to copy:</div>
+              <pre class="text-black text-sm whitespace-pre-wrap bg-gray-50 p-3 rounded-md">{{
+                formatPermissions(roleToDuplicate.permissions)
+              }}</pre>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-action justify-center gap-4">
+          <button class="btn-primaryStyle" @click="confirmDuplicate">Duplicate</button>
+          <button class="btn-secondaryStyle" @click="cancelDuplicate">Cancel</button>
         </div>
       </div>
     </dialog>

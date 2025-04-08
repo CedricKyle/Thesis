@@ -6,9 +6,10 @@ export const useRolesStore = defineStore('roles', () => {
 
   const addRole = (role) => {
     roles.value.push({
-      ...role,
-      'role name': role.roleName,
-      'last modified': new Date().toISOString().split('T')[0],
+      'role name': role['role name'] || role.roleName,
+      description: role.description,
+      permissions: role.permissions,
+      'last modified': new Date().toLocaleString(),
     })
   }
 
@@ -16,9 +17,10 @@ export const useRolesStore = defineStore('roles', () => {
     const index = roles.value.findIndex((role) => role['role name'] === oldRoleName)
     if (index !== -1) {
       roles.value[index] = {
-        ...updatedRole,
-        'role name': updatedRole.roleName,
-        'last modified': new Date().toISOString().split('T')[0],
+        'role name': updatedRole['role name'] || updatedRole.roleName,
+        description: updatedRole.description,
+        permissions: updatedRole.permissions,
+        'last modified': new Date().toLocaleString(),
       }
     }
   }

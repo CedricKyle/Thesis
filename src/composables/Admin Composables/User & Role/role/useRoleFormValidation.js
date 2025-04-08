@@ -1,33 +1,20 @@
 import { ref } from 'vue'
 
-export function useFormValidation() {
+export const useFormValidation = () => {
   const errors = ref({})
 
-  const validateRoleName = (value) => {
-    if (!value.trim()) {
+  const validateRoleName = (roleName) => {
+    if (!roleName || roleName.trim() === '') {
       errors.value.roleName = 'Role name is required'
-      return false
-    }
-
-    const words = value
-      .trim()
-      .split(/\s+/)
-      .filter((word) => word.length > 0)
-    if (words.length < 1) {
-      errors.value.roleName = 'Role name must contain at least 1 word'
       return false
     }
     errors.value.roleName = ''
     return true
   }
 
-  const validateDescription = (value) => {
-    if (value.length < 10) {
-      errors.value.description = 'Description must be at least 10 characters'
-      return false
-    }
-    if (value.length > 50) {
-      errors.value.description = 'Description must not exceed 50 characters'
+  const validateDescription = (description) => {
+    if (!description || description.trim() === '') {
+      errors.value.description = 'Description is required'
       return false
     }
     errors.value.description = ''
@@ -35,8 +22,8 @@ export function useFormValidation() {
   }
 
   const validatePermissions = (permissions) => {
-    if (permissions.length < 1) {
-      errors.value.permissions = 'Please select at least 1 permission'
+    if (!permissions || permissions.length === 0) {
+      errors.value.permissions = 'At least one permission must be selected'
       return false
     }
     errors.value.permissions = ''

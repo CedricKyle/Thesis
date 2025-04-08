@@ -2,14 +2,29 @@
 import { defineProps } from 'vue'
 
 const props = defineProps({
-  show: Boolean,
+  show: {
+    type: Boolean,
+    default: false,
+  },
   type: {
     type: String,
-    default: 'success', // 'success' or 'error'
+    default: 'success',
+    validator: (value) => {
+      return ['success', 'error', 'warning', 'info', ''].includes(value)
+    },
   },
-  title: String,
-  message: String,
-  onClose: Function,
+  title: {
+    type: String,
+    default: '',
+  },
+  message: {
+    type: String,
+    default: '',
+  },
+  onClose: {
+    type: Function,
+    required: true,
+  },
 })
 </script>
 

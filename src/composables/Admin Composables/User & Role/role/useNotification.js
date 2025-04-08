@@ -1,24 +1,29 @@
 import { ref } from 'vue'
 
-export function useNotification() {
+export const useNotification = () => {
   const notification = ref({
     show: false,
-    type: 'success',
+    type: 'success', // Set default type
     title: '',
     message: '',
   })
 
-  const showNotification = (type, message, title = type === 'success' ? 'Success' : 'Error') => {
+  const showNotification = (notificationType, title, message) => {
     notification.value = {
       show: true,
-      type,
-      title,
-      message,
+      type: notificationType || 'success', // Provide default if not specified
+      title: title || '',
+      message: message || '',
     }
   }
 
   const closeNotification = () => {
-    notification.value.show = false
+    notification.value = {
+      show: false,
+      type: 'success', // Reset to default
+      title: '',
+      message: '',
+    }
   }
 
   return {

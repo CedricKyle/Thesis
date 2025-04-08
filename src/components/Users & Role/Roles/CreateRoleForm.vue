@@ -14,7 +14,8 @@ const rolesStore = useRolesStore()
 const { roles } = storeToRefs(rolesStore)
 
 // Form validation composable
-const { errors, validateForm, clearErrors } = useFormValidation()
+const { errors, validateRoleName, validateDescription, validatePermissions, clearErrors } =
+  useFormValidation()
 
 // Check if we're in edit mode
 const isEditMode = computed(() => route.query.edit === 'true')
@@ -68,31 +69,31 @@ const getSelectedPermissions = () => {
 
 // Form submission
 const handleSubmit = () => {
-  clearErrors()
+  // Get selected permissions first
+  const selectedPermissions = getSelectedPermissions()
 
-  const formData = {
-    roleName: roleName.value,
-    description: description.value,
-    permissions: getSelectedPermissions(),
-  }
+  // Validate all fields
+  const isRoleNameValid = validateRoleName(roleName.value)
+  const isDescriptionValid = validateDescription(description.value)
+  const isPermissionsValid = validatePermissions(selectedPermissions)
 
-  if (validateForm(formData)) {
+  if (isRoleNameValid && isDescriptionValid && isPermissionsValid) {
     const roleData = {
-      roleName: roleName.value,
+      'role name': roleName.value,
       description: description.value,
-      permissions: formData.permissions,
+      permissions: selectedPermissions,
     }
 
     try {
       if (isEditMode.value) {
         rolesStore.updateRole(originalRoleName.value, roleData)
-        showNotification('success', 'Role updated successfully!')
+        showNotification('success', 'Success', 'Role updated successfully')
       } else {
         rolesStore.addRole(roleData)
-        showNotification('success', 'Role added successfully!')
+        showNotification('success', 'Success', 'Role added successfully')
       }
     } catch (error) {
-      showNotification('error', error.message)
+      showNotification('error', 'Error', 'An error occurred while saving the role')
     }
   }
 }
