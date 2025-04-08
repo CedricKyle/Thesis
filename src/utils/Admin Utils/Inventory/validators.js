@@ -25,44 +25,34 @@ export const validatePrice = (value) => {
   return { isValid: true, error: '' }
 }
 
-export const validateQuantity = (value, maxQty) => {
-  const qty = Number(value)
-  if (isNaN(qty)) {
-    return {
-      isValid: false,
-      error: 'Quantity must be a number',
-    }
+export const validateQuantity = (quantity, maxQty) => {
+  if (quantity === null || quantity === undefined || quantity === '') {
+    return { error: 'Quantity is required' }
   }
-  if (qty < 0) {
-    return {
-      isValid: false,
-      error: 'Quantity cannot be less than 0',
-    }
+
+  const qty = Number(quantity)
+  if (isNaN(qty) || qty < 0) {
+    return { error: 'Quantity must be a positive number' }
   }
-  if (maxQty && qty > Number(maxQty)) {
-    return {
-      isValid: false,
-      error: 'Quantity cannot exceed Max Quantity',
-    }
+
+  if (maxQty && Number(maxQty) > 0 && qty > Number(maxQty)) {
+    return { error: 'Quantity cannot exceed max quantity' }
   }
-  return { isValid: true, error: '' }
+
+  return { error: null }
 }
 
-export const validateMaxQuantity = (value) => {
-  const maxQty = Number(value)
-  if (isNaN(maxQty)) {
-    return {
-      isValid: false,
-      error: 'Max Quantity must be a number',
-    }
+export const validateMaxQuantity = (maxQty) => {
+  if (maxQty === null || maxQty === undefined || maxQty === '') {
+    return { error: 'Max quantity is required' }
   }
-  if (maxQty < 0) {
-    return {
-      isValid: false,
-      error: 'Max Quantity cannot be less than 0',
-    }
+
+  const max = Number(maxQty)
+  if (isNaN(max) || max <= 0) {
+    return { error: 'Max quantity must be greater than 0' }
   }
-  return { isValid: true, error: '' }
+
+  return { error: null }
 }
 
 export const validateDate = (value) => {

@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, defineAsyncComponent } from 'vue'
 import ProductForm from '@/components/Admin Components/Inventory Management/Inventory Tables/ProductForm.vue'
-import { useInventoryStore } from '@/stores/inventory'
+import { useInventoryStore } from '@/stores/Inventory Management/inventory'
 //tables
 const Foods = defineAsyncComponent(
   () => import('@/components/Admin Components/Inventory Management/Inventory Tables/Foods.vue'),
@@ -211,10 +211,8 @@ const showToast = (message) => {
         >?
       </p>
       <div class="modal-action justify-center gap-4">
-        <button class="btn bg-primaryColor border-none" @click="confirmEdit">Edit</button>
-        <button class="btn bg-gray-400 border-none" @click="editConfirmModal?.close()">
-          Cancel
-        </button>
+        <button class="btn-primaryStyle" @click="confirmEdit">Edit</button>
+        <button class="btn-secondaryStyle" @click="editConfirmModal?.close()">Cancel</button>
       </div>
     </div>
   </dialog>
@@ -225,10 +223,8 @@ const showToast = (message) => {
         Are you sure you want to update this product?
       </p>
       <div class="modal-action justify-center gap-4">
-        <button class="btn bg-primaryColor border-none" @click="proceedWithSubmit">Update</button>
-        <button class="btn bg-gray-400 border-none" @click="updateConfirmModal?.close()">
-          Cancel
-        </button>
+        <button class="btn-primaryStyle" @click="proceedWithSubmit">Update</button>
+        <button class="btn-secondaryStyle" @click="updateConfirmModal?.close()">Cancel</button>
       </div>
     </div>
   </dialog>

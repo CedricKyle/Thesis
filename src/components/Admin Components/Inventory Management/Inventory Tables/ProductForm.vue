@@ -19,7 +19,7 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['submit', 'cancel'])
-
+const confirmationModal = ref(null)
 const formData = ref({ ...props.initialData })
 const errors = ref({})
 const fileInput = ref(null)
@@ -42,6 +42,7 @@ const validateForm = () => {
   const maxQtyValidation = validators.validateMaxQuantity(formData.value.maxQty)
   const dateValidation = validators.validateDate(formData.value.dateExpiry)
 
+  // Clear previous errors
   errors.value = {
     name: nameValidation.error,
     price: priceValidation.error,
@@ -50,13 +51,36 @@ const validateForm = () => {
     dateExpiry: dateValidation.error,
   }
 
+  // Additional validation to ensure both quantity and maxQty are provided
+  if (!formData.value.quantity && !formData.value.maxQty) {
+    errors.value.quantity = 'Quantity is required'
+    errors.value.maxQty = 'Max quantity is required'
+    return false
+  }
+
   return !Object.values(errors.value).some((error) => error)
 }
 
 const handleSubmit = () => {
   if (validateForm()) {
-    emit('submit', formData.value)
+    // Instead of emitting directly, show confirmation modal
+    confirmationModal.value?.showModal()
   }
+}
+
+const confirmSubmit = () => {
+  // Format the data
+  const submissionData = {
+    ...formData.value,
+    quantity: Number(formData.value.quantity),
+    maxQty: Number(formData.value.maxQty),
+    price: Number(formData.value.price),
+  }
+
+  // Close the confirmation modal
+  confirmationModal.value?.close()
+  // Emit the submit event
+  emit('submit', submissionData)
 }
 
 const handleFileUpload = async (event) => {
@@ -154,6 +178,7 @@ const handleFileUpload = async (event) => {
           type="number"
           min="0"
           step="1"
+          required
           placeholder="0"
           class="input w-full !outline-none border"
           :class="{
@@ -174,6 +199,7 @@ const handleFileUpload = async (event) => {
           type="number"
           min="0"
           step="1"
+          required
           placeholder="0"
           class="input w-full !outline-none border"
           :class="{
@@ -220,15 +246,54 @@ const handleFileUpload = async (event) => {
     <!-- Form Actions -->
     <div class="modal-action">
       <div class="flex gap-4">
-        <button type="button" class="btn bg-gray-400 border-none" @click="$emit('cancel')">
-          Cancel
-        </button>
-        <button type="submit" class="btn bg-primaryColor border-none" @click.prevent="handleSubmit">
+        <button type="button" class="btn-secondaryStyle" @click="$emit('cancel')">Cancel</button>
+        <button type="submit" class="btn-primaryStyle" @click.prevent="handleSubmit">
           {{ isEdit ? 'Update Product' : 'Add Product' }}
         </button>
       </div>
     </div>
   </div>
+
+  <!-- Add Confirmation Modal -->
+  <dialog ref="confirmationModal" class="modal">
+    <div class="modal-box bg-white w-96">
+      <h3 class="text-lg font-bold text-center text-black mb-4">Confirm Product Details</h3>
+
+      <div class="space-y-3 text-black">
+        <div class="flex justify-between">
+          <span class="font-semibold">Product Name:</span>
+          <span>{{ formData.name }}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="font-semibold">Price:</span>
+          <span>₱{{ formData.price }}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="font-semibold">Quantity:</span>
+          <span>{{ formData.quantity }}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="font-semibold">Max Quantity:</span>
+          <span>{{ formData.maxQty }}</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="font-semibold">Expiry Date:</span>
+          <span>{{ formData.dateExpiry }}</span>
+        </div>
+      </div>
+
+      <p class="py-4 text-center text-black">
+        Are you sure you want to {{ isEdit ? 'update' : 'add' }} this product?
+      </p>
+
+      <div class="modal-action justify-center gap-4">
+        <button class="btn-primaryStyle" @click="confirmSubmit">
+          {{ isEdit ? 'Update' : 'Add' }}
+        </button>
+        <button class="btn-secondaryStyle" @click="confirmationModal?.close()">Cancel</button>
+      </div>
+    </div>
+  </dialog>
 </template>
 
 <style scoped>
