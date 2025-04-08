@@ -5,11 +5,13 @@ import { TabulatorFull as Tabulator } from 'tabulator-tables'
 import { useRouter } from 'vue-router'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import { storeToRefs } from 'pinia'
-import NotificationModal from '@/components/Admin Components/HR/Employee/NotificationModal.vue'
+import Toast from '@/components/Admin Components/HR/Toast.vue'
+import { useToast } from '@/composables/Admin Composables/User & Role/role/useToast'
 
 const router = useRouter()
 const rolesStore = useRolesStore()
 const { roles } = storeToRefs(rolesStore)
+const { toast, showToast } = useToast()
 
 const tableRef = ref(null)
 const isTableBuilt = ref(false)
@@ -19,10 +21,6 @@ let table = null
 const searchInput = ref('')
 const filteredRoles = ref([])
 
-// Add these new refs for delete confirmation
-const deleteConfirmModal = ref(null)
-const roleToDelete = ref(null)
-
 // Add new ref for update confirmation
 const updateConfirmModal = ref(null)
 const roleDataToUpdate = ref(null)
@@ -31,13 +29,9 @@ const roleDataToUpdate = ref(null)
 const editConfirmModal = ref(null)
 const roleToEdit = ref(null)
 
-// Add notification state
-const notification = ref({
-  show: false,
-  type: 'success',
-  title: '',
-  message: '',
-})
+// Add back the delete confirmation modal ref
+const deleteConfirmModal = ref(null)
+const roleToDelete = ref(null)
 
 // Define columns for Tabulator
 const columns = [
@@ -202,32 +196,30 @@ const cancelEdit = () => {
   roleToEdit.value = null
 }
 
-// Handle delete action
+// Modify handleDelete to show confirmation modal first
 const handleDelete = (rowData) => {
   roleToDelete.value = rowData
   deleteConfirmModal.value?.showModal()
 }
 
-// Add closeNotification function
-const closeNotification = () => {
-  notification.value.show = false
-}
-
-// Modify confirmDelete to show notification
+// Add confirmDelete function that handles the actual deletion and shows toast
 const confirmDelete = () => {
   if (roleToDelete.value) {
-    rolesStore.deleteRole(roleToDelete.value['role name'])
-    deleteConfirmModal.value?.close()
-    roleToDelete.value = null
-
-    // Show success notification
-    notification.value = {
-      show: true,
-      type: 'success',
-      title: 'Success',
-      message: 'Role deleted successfully!',
+    try {
+      rolesStore.deleteRole(roleToDelete.value['role name'])
+      deleteConfirmModal.value?.close()
+      roleToDelete.value = null
+      showToast('success', 'Role deleted successfully!')
+    } catch (error) {
+      showToast('error', 'Failed to delete role')
     }
   }
+}
+
+// Add cancelDelete function
+const cancelDelete = () => {
+  deleteConfirmModal.value?.close()
+  roleToDelete.value = null
 }
 
 // Navigation function
@@ -263,12 +255,7 @@ const handleSubmit = () => {
     } else {
       // For new roles, proceed as before
       rolesStore.addRole(roleDataToUpdate.value)
-      notification.value = {
-        show: true,
-        type: 'success',
-        title: 'Success',
-        message: 'Role added successfully!',
-      }
+      showToast('success', 'Role added successfully!')
     }
   }
 }
@@ -278,12 +265,7 @@ const confirmUpdate = () => {
   if (roleDataToUpdate.value) {
     rolesStore.updateRole(originalRoleName.value, roleDataToUpdate.value)
     updateConfirmModal.value?.close()
-    notification.value = {
-      show: true,
-      type: 'success',
-      title: 'Success',
-      message: 'Role updated successfully!',
-    }
+    showToast('success', 'Role updated successfully!')
   }
 }
 
@@ -291,6 +273,28 @@ const confirmUpdate = () => {
 const cancelUpdate = () => {
   updateConfirmModal.value?.close()
   roleDataToUpdate.value = null
+}
+
+// Add this helper function in the script section
+const formatPermissions = (permissions) => {
+  if (!permissions) return ''
+
+  // Group permissions by section
+  const groupedPermissions = permissions.reduce((acc, permission) => {
+    const [section] = permission.split(' - ')
+    if (!acc[section]) {
+      acc[section] = []
+    }
+    acc[section].push(permission.replace(`${section} - `, ''))
+    return acc
+  }, {})
+
+  // Convert to array of formatted strings
+  return Object.entries(groupedPermissions)
+    .map(([section, perms]) => {
+      return `${section}:\n${perms.map((p) => `  • ${p}`).join('\n')}`
+    })
+    .join('\n\n')
 }
 </script>
 
@@ -348,21 +352,6 @@ const cancelUpdate = () => {
       </div>
     </div>
 
-    <!-- Add Delete Confirmation Modal -->
-    <dialog ref="deleteConfirmModal" class="modal">
-      <div class="modal-box bg-white w-96">
-        <p class="py-4 text-center text-black text-lg">
-          Are you sure you want to delete the role
-          <span class="font-bold">{{ roleToDelete?.['role name'] }}</span
-          >?
-        </p>
-        <div class="modal-action justify-center gap-4">
-          <button class="btn-errorStyle" @click="confirmDelete">Delete</button>
-          <button class="btn-secondaryStyle" @click="deleteConfirmModal?.close()">Cancel</button>
-        </div>
-      </div>
-    </dialog>
-
     <!-- Add Update Confirmation Modal -->
     <dialog ref="updateConfirmModal" class="modal">
       <div class="modal-box bg-white w-96">
@@ -381,11 +370,11 @@ const cancelUpdate = () => {
               <div class="w-32 text-gray-500">Description:</div>
               <div class="text-black">{{ roleDataToUpdate.description }}</div>
             </div>
-            <div class="flex flex-row">
-              <div class="w-32 text-gray-500">Permissions:</div>
-              <div class="text-black flex-1">
-                {{ roleDataToUpdate.permissions.join(', ') }}
-              </div>
+            <div class="flex flex-col">
+              <div class="text-gray-500 mb-2">Permissions:</div>
+              <pre class="text-black text-sm whitespace-pre-wrap bg-gray-50 p-3 rounded-md">{{
+                formatPermissions(roleDataToUpdate.permissions)
+              }}</pre>
             </div>
           </div>
         </div>
@@ -417,11 +406,11 @@ const cancelUpdate = () => {
               <div class="w-32 text-gray-500">Description:</div>
               <div class="text-black">{{ roleToEdit.description }}</div>
             </div>
-            <div class="flex flex-row">
-              <div class="w-32 text-gray-500">Permissions:</div>
-              <div class="text-black flex-1">
-                {{ roleToEdit.permissions?.join(', ') }}
-              </div>
+            <div class="flex flex-col">
+              <div class="text-gray-500 mb-2">Permissions:</div>
+              <pre class="text-black text-sm whitespace-pre-wrap bg-gray-50 p-3 rounded-md">{{
+                formatPermissions(roleToEdit.permissions)
+              }}</pre>
             </div>
           </div>
         </div>
@@ -433,13 +422,28 @@ const cancelUpdate = () => {
       </div>
     </dialog>
 
-    <!-- Existing Success Modal -->
-    <NotificationModal
-      :show="notification.show"
-      :type="notification.type"
-      :title="notification.title"
-      :message="notification.message"
-      :on-close="closeNotification"
-    />
+    <!-- Add Delete Confirmation Modal -->
+    <dialog ref="deleteConfirmModal" class="modal">
+      <div class="modal-box bg-white w-96">
+        <h3 class="font-bold text-lg text-black">Confirm Delete</h3>
+        <div
+          class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
+        ></div>
+
+        <p class="py-4 text-center text-black">
+          Are you sure you want to delete the role
+          <span class="font-bold">{{ roleToDelete?.['role name'] }}</span
+          >?
+        </p>
+
+        <div class="modal-action justify-center gap-4">
+          <button class="btn-errorStyle" @click="confirmDelete">Delete</button>
+          <button class="btn-secondaryStyle" @click="cancelDelete">Cancel</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Add Toast component -->
+    <Toast :show="toast.show" :type="toast.type" :message="toast.message" />
   </div>
 </template>

@@ -5,11 +5,16 @@ import { ChevronLeft } from 'lucide-vue-next'
 import NotificationModal from '@/components/Admin Components/HR/Employee/NotificationModal.vue'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import { storeToRefs } from 'pinia'
+import { useFormValidation } from '@/composables/Admin Composables/User & Role/role/useRoleFormValidation'
+import { useNotification } from '@/composables/Admin Composables/User & Role/role/useNotification'
 
 const router = useRouter()
 const route = useRoute()
 const rolesStore = useRolesStore()
 const { roles } = storeToRefs(rolesStore)
+
+// Form validation composable
+const { errors, validateForm, clearErrors } = useFormValidation()
 
 // Check if we're in edit mode
 const isEditMode = computed(() => route.query.edit === 'true')
@@ -20,23 +25,18 @@ const roleName = ref('')
 const description = ref('')
 const permissions = ref([])
 
-// Validation state
-const errors = ref({
-  roleName: '',
-  description: '',
-  permissions: '',
-})
-
 // Modal state
-const notification = ref({
-  show: false,
-  type: 'success',
-  title: '',
-  message: '',
-})
+const { notification, showNotification, closeNotification } = useNotification()
 
 // If in edit mode, load the role data
 onMounted(() => {
+  // First uncheck all checkboxes regardless of mode
+  const allCheckboxes = document.querySelectorAll('input[type="checkbox"]')
+  allCheckboxes.forEach((checkbox) => {
+    checkbox.checked = false
+  })
+
+  // Then if in edit mode, check only the permissions that the role has
   if (isEditMode.value && route.query.roleName) {
     const role = roles.value.find((r) => r['role name'] === route.query.roleName)
     if (role) {
@@ -44,114 +44,65 @@ onMounted(() => {
       roleName.value = role['role name']
       description.value = role.description
 
-      // First uncheck all checkboxes
-      const allCheckboxes = document.querySelectorAll('input[type="checkbox"]')
+      // Check only the permissions that the role has
       allCheckboxes.forEach((checkbox) => {
-        checkbox.checked = false
-      })
-
-      // Then check only the permissions that the role has
-      allCheckboxes.forEach((checkbox) => {
-        const label = checkbox.nextElementSibling.textContent.trim()
-        if (role.permissions.includes(label)) {
+        const section = checkbox.closest('[data-section]').getAttribute('data-section')
+        const permission = checkbox.nextElementSibling.textContent.trim()
+        const fullPermission = `${section} - ${permission}`
+        if (role.permissions.includes(fullPermission)) {
           checkbox.checked = true
         }
       })
     }
-  } else {
-    // If not in edit mode, ensure all checkboxes are unchecked
-    const allCheckboxes = document.querySelectorAll('input[type="checkbox"]')
-    allCheckboxes.forEach((checkbox) => {
-      checkbox.checked = false
-    })
   }
 })
 
-// Validation functions
-const validateRoleName = () => {
-  if (!roleName.value.trim()) {
-    errors.value.roleName = 'Role name is required'
-    return false
-  }
-
-  const words = roleName.value
-    .trim()
-    .split(/\s+/)
-    .filter((word) => word.length > 0)
-  if (words.length < 1) {
-    errors.value.roleName = 'Role name must contain at least 1 word'
-    return false
-  }
-  errors.value.roleName = ''
-  return true
-}
-
-const validateDescription = () => {
-  if (description.value.length < 10) {
-    errors.value.description = 'Description must be at least 10 characters'
-    return false
-  }
-  if (description.value.length > 50) {
-    errors.value.description = 'Description must not exceed 50 characters'
-    return false
-  }
-  errors.value.description = ''
-  return true
-}
-
-const validatePermissions = () => {
-  const checkedPermissions = document.querySelectorAll('input[type="checkbox"]:checked')
-  if (checkedPermissions.length < 1) {
-    errors.value.permissions = 'Please select at least 1 permission'
-    return false
-  }
-  errors.value.permissions = ''
-  return true
+// Get selected permissions helper - modify to include the section name
+const getSelectedPermissions = () => {
+  return Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map((checkbox) => {
+    const section = checkbox.closest('[data-section]').getAttribute('data-section')
+    const permission = checkbox.nextElementSibling.textContent.trim()
+    return `${section} - ${permission}`
+  })
 }
 
 // Form submission
 const handleSubmit = () => {
-  const isRoleNameValid = validateRoleName()
-  const isDescriptionValid = validateDescription()
-  const isPermissionsValid = validatePermissions()
+  clearErrors()
 
-  if (isRoleNameValid && isDescriptionValid && isPermissionsValid) {
-    // Get selected permissions
-    const checkedPermissions = Array.from(
-      document.querySelectorAll('input[type="checkbox"]:checked'),
-    ).map((checkbox) => checkbox.nextElementSibling.textContent.trim())
+  const formData = {
+    roleName: roleName.value,
+    description: description.value,
+    permissions: getSelectedPermissions(),
+  }
 
+  if (validateForm(formData)) {
     const roleData = {
       roleName: roleName.value,
       description: description.value,
-      permissions: checkedPermissions,
+      permissions: formData.permissions,
     }
 
-    if (isEditMode.value) {
-      rolesStore.updateRole(originalRoleName.value, roleData)
-      notification.value = {
-        show: true,
-        type: 'success',
-        title: 'Success',
-        message: 'Role updated successfully!',
+    try {
+      if (isEditMode.value) {
+        rolesStore.updateRole(originalRoleName.value, roleData)
+        showNotification('success', 'Role updated successfully!')
+      } else {
+        rolesStore.addRole(roleData)
+        showNotification('success', 'Role added successfully!')
       }
-    } else {
-      rolesStore.addRole(roleData)
-      notification.value = {
-        show: true,
-        type: 'success',
-        title: 'Success',
-        message: 'Role added successfully!',
-      }
+    } catch (error) {
+      showNotification('error', error.message)
     }
   }
 }
 
-// Close notification
-const closeNotification = () => {
-  notification.value.show = false
+// Modify the closeNotification function to handle navigation
+const handleCloseNotification = () => {
+  closeNotification()
+  // Only navigate if it was a success notification
   if (notification.value.type === 'success') {
-    router.back()
+    router.push('/roles')
   }
 }
 </script>
@@ -206,7 +157,7 @@ const closeNotification = () => {
         <!-- permissions list -->
         <div class="permissions-list grid grid-cols-2 gap-5 border border-gray-200 rounded-md p-2">
           <!-- User Management -->
-          <div class="user-management">
+          <div class="user-management" data-section="User Management">
             <p class="text-black text-sm border border-gray-200 rounded-md p-2 bg-gray-50">
               User Management
             </p>
@@ -239,7 +190,7 @@ const closeNotification = () => {
           </div>
 
           <!-- Roles and Permissions -->
-          <div class="roles-and-permissions">
+          <div class="roles-and-permissions" data-section="Roles and Permissions">
             <p class="text-black text-sm border border-gray-200 rounded-md p-2 bg-gray-50">
               Roles and Permissions
             </p>
@@ -268,13 +219,13 @@ const closeNotification = () => {
           </div>
 
           <!-- Human Resource -->
-          <div class="human-resource col-span-2">
+          <div class="human-resource col-span-2" data-section="Human Resource">
             <p class="text-black text-sm border border-gray-200 rounded-md p-2 bg-gray-50">
               Human Resource
             </p>
 
             <div class="grid grid-cols-4 gap-5">
-              <div class="p-5 flex flex-col gap-5">
+              <div class="p-5 flex flex-col gap-5" data-section="HR Dashboard">
                 <p class="text-black text-sm font-semibold">HR Dashboard</p>
                 <div class="flex items-center gap-2">
                   <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
@@ -287,7 +238,7 @@ const closeNotification = () => {
                 </div>
               </div>
 
-              <div class="p-5 flex flex-col gap-5">
+              <div class="p-5 flex flex-col gap-5" data-section="Attendance Report">
                 <p class="text-black text-sm font-semibold">Attendance Report</p>
                 <div class="flex items-center gap-2">
                   <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
@@ -300,7 +251,7 @@ const closeNotification = () => {
                 </div>
               </div>
 
-              <div class="p-5 flex flex-col gap-5">
+              <div class="p-5 flex flex-col gap-5" data-section="Employee Management">
                 <p class="text-black text-sm font-semibold">Employee Management</p>
                 <div class="flex items-center gap-2">
                   <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
@@ -323,7 +274,7 @@ const closeNotification = () => {
                 </div>
               </div>
 
-              <div class="p-5 flex flex-col gap-5">
+              <div class="p-5 flex flex-col gap-5" data-section="Attendance Management">
                 <p class="text-black text-sm font-semibold">Attendance Management</p>
                 <div class="flex items-center gap-2">
                   <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
@@ -349,7 +300,7 @@ const closeNotification = () => {
           </div>
 
           <!-- Inventory Management -->
-          <div class="inventory-management">
+          <div class="inventory-management" data-section="Inventory Management">
             <p class="text-black text-sm border border-gray-200 rounded-md p-2 bg-gray-50">
               Inventory Management
             </p>
@@ -382,7 +333,7 @@ const closeNotification = () => {
           </div>
 
           <!-- Sales Management -->
-          <div class="sales-management">
+          <div class="sales-management" data-section="Sales Management">
             <p class="text-black text-sm border border-gray-200 rounded-md p-2 bg-gray-50">
               Sales Management
             </p>
@@ -415,7 +366,7 @@ const closeNotification = () => {
           </div>
 
           <!-- CRM Management -->
-          <div class="crm-management">
+          <div class="crm-management" data-section="CRM Management">
             <p class="text-black text-sm border border-gray-200 rounded-md p-2 bg-gray-50">
               CRM Management
             </p>
@@ -448,7 +399,7 @@ const closeNotification = () => {
           </div>
 
           <!-- Finance Management -->
-          <div class="finance-management">
+          <div class="finance-management" data-section="Finance Management">
             <p class="text-black text-sm border border-gray-200 rounded-md p-2 bg-gray-50">
               Finance Management
             </p>
@@ -499,7 +450,7 @@ const closeNotification = () => {
       :type="notification.type"
       :title="notification.title"
       :message="notification.message"
-      :on-close="closeNotification"
+      :on-close="handleCloseNotification"
     />
   </div>
 </template>
