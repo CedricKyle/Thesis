@@ -5,6 +5,7 @@ import { TabulatorFull as Tabulator } from 'tabulator-tables'
 import { useRouter } from 'vue-router'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import { storeToRefs } from 'pinia'
+import NotificationModal from '@/components/Admin Components/HR/Employee/NotificationModal.vue'
 
 const router = useRouter()
 const rolesStore = useRolesStore()
@@ -17,6 +18,26 @@ let table = null
 // Add these new refs
 const searchInput = ref('')
 const filteredRoles = ref([])
+
+// Add these new refs for delete confirmation
+const deleteConfirmModal = ref(null)
+const roleToDelete = ref(null)
+
+// Add new ref for update confirmation
+const updateConfirmModal = ref(null)
+const roleDataToUpdate = ref(null)
+
+// Add new ref for edit confirmation
+const editConfirmModal = ref(null)
+const roleToEdit = ref(null)
+
+// Add notification state
+const notification = ref({
+  show: false,
+  type: 'success',
+  title: '',
+  message: '',
+})
 
 // Define columns for Tabulator
 const columns = [
@@ -148,26 +169,65 @@ onBeforeUnmount(() => {
   }
 })
 
-// Handle edit action
+// Modify the handleEdit function to show confirmation first
 const handleEdit = (rowData) => {
-  router
-    .push({
-      name: 'CreateRole',
-      query: {
-        edit: 'true',
-        roleName: rowData['role name'],
-      },
-    })
-    .catch((err) => {
-      if (err.name !== 'NavigationDuplicated') {
-        console.error(err)
-      }
-    })
+  roleToEdit.value = rowData
+  editConfirmModal.value?.showModal()
+}
+
+// Add confirmEdit function
+const confirmEdit = () => {
+  if (roleToEdit.value) {
+    router
+      .push({
+        name: 'CreateRole',
+        query: {
+          edit: 'true',
+          roleName: roleToEdit.value['role name'],
+        },
+      })
+      .catch((err) => {
+        if (err.name !== 'NavigationDuplicated') {
+          console.error(err)
+        }
+      })
+    editConfirmModal.value?.close()
+    roleToEdit.value = null
+  }
+}
+
+// Add cancelEdit function
+const cancelEdit = () => {
+  editConfirmModal.value?.close()
+  roleToEdit.value = null
 }
 
 // Handle delete action
 const handleDelete = (rowData) => {
-  rolesStore.deleteRole(rowData['role name'])
+  roleToDelete.value = rowData
+  deleteConfirmModal.value?.showModal()
+}
+
+// Add closeNotification function
+const closeNotification = () => {
+  notification.value.show = false
+}
+
+// Modify confirmDelete to show notification
+const confirmDelete = () => {
+  if (roleToDelete.value) {
+    rolesStore.deleteRole(roleToDelete.value['role name'])
+    deleteConfirmModal.value?.close()
+    roleToDelete.value = null
+
+    // Show success notification
+    notification.value = {
+      show: true,
+      type: 'success',
+      title: 'Success',
+      message: 'Role deleted successfully!',
+    }
+  }
 }
 
 // Navigation function
@@ -177,6 +237,60 @@ const navigateToCreateRole = () => {
       console.error(err)
     }
   })
+}
+
+// Modify the handleSubmit function to show confirmation first
+const handleSubmit = () => {
+  const isRoleNameValid = validateRoleName()
+  const isDescriptionValid = validateDescription()
+  const isPermissionsValid = validatePermissions()
+
+  if (isRoleNameValid && isDescriptionValid && isPermissionsValid) {
+    // Get selected permissions
+    const checkedPermissions = Array.from(
+      document.querySelectorAll('input[type="checkbox"]:checked'),
+    ).map((checkbox) => checkbox.nextElementSibling.textContent.trim())
+
+    roleDataToUpdate.value = {
+      roleName: roleName.value,
+      description: description.value,
+      permissions: checkedPermissions,
+    }
+
+    if (isEditMode.value) {
+      // Show update confirmation modal instead of updating immediately
+      updateConfirmModal.value?.showModal()
+    } else {
+      // For new roles, proceed as before
+      rolesStore.addRole(roleDataToUpdate.value)
+      notification.value = {
+        show: true,
+        type: 'success',
+        title: 'Success',
+        message: 'Role added successfully!',
+      }
+    }
+  }
+}
+
+// Add confirmUpdate function
+const confirmUpdate = () => {
+  if (roleDataToUpdate.value) {
+    rolesStore.updateRole(originalRoleName.value, roleDataToUpdate.value)
+    updateConfirmModal.value?.close()
+    notification.value = {
+      show: true,
+      type: 'success',
+      title: 'Success',
+      message: 'Role updated successfully!',
+    }
+  }
+}
+
+// Add function to cancel update
+const cancelUpdate = () => {
+  updateConfirmModal.value?.close()
+  roleDataToUpdate.value = null
 }
 </script>
 
@@ -233,5 +347,99 @@ const navigateToCreateRole = () => {
         <div ref="tableRef"></div>
       </div>
     </div>
+
+    <!-- Add Delete Confirmation Modal -->
+    <dialog ref="deleteConfirmModal" class="modal">
+      <div class="modal-box bg-white w-96">
+        <p class="py-4 text-center text-black text-lg">
+          Are you sure you want to delete the role
+          <span class="font-bold">{{ roleToDelete?.['role name'] }}</span
+          >?
+        </p>
+        <div class="modal-action justify-center gap-4">
+          <button class="btn-errorStyle" @click="confirmDelete">Delete</button>
+          <button class="btn-secondaryStyle" @click="deleteConfirmModal?.close()">Cancel</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Add Update Confirmation Modal -->
+    <dialog ref="updateConfirmModal" class="modal">
+      <div class="modal-box bg-white w-96">
+        <h3 class="font-bold text-lg text-black">Confirm Update</h3>
+        <div
+          class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
+        ></div>
+
+        <div v-if="roleDataToUpdate" class="py-4">
+          <div class="flex flex-col gap-2">
+            <div class="flex flex-row">
+              <div class="w-32 text-gray-500">Role Name:</div>
+              <div class="text-black">{{ roleDataToUpdate.roleName }}</div>
+            </div>
+            <div class="flex flex-row">
+              <div class="w-32 text-gray-500">Description:</div>
+              <div class="text-black">{{ roleDataToUpdate.description }}</div>
+            </div>
+            <div class="flex flex-row">
+              <div class="w-32 text-gray-500">Permissions:</div>
+              <div class="text-black flex-1">
+                {{ roleDataToUpdate.permissions.join(', ') }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-action justify-center gap-4">
+          <button class="btn-primaryStyle" @click="confirmUpdate">Update</button>
+          <button class="btn-secondaryStyle" @click="cancelUpdate">Cancel</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Add Edit Confirmation Modal -->
+    <dialog ref="editConfirmModal" class="modal">
+      <div class="modal-box bg-white w-96">
+        <h3 class="font-bold text-lg text-black">Confirm Edit</h3>
+        <div
+          class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
+        ></div>
+
+        <div v-if="roleToEdit" class="py-4">
+          <p class="text-center text-black">
+            Are you sure you want to edit the role
+            <span class="font-bold">{{ roleToEdit['role name'] }}</span
+            >?
+          </p>
+
+          <div class="mt-4 flex flex-col gap-2">
+            <div class="flex flex-row">
+              <div class="w-32 text-gray-500">Description:</div>
+              <div class="text-black">{{ roleToEdit.description }}</div>
+            </div>
+            <div class="flex flex-row">
+              <div class="w-32 text-gray-500">Permissions:</div>
+              <div class="text-black flex-1">
+                {{ roleToEdit.permissions?.join(', ') }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-action justify-center gap-4">
+          <button class="btn-primaryStyle" @click="confirmEdit">Edit</button>
+          <button class="btn-secondaryStyle" @click="cancelEdit">Cancel</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Existing Success Modal -->
+    <NotificationModal
+      :show="notification.show"
+      :type="notification.type"
+      :title="notification.title"
+      :message="notification.message"
+      :on-close="closeNotification"
+    />
   </div>
 </template>
