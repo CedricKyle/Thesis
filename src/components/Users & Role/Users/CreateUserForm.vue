@@ -50,7 +50,6 @@ const selectRole = (role) => {
               :class="{
                 'step-success': step >= 1,
                 '!text-black': step === 1,
-                after: !text - gray - 400,
               }"
             >
               General Information
@@ -60,7 +59,6 @@ const selectRole = (role) => {
               :class="{
                 'step-success ': step >= 2,
                 '!text-black': step === 2,
-                after: !text - gray - 400,
               }"
             >
               Security
@@ -70,7 +68,6 @@ const selectRole = (role) => {
               :class="{
                 'step-success': step >= 3,
                 '!text-black': step === 3,
-                after: !text - gray - 400,
               }"
             >
               Roles

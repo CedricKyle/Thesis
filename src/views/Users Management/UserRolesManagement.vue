@@ -1,112 +1,178 @@
 <script setup>
-import { ref, onMounted } from 'vue'
-import { Plus, RefreshCw, Pencil, Trash2 } from 'lucide-vue-next'
+import { ref, onMounted, watch, onBeforeUnmount } from 'vue'
+import { Plus, RefreshCw } from 'lucide-vue-next'
 import { TabulatorFull as Tabulator } from 'tabulator-tables'
 import { useRouter } from 'vue-router'
+import { useRolesStore } from '@/stores/Users & Role/roleStore'
+import { storeToRefs } from 'pinia'
 
 const router = useRouter()
+const rolesStore = useRolesStore()
+const { roles } = storeToRefs(rolesStore)
 
-// Sample data for the table
-const tableData = ref([
-  {
-    'role name': 'Admin',
-    description: 'Full system access',
-    'last modified': '2024-03-20',
-  },
-  {
-    'role name': 'User',
-    description: 'Limited access',
-    'last modified': '2024-03-19',
-  },
-])
+const tableRef = ref(null)
+const isTableBuilt = ref(false)
+let table = null
 
-const tableColums = [
+// Add these new refs
+const searchInput = ref('')
+const filteredRoles = ref([])
+
+// Define columns for Tabulator
+const columns = [
   {
     title: 'Role Name',
     field: 'role name',
-    width: 300,
+    sorter: 'string',
+    headerSort: true,
   },
   {
     title: 'Description',
     field: 'description',
-    width: 400,
+    sorter: 'string',
+    headerSort: true,
   },
   {
     title: 'Last Modified',
     field: 'last modified',
-    width: 250,
+    sorter: 'string',
+    headerSort: true,
   },
   {
     title: 'Actions',
-    field: 'actions',
-
     formatter: function (cell) {
-      // Create wrapper div
-      const wrapper = document.createElement('div')
-      wrapper.className = 'flex gap-1 justify-start'
-
-      // Create edit button
-      const editBtn = document.createElement('button')
-      editBtn.className =
-        'btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost edit-button'
-      editBtn.innerHTML = `
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      const record = cell.getRow().getData()
+      return `
+        <div class="flex gap-2">
+          <button class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost edit-button">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
-      `
-      editBtn.onclick = () => handleEdit(cell.getRow().getData())
-
-      // Create delete button
-      const deleteBtn = document.createElement('button')
-      deleteBtn.className =
-        'btn btn-sm btn-circle hover:bg-red-400 border-none btn-ghost delete-button'
-      deleteBtn.innerHTML = `
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          </button>
+          <button class="btn btn-sm btn-circle hover:bg-red-400 border-none btn-ghost delete-button">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 6 6 18M6 6l12 12" />
             </svg>
-      `
-      deleteBtn.onclick = () => handleDelete(cell.getRow().getData())
-
-      wrapper.appendChild(editBtn)
-      wrapper.appendChild(deleteBtn)
-      return wrapper
+          </button>
+        </div>`
     },
-    hozAlign: 'center',
+    headerSort: false,
+    cellClick: function (e, cell) {
+      const record = cell.getRow().getData()
+      if (e.target.closest('.edit-button')) {
+        handleEdit(record)
+      } else if (e.target.closest('.delete-button')) {
+        handleDelete(record)
+      }
+    },
   },
 ]
 
-// Table reference
-const tableRef = ref(null)
+// Modify initTable to use filteredRoles instead of roles directly
+const initTable = async () => {
+  if (tableRef.value) {
+    table = new Tabulator(tableRef.value, {
+      data: filteredRoles.value, // Changed from roles.value to filteredRoles.value
+      columns: columns,
+      layout: 'fitColumns',
+      responsiveLayout: 'collapse',
+      height: '100%',
+      pagination: true,
+      paginationSize: 10,
+      paginationSizeSelector: [10, 25, 50],
+      placeholder: 'No roles available',
+      cssClass: 'custom-tabulator',
+    })
 
-// Initialize table
-onMounted(() => {
-  tableRef.value = new Tabulator('#rolesTable', {
-    data: tableData.value,
-    columns: tableColums,
-    layout: 'fitColumns',
-    pagination: true,
-    paginationSize: 10,
-  })
+    await table.on('tableBuilt', function () {
+      isTableBuilt.value = true
+    })
+  }
+}
+
+// Add search function
+const handleSearch = () => {
+  if (!searchInput.value.trim()) {
+    filteredRoles.value = roles.value
+  } else {
+    const searchTerm = searchInput.value.toLowerCase()
+    filteredRoles.value = roles.value.filter((role) => {
+      return (
+        role['role name'].toLowerCase().includes(searchTerm) ||
+        role.description.toLowerCase().includes(searchTerm)
+      )
+    })
+  }
+
+  if (table) {
+    table.setData(filteredRoles.value)
+  }
+}
+
+// Add refresh function
+const handleRefresh = async () => {
+  // Clear search input
+  searchInput.value = ''
+  // Reset filtered roles to all roles
+  filteredRoles.value = roles.value
+  // Refresh table data
+  if (table) {
+    await table.setData(roles.value)
+  }
+}
+
+// Initialize filteredRoles with all roles
+onMounted(async () => {
+  filteredRoles.value = roles.value
+  await initTable()
+})
+
+// Modify the watch to use filteredRoles
+watch(
+  () => roles.value,
+  async (newData) => {
+    filteredRoles.value = newData
+    if (isTableBuilt.value && table) {
+      await table.setData(filteredRoles.value)
+    }
+  },
+  { deep: true },
+)
+
+// Clean up
+onBeforeUnmount(() => {
+  if (table) {
+    table.destroy()
+    table = null
+  }
 })
 
 // Handle edit action
 const handleEdit = (rowData) => {
-  console.log('Edit role:', rowData)
-  // Implement edit logic here
+  router
+    .push({
+      name: 'CreateRole',
+      query: {
+        edit: 'true',
+        roleName: rowData['role name'],
+      },
+    })
+    .catch((err) => {
+      if (err.name !== 'NavigationDuplicated') {
+        console.error(err)
+      }
+    })
 }
 
 // Handle delete action
 const handleDelete = (rowData) => {
-  console.log('Delete role:', rowData)
-  // Implement delete logic here
+  rolesStore.deleteRole(rowData['role name'])
 }
 
-// Remove all modal-related code and keep only the navigation function
+// Navigation function
 const navigateToCreateRole = () => {
-  console.log('Navigating to create role...')
   router.push({ name: 'CreateRole' }).catch((err) => {
-    console.log('Navigation error:', err)
     if (err.name !== 'NavigationDuplicated') {
       console.error(err)
     }
@@ -130,7 +196,7 @@ const navigateToCreateRole = () => {
         <Plus /> Create Role
       </div>
 
-      <!-- search container -->
+      <!-- Modified search container -->
       <div class="flex items-center gap-5">
         <label class="input-search input-sm">
           <svg class="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
@@ -145,15 +211,27 @@ const navigateToCreateRole = () => {
               <path d="m21 21-4.3-4.3"></path>
             </g>
           </svg>
-          <input type="search" required placeholder="Search" class="" />
+          <input
+            v-model="searchInput"
+            type="search"
+            placeholder="Search"
+            class=""
+            @input="handleSearch"
+          />
         </label>
-        <div class="border p-1 rounded-sm cursor-pointer">
+        <div
+          class="border p-1 rounded-sm cursor-pointer hover:bg-gray-100"
+          @click="handleRefresh"
+          title="Refresh table"
+        >
           <RefreshCw class="text-primaryColor w-5 h-5" />
         </div>
       </div>
 
       <!-- table container -->
-      <div id="rolesTable" class="mt-4"></div>
+      <div class="w-full bg-white shadow-md rounded-md">
+        <div ref="tableRef"></div>
+      </div>
     </div>
   </div>
 </template>
