@@ -29,6 +29,15 @@ const permissions = ref([])
 // Modal state
 const { notification, showNotification, closeNotification } = useNotification()
 
+// Example mapping based on your permissions table
+const permissionMap = {
+  'Role List': 1,
+  Create: 2,
+  Edit: 3,
+  Delete: 4,
+  // Add other permissions as needed
+}
+
 // If in edit mode, load the role data
 onMounted(() => {
   // First uncheck all checkboxes regardless of mode
@@ -45,37 +54,48 @@ onMounted(() => {
       roleName.value = role['role name']
       description.value = role.description
 
-      // Check only the permissions that the role has
-      allCheckboxes.forEach((checkbox) => {
-        const section = checkbox.closest('[data-section]').getAttribute('data-section')
-        const permission = checkbox.nextElementSibling.textContent.trim()
-        const fullPermission = `${section} - ${permission}`
-        if (role.permissions.includes(fullPermission)) {
-          checkbox.checked = true
-        }
-      })
+      // Ensure permissions are defined
+      if (role.permissions) {
+        allCheckboxes.forEach((checkbox) => {
+          const section = checkbox.closest('[data-section]').getAttribute('data-section')
+          const permission = checkbox.nextElementSibling.textContent.trim()
+          const fullPermission = `${section} - ${permission}`
+          if (role.permissions.includes(fullPermission)) {
+            checkbox.checked = true
+          }
+        })
+      }
     }
   }
 })
 
 // Get selected permissions helper - modify to include the section name
 const getSelectedPermissions = () => {
-  return Array.from(document.querySelectorAll('input[type="checkbox"]:checked')).map((checkbox) => {
-    const section = checkbox.closest('[data-section]').getAttribute('data-section')
-    const permission = checkbox.nextElementSibling.textContent.trim()
-    return `${section} - ${permission}`
-  })
+  return Array.from(document.querySelectorAll('input[type="checkbox"]:checked'))
+    .map((checkbox) => {
+      const section = checkbox.closest('[data-section]').getAttribute('data-section')
+      const permission = checkbox.nextElementSibling.textContent.trim()
+      const fullPermission = `${section} - ${permission}`
+      return permissionMap[permission] // Map to ID
+    })
+    .filter((id) => id !== undefined) // Filter out undefined IDs
 }
 
 // Form submission
 const handleSubmit = () => {
-  // Get selected permissions first
   const selectedPermissions = getSelectedPermissions()
 
   // Validate all fields
   const isRoleNameValid = validateRoleName(roleName.value)
   const isDescriptionValid = validateDescription(description.value)
   const isPermissionsValid = validatePermissions(selectedPermissions)
+
+  // Check for duplicate role name
+  const isDuplicateRole = roles.value.some((role) => role['role name'] === roleName.value)
+  if (isDuplicateRole) {
+    showNotification('error', 'Error', 'Role name already exists')
+    return
+  }
 
   if (isRoleNameValid && isDescriptionValid && isPermissionsValid) {
     const roleData = {
@@ -105,6 +125,19 @@ const handleCloseNotification = () => {
   if (notification.value.type === 'success') {
     router.push('/roles')
   }
+}
+
+const formatDate = (dateString) => {
+  const date = new Date(dateString)
+  return date.toLocaleString('en-US', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  })
 }
 </script>
 

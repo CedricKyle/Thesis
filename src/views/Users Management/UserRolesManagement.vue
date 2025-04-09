@@ -7,11 +7,13 @@ import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import { storeToRefs } from 'pinia'
 import Toast from '@/components/Admin Components/HR/Toast.vue'
 import { useToast } from '@/composables/Admin Composables/User & Role/role/useToast'
+import { useNotification } from '@/composables/Admin Composables/User & Role/role/useNotification'
 
 const router = useRouter()
 const rolesStore = useRolesStore()
 const { roles } = storeToRefs(rolesStore)
 const { toast, showToast } = useToast()
+const { showNotification } = useNotification()
 
 const tableRef = ref(null)
 const isTableBuilt = ref(false)
@@ -54,8 +56,23 @@ const columns = [
   {
     title: 'Last Modified',
     field: 'last modified',
-    sorter: 'string',
+    sorter: 'date',
     headerSort: true,
+    formatter: (cell) => {
+      const date = new Date(cell.getValue())
+      return date
+        .toLocaleString('en-PH', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+          timeZone: 'Asia/Manila',
+        })
+        .replace(',', '')
+    },
   },
   {
     title: 'Actions',
@@ -153,6 +170,11 @@ const handleRefresh = async () => {
 onMounted(async () => {
   filteredRoles.value = roles.value
   await initTable()
+  try {
+    await rolesStore.fetchRoles()
+  } catch (error) {
+    showNotification('Error loading roles', 'error')
+  }
 })
 
 // Modify the watch to use filteredRoles
@@ -215,15 +237,15 @@ const handleDelete = (rowData) => {
 }
 
 // Add confirmDelete function that handles the actual deletion and shows toast
-const confirmDelete = () => {
+const confirmDelete = async () => {
   if (roleToDelete.value) {
     try {
-      rolesStore.deleteRole(roleToDelete.value['role name'])
+      await rolesStore.deleteRole(roleToDelete.value.id)
       deleteConfirmModal.value?.close()
       roleToDelete.value = null
-      showToast('success', 'Role deleted successfully!')
+      showNotification('Role deleted successfully', 'success')
     } catch (error) {
-      showToast('error', 'Failed to delete role')
+      showNotification(error.message, 'error')
     }
   }
 }
@@ -244,40 +266,21 @@ const navigateToCreateRole = () => {
 }
 
 // Modify the handleSubmit function to show confirmation first
-const handleSubmit = () => {
-  const isRoleNameValid = validateRoleName()
-  const isDescriptionValid = validateDescription()
-  const isPermissionsValid = validatePermissions()
-
-  if (isRoleNameValid && isDescriptionValid && isPermissionsValid) {
-    // Get selected permissions
-    const checkedPermissions = Array.from(
-      document.querySelectorAll('input[type="checkbox"]:checked'),
-    ).map((checkbox) => checkbox.nextElementSibling.textContent.trim())
-
-    roleDataToUpdate.value = {
-      'role name': roleName.value,
-      description: description.value,
-      permissions: checkedPermissions,
-    }
-
-    if (isEditMode.value) {
-      // Show update confirmation modal instead of updating immediately
-      updateConfirmModal.value?.showModal()
-    } else {
-      // For new roles, proceed as before
-      rolesStore.addRole(roleDataToUpdate.value)
-      showToast('success', 'Role added successfully!')
-    }
+const handleSubmit = async (roleData) => {
+  try {
+    await rolesStore.addRole(roleData)
+    showNotification('Role created successfully', 'success')
+  } catch (error) {
+    showNotification(error.message, 'error')
   }
 }
 
 // Add confirmUpdate function
-const confirmUpdate = () => {
+const confirmUpdate = async () => {
   if (roleDataToUpdate.value) {
-    rolesStore.updateRole(originalRoleName.value, roleDataToUpdate.value)
+    await rolesStore.updateRole(roleDataToUpdate.value.id, roleDataToUpdate.value)
     updateConfirmModal.value?.close()
-    showToast('success', 'Role updated successfully!')
+    showNotification('Role updated successfully', 'success')
   }
 }
 
@@ -331,11 +334,11 @@ const confirmDuplicate = () => {
       rolesStore.addRole(newRoleData)
       duplicateConfirmModal.value?.close()
       roleToDuplicate.value = null
-      showToast('success', 'Role duplicated successfully!')
+      showNotification('Role duplicated successfully', 'success')
 
       // The table will automatically update due to the watch on roles
     } catch (error) {
-      showToast('error', 'Failed to duplicate role')
+      showNotification(error.message, 'error')
     }
   }
 }
@@ -534,5 +537,10 @@ const cancelDuplicate = () => {
 
     <!-- Add Toast component -->
     <Toast :show="toast.show" :type="toast.type" :message="toast.message" />
+
+    <!-- Add loading state -->
+    <div v-if="rolesStore.loading" class="loading-overlay">
+      <span class="loading loading-spinner loading-lg"></span>
+    </div>
   </div>
 </template>

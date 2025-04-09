@@ -16,33 +16,62 @@ const rolesController = {
     try {
       const { role_name, description, permissions } = req.body
 
-      console.log('Creating role with:', { role_name, description, permissions })
-
-      // First just try to create the role without permissions
-      const [result] = await db.query('INSERT INTO roles (role_name, description) VALUES (?, ?)', [
-        role_name,
-        description,
-      ])
-
-      const roleId = result.insertId
-      console.log('Role created with ID:', roleId)
-
-      // If we have permissions, add them
-      if (permissions && permissions.length > 0) {
-        console.log('Adding permissions:', permissions)
-        const values = permissions.map((permId) => [roleId, permId])
-        await db.query('INSERT INTO role_permissions (role_id, permission_id) VALUES ?', [values])
+      // Check for duplicate role name
+      const [existingRole] = await db.query('SELECT * FROM roles WHERE role_name = ?', [role_name])
+      if (existingRole.length > 0) {
+        return res.status(400).json({ message: 'Role name already exists' })
       }
 
-      res.status(201).json({
-        message: 'Role created successfully',
-        roleId: roleId,
-      })
+      // Log received data
+      console.log('Received role data:', { role_name, description, permissions })
+
+      // Validate input
+      if (!role_name) {
+        return res.status(400).json({ message: 'Role name is required' })
+      }
+
+      const connection = await db.getConnection()
+      await connection.beginTransaction()
+
+      try {
+        // Insert role
+        console.log('Inserting role...')
+        const [result] = await connection.query(
+          'INSERT INTO roles (role_name, description) VALUES (?, ?)',
+          [role_name, description],
+        )
+        const roleId = result.insertId
+        console.log('Role inserted, ID:', roleId)
+
+        // Insert permissions if they exist
+        if (permissions && permissions.length > 0) {
+          console.log('Inserting permissions:', permissions)
+          const values = permissions.map((permId) => [roleId, permId])
+          await connection.query('INSERT INTO role_permissions (role_id, permission_id) VALUES ?', [
+            values,
+          ])
+          console.log('Permissions inserted')
+        }
+
+        await connection.commit()
+        connection.release()
+
+        res.status(201).json({
+          message: 'Role created successfully',
+          roleId: roleId,
+        })
+      } catch (error) {
+        console.error('Database error:', error)
+        await connection.rollback()
+        connection.release()
+        throw error
+      }
     } catch (error) {
       console.error('Error in createRole:', error)
       res.status(500).json({
         message: 'Error creating role',
         error: error.message,
+        stack: error.stack, // Remove this in production
       })
     }
   },
