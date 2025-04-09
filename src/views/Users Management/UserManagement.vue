@@ -1,121 +1,151 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { Plus, RefreshCw, Pencil, Trash2 } from 'lucide-vue-next'
 import { TabulatorFull as Tabulator } from 'tabulator-tables'
 import { useRouter } from 'vue-router'
+import { useUserStore } from '@/stores/Users & Role/userStore'
+import { storeToRefs } from 'pinia'
 
 const router = useRouter()
+const userStore = useUserStore()
+const { users } = storeToRefs(userStore)
 
-// Sample data for the table
-const tableData = ref([
-  {
-    'user id': '2025-5001',
-    'full name': 'Cedric Kyle',
-    email: 'cedric.kyle@example.com',
-    role: 'Admin',
-    status: 'Active',
-    'created at': '2024-03-20',
-    'last modified': '2024-03-20',
-  },
-  {
-    'user id': '2025-5002',
-    'full name': 'John Doe',
-    email: 'john.doe@example.com',
-    role: 'User',
-    status: 'Active',
-    'created at': '2024-03-20',
-    'last modified': '2024-03-19',
-  },
-])
-
-const tableColums = [
-  {
-    title: 'User ID',
-    field: 'user id',
-    width: 100,
-  },
+// Define columns for Tabulator
+const columns = [
   {
     title: 'Full Name',
-    field: 'full name',
-    width: 200,
+    field: 'fullName',
+    sorter: 'string',
+    headerSort: true,
   },
   {
     title: 'Email',
     field: 'email',
-    width: 250,
+    sorter: 'string',
+    headerSort: true,
   },
   {
     title: 'Role',
     field: 'role',
-    width: 100,
+    sorter: 'string',
+    headerSort: true,
   },
   {
     title: 'Status',
     field: 'status',
-    width: 100,
+    sorter: 'string',
+    headerSort: true,
   },
   {
     title: 'Created At',
-    field: 'created at',
-    width: 150,
+    field: 'createdAt',
+    sorter: 'date',
+    headerSort: true,
+    formatter: (cell) => {
+      const date = new Date(cell.getValue())
+      return date
+        .toLocaleString('en-PH', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+          timeZone: 'Asia/Manila',
+        })
+        .replace(',', '')
+    },
   },
   {
     title: 'Last Modified',
-    field: 'last modified',
-    width: 150,
+    field: 'lastModified',
+    sorter: 'date',
+    headerSort: true,
+    formatter: (cell) => {
+      const date = new Date(cell.getValue())
+      return date
+        .toLocaleString('en-PH', {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+          timeZone: 'Asia/Manila',
+        })
+        .replace(',', '')
+    },
   },
   {
     title: 'Actions',
-    field: 'actions',
-
     formatter: function (cell) {
-      // Create wrapper div
-      const wrapper = document.createElement('div')
-      wrapper.className = 'flex gap-1 justify-start'
-
-      // Create edit button
-      const editBtn = document.createElement('button')
-      editBtn.className =
-        'btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost edit-button'
-      editBtn.innerHTML = `
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      const record = cell.getRow().getData()
+      return `
+        <div class="flex gap-2">
+          <button class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost view-button">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+          <button class="btn btn-sm btn-circle hover:bg-secondaryColor/80 border-none btn-ghost edit-button">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
-      `
-      editBtn.onclick = () => handleEdit(cell.getRow().getData())
-
-      // Create delete button
-      const deleteBtn = document.createElement('button')
-      deleteBtn.className =
-        'btn btn-sm btn-circle hover:bg-red-400 border-none btn-ghost delete-button'
-      deleteBtn.innerHTML = `
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          </button>
+          
+          <button class="btn btn-sm btn-circle hover:bg-red-400 border-none btn-ghost delete-button">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 6 6 18M6 6l12 12" />
             </svg>
-      `
-      deleteBtn.onclick = () => handleDelete(cell.getRow().getData())
-
-      wrapper.appendChild(editBtn)
-      wrapper.appendChild(deleteBtn)
-      return wrapper
+          </button>
+        </div>`
     },
-    hozAlign: 'center',
+    headerSort: false,
+    cellClick: function (e, cell) {
+      const record = cell.getRow().getData()
+      if (e.target.closest('.edit-button')) {
+        handleEdit(record)
+      } else if (e.target.closest('.delete-button')) {
+        handleDelete(record)
+      }
+    },
   },
 ]
 
 // Table reference
 const tableRef = ref(null)
 
+// Original data for refresh
+const originalData = ref([...users.value])
+
+// Table instance
+let tableInstance = null
+
 // Initialize table
+const initTable = async () => {
+  if (tableRef.value) {
+    tableInstance = new Tabulator(tableRef.value, {
+      data: users.value,
+      columns: columns,
+      layout: 'fitColumns',
+      responsiveLayout: 'collapse',
+      height: '100%',
+      pagination: true,
+      paginationSize: 10,
+      paginationSizeSelector: [10, 25, 50],
+      placeholder: 'No users available',
+      cssClass: 'custom-tabulator',
+    })
+  }
+}
+
 onMounted(() => {
-  tableRef.value = new Tabulator('#rolesTable', {
-    data: tableData.value,
-    columns: tableColums,
-    layout: 'fitColumns',
-    pagination: true,
-    paginationSize: 10,
-  })
+  initTable()
+  console.log(users.value) // Check the structure of the users array
 })
 
 // Handle edit action
@@ -140,6 +170,30 @@ const navigateToCreateUser = () => {
     }
   })
 }
+
+// Search function
+const handleSearch = (event) => {
+  const query = event.target.value.toLowerCase()
+  const filteredData = originalData.value.filter((user) =>
+    Object.values(user).some((val) => String(val).toLowerCase().includes(query)),
+  )
+  if (tableInstance) {
+    tableInstance.replaceData(filteredData)
+  }
+}
+
+// Refresh function
+const handleRefresh = () => {
+  if (tableInstance) {
+    tableInstance.replaceData(originalData.value)
+  }
+}
+
+watch(users, (newUsers) => {
+  if (tableInstance) {
+    tableInstance.replaceData(newUsers)
+  }
+})
 </script>
 
 <template>
@@ -173,15 +227,15 @@ const navigateToCreateUser = () => {
               <path d="m21 21-4.3-4.3"></path>
             </g>
           </svg>
-          <input type="search" required placeholder="Search" class="" />
+          <input type="search" required placeholder="Search" @input="handleSearch" class="" />
         </label>
-        <div class="border p-1 rounded-sm cursor-pointer">
+        <div class="border p-1 rounded-sm cursor-pointer" @click="handleRefresh">
           <RefreshCw class="text-primaryColor w-5 h-5" />
         </div>
       </div>
 
       <!-- table container -->
-      <div id="rolesTable" class="mt-4"></div>
+      <div ref="tableRef" class="mt-4"></div>
     </div>
   </div>
 </template>
