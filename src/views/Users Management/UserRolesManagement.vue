@@ -39,6 +39,24 @@ const roleToDelete = ref(null)
 const duplicateConfirmModal = ref(null)
 const roleToDuplicate = ref(null)
 
+// Define permissionMap at the top of your script
+const permissionMap = {
+  'Roles and Permissions': {
+    'Role List': 1,
+    Create: 2,
+    Edit: 3,
+    Delete: 4,
+  },
+  'User Management': {
+    'User List': 5,
+    View: 6,
+    Create: 7,
+    Edit: 8,
+    Delete: 9,
+  },
+  // Add other permissions as needed
+}
+
 // Define columns for Tabulator
 const columns = [
   {
@@ -199,6 +217,7 @@ onBeforeUnmount(() => {
 
 // Modify the handleEdit function to show confirmation first
 const handleEdit = (rowData) => {
+  console.log('Editing role:', rowData) // Check if permissions are present
   roleToEdit.value = rowData
   editConfirmModal.value?.showModal()
 }
@@ -292,15 +311,29 @@ const cancelUpdate = () => {
 
 // Add this helper function in the script section
 const formatPermissions = (permissions) => {
-  if (!permissions) return ''
+  if (!permissions || !Array.isArray(permissions)) return ''
 
-  // Group permissions by section
-  const groupedPermissions = permissions.reduce((acc, permission) => {
-    const [section] = permission.split(' - ')
-    if (!acc[section]) {
-      acc[section] = []
+  // Map permission IDs to their names
+  const permissionNames = permissions
+    .map((id) => {
+      return Object.entries(permissionMap)
+        .flatMap(([category, perms]) => {
+          const permName = Object.entries(perms).find(([name, permId]) => permId === id)?.[0]
+          return permName ? `${category}: ${permName}` : null
+        })
+        .filter(Boolean)
+    })
+    .flat() // Flatten the array
+
+  // Group permissions by category
+  const groupedPermissions = permissionNames.reduce((acc, permission) => {
+    if (typeof permission === 'string') {
+      const [section, perm] = permission.split(': ')
+      if (!acc[section]) {
+        acc[section] = []
+      }
+      acc[section].push(perm)
     }
-    acc[section].push(permission.replace(`${section} - `, ''))
     return acc
   }, {})
 

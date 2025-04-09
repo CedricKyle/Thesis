@@ -31,10 +31,20 @@ const { notification, showNotification, closeNotification } = useNotification()
 
 // Example mapping based on your permissions table
 const permissionMap = {
-  'Role List': 1,
-  Create: 2,
-  Edit: 3,
-  Delete: 4,
+  'Roles and Permissions': {
+    'Role List': 1,
+    Create: 2,
+    Edit: 3,
+    Delete: 4,
+  },
+  'User Management': {
+    'User List': 5,
+    View: 6,
+    Create: 7,
+    Edit: 8,
+    Delete: 9,
+  },
+
   // Add other permissions as needed
 }
 
@@ -59,13 +69,22 @@ onMounted(() => {
         allCheckboxes.forEach((checkbox) => {
           const section = checkbox.closest('[data-section]').getAttribute('data-section')
           const permission = checkbox.nextElementSibling.textContent.trim()
-          const fullPermission = `${section} - ${permission}`
-          if (role.permissions.includes(fullPermission)) {
+          const permissionId = permissionMap[section]?.[permission]
+          if (role.permissions.includes(permissionId)) {
             checkbox.checked = true
           }
         })
       }
     }
+  }
+
+  // Ensure the role is found by its original name
+  const role = roles.value.find((r) => r['role name'] === originalRoleName.value)
+  if (role) {
+    originalRoleName.value = role['role name']
+    roleName.value = role['role name']
+    description.value = role.description
+    // Set permissions as needed
   }
 })
 
@@ -76,9 +95,12 @@ const getSelectedPermissions = () => {
       const section = checkbox.closest('[data-section]').getAttribute('data-section')
       const permission = checkbox.nextElementSibling.textContent.trim()
       const fullPermission = `${section} - ${permission}`
-      return permissionMap[permission] // Map to ID
+
+      // Find the permission ID based on the section and permission
+      const permissionId = permissionMap[section]?.[permission]
+      return { section, permission, id: permissionId }
     })
-    .filter((id) => id !== undefined) // Filter out undefined IDs
+    .filter((perm) => perm.id !== undefined) // Filter out undefined IDs
 }
 
 // Form submission
@@ -88,26 +110,34 @@ const handleSubmit = () => {
   // Validate all fields
   const isRoleNameValid = validateRoleName(roleName.value)
   const isDescriptionValid = validateDescription(description.value)
-  const isPermissionsValid = validatePermissions(selectedPermissions)
+  const isPermissionsValid = validatePermissions(selectedPermissions.map((perm) => perm.id))
 
-  // Check for duplicate role name
-  const isDuplicateRole = roles.value.some((role) => role['role name'] === roleName.value)
+  // Check for duplicate role name only if it's changed
+  const isDuplicateRole = roles.value.some(
+    (role) => role['role name'] === roleName.value && roleName.value !== originalRoleName.value,
+  )
   if (isDuplicateRole) {
     showNotification('error', 'Error', 'Role name already exists')
     return
   }
 
   if (isRoleNameValid && isDescriptionValid && isPermissionsValid) {
+    // Find the role by name and get its ID
+    const roleId = roles.value.find((r) => r['role name'] === originalRoleName.value)?.id
     const roleData = {
       'role name': roleName.value,
       description: description.value,
-      permissions: selectedPermissions,
+      permissions: selectedPermissions.map((perm) => perm.id),
     }
 
     try {
       if (isEditMode.value) {
-        rolesStore.updateRole(originalRoleName.value, roleData)
-        showNotification('success', 'Success', 'Role updated successfully')
+        if (roleId) {
+          rolesStore.updateRole(roleId, roleData)
+          showNotification('success', 'Success', 'Role updated successfully')
+        } else {
+          showNotification('error', 'Error', 'Role ID not found')
+        }
       } else {
         rolesStore.addRole(roleData)
         showNotification('success', 'Success', 'Role added successfully')

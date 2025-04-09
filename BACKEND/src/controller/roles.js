@@ -1,11 +1,24 @@
 const db = require('../config/database')
 
 const rolesController = {
-  // Get all roles
+  // Get all roles with permissions
   getAllRoles: async (req, res) => {
     try {
-      const [roles] = await db.query('SELECT * FROM roles')
-      res.json(roles)
+      const [roles] = await db.query(`
+        SELECT r.id, r.role_name, r.description, r.last_modified, 
+               GROUP_CONCAT(rp.permission_id) AS permissions
+        FROM roles r
+        LEFT JOIN role_permissions rp ON r.id = rp.role_id
+        GROUP BY r.id
+      `)
+
+      // Transform the permissions from a comma-separated string to an array
+      const rolesWithPermissions = roles.map((role) => ({
+        ...role,
+        permissions: role.permissions ? role.permissions.split(',').map(Number) : [],
+      }))
+
+      res.json(rolesWithPermissions)
     } catch (error) {
       res.status(500).json({ message: error.message })
     }
@@ -80,8 +93,15 @@ const rolesController = {
   updateRole: async (req, res) => {
     const connection = await db.getConnection()
     try {
+      console.log('Update request received:', req.body) // Log the request body
       const { role_name, description, permissions } = req.body
       const roleId = req.params.id
+
+      // Check if role exists
+      const [existingRole] = await connection.query('SELECT id FROM roles WHERE id = ?', [roleId])
+      if (existingRole.length === 0) {
+        return res.status(404).json({ message: 'Role not found' })
+      }
 
       await connection.beginTransaction()
 

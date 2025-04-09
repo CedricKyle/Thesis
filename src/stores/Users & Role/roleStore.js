@@ -17,14 +17,15 @@ export const useRolesStore = defineStore('roles', {
         const roles = await roleService.getAllRoles()
         // Transform backend data to frontend structure
         this.roles = roles.map((role) => ({
+          id: role.id,
           'role name': role.role_name,
           description: role.description,
-          permissions: role.permissions,
+          permissions: role.permissions || [],
           'last modified': role.last_modified,
-          id: role.id,
         }))
         localStorage.setItem('roles', JSON.stringify(this.roles))
       } catch (error) {
+        console.error('Error fetching roles:', error)
         this.error = error.message
         // Load from localStorage if API fails
         const cachedRoles = localStorage.getItem('roles')
@@ -50,16 +51,15 @@ export const useRolesStore = defineStore('roles', {
       }
     },
 
-    async updateRole(id, updatedRole) {
+    async updateRole(roleId, updatedRole) {
       try {
-        this.loading = true
-        await roleService.updateRole(id, updatedRole)
+        console.log('Updating role with ID:', roleId) // Log the role ID
+        const response = await roleService.updateRole(roleId, updatedRole)
         await this.fetchRoles() // Refresh the roles list
+        return response
       } catch (error) {
         this.error = error.message
         throw error
-      } finally {
-        this.loading = false
       }
     },
 
