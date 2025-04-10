@@ -1,14 +1,14 @@
 <script setup>
 import { ChevronLeft, ChevronRight, Eye, EyeOff, Check, X } from 'lucide-vue-next'
-import { useRouter } from 'vue-router'
-import { ref, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { ref, onMounted, watch } from 'vue'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
-import { storeToRefs } from 'pinia'
 import { useUserStore } from '@/stores/Users & Role/userStore'
-import { useNotification } from '@/composables/Admin Composables/User & Role/role/useNotification'
+import { storeToRefs } from 'pinia'
 import Toast from '@/components/Admin Components/HR/Toast.vue'
 
 const router = useRouter()
+const route = useRoute()
 const step = ref(1)
 const showPassword = ref(false)
 const showConfirmPassword = ref(false)
@@ -22,8 +22,8 @@ const formData = ref({
   contactNumber: '',
   gender: '',
   dateOfBirth: '',
-  password: '',
-  confirmPassword: '',
+  password: '', // Optional for edit
+  confirmPassword: '', // Optional for edit
 })
 
 // Form errors object
@@ -37,30 +37,59 @@ const formErrors = ref({
   confirmPassword: '',
 })
 
-// Add roles store
+// Add stores
 const rolesStore = useRolesStore()
+const userStore = useUserStore()
 const { roles } = storeToRefs(rolesStore)
 
-// Add user store
-const userStore = useUserStore()
-const { showNotification } = useNotification()
+// Add refs for toast and modal
 const confirmModal = ref(null)
-
-// Add these refs to manage toast state
 const showToast = ref(false)
 const toastMessage = ref('')
 const toastType = ref('')
 
-// Fetch roles on component mount
+// Fetch user data and roles on mount
 onMounted(async () => {
   try {
+    // First fetch roles
     await rolesStore.fetchRoles()
+    console.log('Available roles:', roles.value) // Add this to debug
+
+    // Then fetch user data
+    const userId = route.params.id
+    const userData = await userStore.getUserById(userId)
+    console.log('User data:', userData) // Add this to debug
+
+    // Populate form data
+    formData.value = {
+      fullName: userData.full_name,
+      email: userData.email,
+      contactNumber: userData.contact_number,
+      gender: userData.gender,
+      dateOfBirth: userData.date_of_birth.split('T')[0],
+      password: '',
+      confirmPassword: '',
+    }
+
+    selectedRole.value = userData.role_name
+    removeSelectedRole.value = true
   } catch (error) {
-    console.error('Error fetching roles:', error)
+    console.error('Error in onMounted:', error)
+    showToastMessage(error.message || 'Error loading user data', 'error')
   }
 })
 
-// Validation function for General Information
+// Add toast function
+const showToastMessage = (message, type) => {
+  toastMessage.value = message
+  toastType.value = type
+  showToast.value = true
+  setTimeout(() => {
+    showToast.value = false
+  }, 3000)
+}
+
+// Validation functions (same as create form)
 const validateGeneralInfo = () => {
   let isValid = true
   formErrors.value = {
@@ -102,46 +131,32 @@ const validateGeneralInfo = () => {
   return isValid
 }
 
-// Add password validation function
+// Modified password validation for edit (optional password change)
 const validateSecurity = () => {
   let isValid = true
   formErrors.value.password = ''
   formErrors.value.confirmPassword = ''
 
-  // Password validation
-  if (!formData.value.password) {
-    formErrors.value.password = 'Password is required'
-    isValid = false
-  } else if (formData.value.password.length < 8) {
-    formErrors.value.password = 'Password must be at least 8 characters long'
-    isValid = false
-  }
-
-  // Confirm password validation
-  if (!formData.value.confirmPassword) {
-    formErrors.value.confirmPassword = 'Confirm Password is required'
-    isValid = false
-  } else if (formData.value.password !== formData.value.confirmPassword) {
-    formErrors.value.confirmPassword = 'Passwords do not match'
-    isValid = false
+  // Only validate if password is being changed
+  if (formData.value.password || formData.value.confirmPassword) {
+    if (formData.value.password.length < 8) {
+      formErrors.value.password = 'Password must be at least 8 characters long'
+      isValid = false
+    }
+    if (formData.value.password !== formData.value.confirmPassword) {
+      formErrors.value.confirmPassword = 'Passwords do not match'
+      isValid = false
+    }
   }
 
   return isValid
 }
 
-// Add this to your script section
 const validateRole = () => {
-  let isValid = true
-
-  if (!selectedRole.value) {
-    isValid = false
-    // You might want to add a visual indication that role selection is required
-  }
-
-  return isValid
+  return !!selectedRole.value
 }
 
-// Update the handleNext function to include role validation
+// Handle next/back navigation
 const handleNext = () => {
   if (step.value === 1 && validateGeneralInfo()) {
     step.value++
@@ -152,6 +167,7 @@ const handleNext = () => {
   }
 }
 
+// Toggle functions
 const togglePassword = () => {
   showPassword.value = !showPassword.value
 }
@@ -165,54 +181,43 @@ const toggleShowSelectedRole = () => {
   removeSelectedRole.value = false
 }
 
-// Update selectRole function to handle v-model
 const handleRoleSelect = (event) => {
   selectedRole.value = event.target.value
   removeSelectedRole.value = true
 }
 
-// Add save related functions
+// Submit handling
 const handleSubmit = () => {
   confirmModal.value?.showModal()
 }
 
-// Add this function to handle showing toast
-const showToastMessage = (message, type) => {
-  toastMessage.value = message
-  toastType.value = type
-  showToast.value = true
-  // Hide toast after 3 seconds
-  setTimeout(() => {
-    showToast.value = false
-  }, 3000)
-}
-
-// Update your confirmSave function
 const confirmSave = async () => {
   try {
+    const userId = route.params.id
     const userData = {
       fullName: formData.value.fullName,
       email: formData.value.email,
       contactNumber: formData.value.contactNumber,
       gender: formData.value.gender,
       dateOfBirth: formData.value.dateOfBirth,
-      password: formData.value.password,
       role: selectedRole.value,
       status: 'Active',
     }
 
-    await userStore.createUser(userData)
+    // Only include password if it's being changed
+    if (formData.value.password) {
+      userData.password = formData.value.password
+    }
+
+    await userStore.updateUser(userId, userData)
     confirmModal.value?.close()
+    showToastMessage('User updated successfully!', 'success')
 
-    // Show success toast
-    showToastMessage('User created successfully!', 'success')
-
-    // Navigate after a small delay
     setTimeout(() => {
       router.push('/users')
     }, 500)
   } catch (error) {
-    showToastMessage(error.message || 'Error creating user', 'error')
+    showToastMessage(error.message || 'Error updating user', 'error')
   }
 }
 
@@ -220,15 +225,14 @@ const cancelSave = () => {
   confirmModal.value?.close()
 }
 
-// For delete action
-const handleDelete = async (rowData) => {
-  try {
-    await userStore.deleteUser(rowData.id)
-    // Table will automatically update due to Pinia state management
-  } catch (error) {
-    console.error('Error deleting user:', error)
-  }
-}
+// Add this to your script section
+watch(selectedRole, (newValue) => {
+  console.log('Selected role changed to:', newValue)
+})
+
+watch(roles, (newValue) => {
+  console.log('Roles updated:', newValue)
+})
 </script>
 
 <template>
@@ -238,7 +242,7 @@ const handleDelete = async (rowData) => {
         class="w-6 h-6 cursor-pointer hover:bg-primaryColor/20 rounded-full"
         @click="router.back()"
       />
-      <div class="text-[24px] font-semibold">Create User</div>
+      <div class="text-[24px] font-semibold">Edit User</div>
     </div>
 
     <div class="flex gap-2 flex-col">
@@ -362,13 +366,13 @@ const handleDelete = async (rowData) => {
         <div class="grid grid-cols-2 gap-5">
           <!-- password -->
           <div class="">
-            <legend class="fieldset-legend text-black text-xs">Password</legend>
+            <legend class="fieldset-legend text-black text-xs">Password (Optional)</legend>
             <div class="relative">
               <input
                 v-model="formData.password"
                 :type="showPassword ? 'text' : 'password'"
                 class="input w-full bg-gray-100 border border-gray-200 !outline-none"
-                placeholder="Minimum 8 characters"
+                placeholder="Leave blank to keep current password"
               />
               <Eye
                 v-if="!showPassword"
@@ -392,7 +396,7 @@ const handleDelete = async (rowData) => {
                 v-model="formData.confirmPassword"
                 :type="showConfirmPassword ? 'text' : 'password'"
                 class="input w-full bg-gray-100 border border-gray-200 !outline-none"
-                placeholder="Re-enter password"
+                placeholder="Re-enter password if changing"
               />
               <Eye
                 v-if="!showConfirmPassword"
@@ -421,25 +425,22 @@ const handleDelete = async (rowData) => {
               class="select w-full focus:outline-none bg-gray-100 border-gray-200 text-black"
               @change="handleRoleSelect"
             >
-              <option disabled value="">Select Role</option>
-              <option v-for="role in roles" :key="role['role name']" :value="role['role name']">
-                {{ role['role name'] }}
+              <option value="">Select Role</option>
+              <option v-for="role in roles" :key="role.id" :value="role.role_name">
+                {{ role.role_name }}
               </option>
             </select>
           </div>
           <!-- selected role container -->
-          <div class="">
+          <div v-if="selectedRole" class="">
             <legend class="fieldset-legend text-black text-xs">Selected Role</legend>
             <div
               class="bg-gray-100 rounded-md p-2 border border-gray-200 flex items-center justify-between"
             >
               <div class="">
-                <p class="">
-                  {{ selectedRole }}
-                </p>
+                <p class="">{{ selectedRole }}</p>
               </div>
               <div
-                v-if="selectedRole"
                 class="cursor-pointer hover:bg-red-500/20 rounded-full p-1"
                 @click="toggleShowSelectedRole"
               >
@@ -449,6 +450,7 @@ const handleDelete = async (rowData) => {
           </div>
         </div>
       </div>
+
       <!-- overview step -->
       <div v-if="step === 4" class="mt-5 border border-gray-200 rounded-md p-5 bg-white shadow-sm">
         <div class="font-semibold mb-4">Overview</div>
@@ -486,7 +488,7 @@ const handleDelete = async (rowData) => {
           </div>
 
           <!-- Security Information -->
-          <div class="mb-4 text-sm flex flex-col gap-1">
+          <div class="mb-4 text-sm flex flex-col gap-1" v-if="formData.password">
             <h4 class="font-semibold mb-2">Security Information</h4>
             <div class="flex flex-row">
               <div class="w-40 text-gray-500">Password</div>
@@ -507,18 +509,12 @@ const handleDelete = async (rowData) => {
               <div class="w-40 text-gray-500">Role</div>
               <div>{{ selectedRole || 'No role selected' }}</div>
             </div>
-            <!-- Add role description if available -->
-            <div v-if="selectedRole" class="flex flex-row">
-              <div class="w-40 text-gray-500">Role Description</div>
-              <div>
-                {{ roles.find((role) => role['role name'] === selectedRole)?.description || '' }}
-              </div>
-            </div>
           </div>
         </div>
       </div>
     </div>
-    <!-- for back and next btn -->
+
+    <!-- Navigation Buttons -->
     <div class="flex justify-between items-center mt-5">
       <button
         class="btn-secondaryStyle disabled:cursor-not-allowed disabled:opacity-50"
@@ -528,28 +524,28 @@ const handleDelete = async (rowData) => {
         <ChevronLeft class="w-4 h-4" /> Back
       </button>
       <button
+        v-if="step < 4"
         class="btn-primaryStyle disabled:cursor-not-allowed disabled:opacity-50"
-        :disabled="step === 4"
         @click="handleNext"
       >
         Next <ChevronRight class="w-4 h-4" />
       </button>
       <button v-if="step === 4" class="btn-primaryStyle" @click="handleSubmit">
-        Save<Check class="w-4 h-4" />
+        Update <Check class="w-4 h-4" />
       </button>
     </div>
   </div>
 
-  <!-- Update the confirmation modal -->
+  <!-- Confirmation Modal -->
   <dialog ref="confirmModal" class="modal">
     <div class="modal-box bg-white w-[400px]">
-      <h3 class="font-bold text-lg text-black">Confirm User Creation</h3>
+      <h3 class="font-bold text-lg text-black">Confirm User Update</h3>
       <div
         class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
       ></div>
 
       <div class="py-4">
-        <p class="text-black mb-4">Are you sure you want to create this user?</p>
+        <p class="text-black mb-4">Are you sure you want to update this user?</p>
 
         <div class="bg-gray-50 p-4 rounded-md">
           <div class="grid gap-3 text-sm">
@@ -562,10 +558,6 @@ const handleDelete = async (rowData) => {
               <span class="text-black">{{ formData.email }}</span>
             </div>
             <div class="flex items-center">
-              <span class="text-gray-500 w-24">Contact:</span>
-              <span class="text-black">{{ formData.contactNumber }}</span>
-            </div>
-            <div class="flex items-center">
               <span class="text-gray-500 w-24">Role:</span>
               <span class="text-black">{{ selectedRole }}</span>
             </div>
@@ -574,13 +566,12 @@ const handleDelete = async (rowData) => {
       </div>
 
       <div class="modal-action flex justify-center gap-3">
-        <button class="btn-primaryStyle" @click="confirmSave">Confirm</button>
+        <button class="btn-primaryStyle" @click="confirmSave">Update</button>
         <button class="btn-secondaryStyle" @click="cancelSave">Cancel</button>
       </div>
     </div>
   </dialog>
 
-  <!-- Toast component -->
   <Toast :show="showToast" :message="toastMessage" :type="toastType" />
 </template>
 

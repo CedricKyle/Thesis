@@ -32,7 +32,7 @@ export const roleService = {
   updateRole: async (id, roleData) => {
     try {
       const transformedData = {
-        role_name: roleData['role name'],
+        role_name: roleData.role_name || roleData['role name'],
         description: roleData.description,
         permissions: roleData.permissions,
       }

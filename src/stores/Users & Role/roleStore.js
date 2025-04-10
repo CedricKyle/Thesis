@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import axios from 'axios'
 import { roleService } from '@/services/roleService'
 
 export const useRolesStore = defineStore('roles', {
@@ -14,15 +15,9 @@ export const useRolesStore = defineStore('roles', {
     async fetchRoles() {
       try {
         this.loading = true
-        const roles = await roleService.getAllRoles()
-        // Transform backend data to frontend structure
-        this.roles = roles.map((role) => ({
-          id: role.id,
-          'role name': role.role_name,
-          description: role.description,
-          permissions: role.permissions || [],
-          'last modified': role.last_modified,
-        }))
+        const response = await axios.get('http://localhost:5000/api/roles')
+        this.roles = response.data
+        console.log('Fetched roles:', this.roles) // Add this to debug
         localStorage.setItem('roles', JSON.stringify(this.roles))
       } catch (error) {
         console.error('Error fetching roles:', error)
@@ -71,6 +66,26 @@ export const useRolesStore = defineStore('roles', {
       } catch (error) {
         this.error = error.message
         throw error
+      } finally {
+        this.loading = false
+      }
+    },
+
+    // Add getRoleById function
+    async getRoleById(id) {
+      try {
+        this.loading = true
+        console.log('Fetching role with ID:', id) // Debug log
+
+        const response = await axios.get(`http://localhost:5000/api/roles/${id}`)
+        console.log('Role data received:', response.data) // Debug log
+
+        return response.data
+      } catch (error) {
+        console.error('Error in getRoleById:', error.response || error) // Detailed error log
+        throw new Error(
+          error.response?.data?.message || error.message || 'Error fetching role details',
+        )
       } finally {
         this.loading = false
       }

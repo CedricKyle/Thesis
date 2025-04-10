@@ -16,6 +16,7 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api/roles', require('./routes/roles'))
+app.use('/api/users', require('./routes/users'))
 
 // Error handling middleware
 app.use((err, req, res, next) => {

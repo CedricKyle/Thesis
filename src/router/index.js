@@ -12,6 +12,8 @@ import Employees from '@/views/Human Resource/Employees.vue'
 import Attendance from '@/views/Human Resource/Attendance.vue'
 import AttendanceReport from '@/views/Human Resource/AttendanceReport.vue'
 import CreateUserForm from '@/components/Users & Role/Users/CreateUserForm.vue'
+import EditUserForm from '@/components/Users & Role/Users/editUserForm.vue'
+import EditRoleForm from '@/components/Users & Role/Roles/EditRoleForm.vue'
 const routes = [
   {
     path: '/',
@@ -32,6 +34,11 @@ const routes = [
         component: CreateRoleForm,
       },
       {
+        path: 'roles/:id/edit',
+        name: 'EditRole',
+        component: EditRoleForm,
+      },
+      {
         path: 'users',
         name: 'Users',
         component: UserManagement,
@@ -40,6 +47,11 @@ const routes = [
         path: 'users/create',
         name: 'CreateUser',
         component: CreateUserForm,
+      },
+      {
+        path: 'users/:id/edit',
+        name: 'EditUser',
+        component: EditUserForm,
       },
       {
         path: 'finance',

@@ -5,41 +5,29 @@ import { TabulatorFull as Tabulator } from 'tabulator-tables'
 import { useRouter } from 'vue-router'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import { storeToRefs } from 'pinia'
-import Toast from '@/components/Admin Components/HR/Toast.vue'
-import { useToast } from '@/composables/Admin Composables/User & Role/role/useToast'
 import { useNotification } from '@/composables/Admin Composables/User & Role/role/useNotification'
+import Toast from '@/components/Admin Components/HR/Toast.vue'
 
 const router = useRouter()
 const rolesStore = useRolesStore()
 const { roles } = storeToRefs(rolesStore)
-const { toast, showToast } = useToast()
 const { showNotification } = useNotification()
 
 const tableRef = ref(null)
 const isTableBuilt = ref(false)
 let table = null
 
-// Add these new refs
+// Search and filter refs
 const searchInput = ref('')
 const filteredRoles = ref([])
 
-// Add new ref for update confirmation
-const updateConfirmModal = ref(null)
-const roleDataToUpdate = ref(null)
-
-// Add new ref for edit confirmation
-const editConfirmModal = ref(null)
-const roleToEdit = ref(null)
-
-// Add back the delete confirmation modal ref
+// Modal refs
 const deleteConfirmModal = ref(null)
 const roleToDelete = ref(null)
-
-// Add these new refs for duplicate confirmation
 const duplicateConfirmModal = ref(null)
 const roleToDuplicate = ref(null)
 
-// Define permissionMap at the top of your script
+// Permission mapping
 const permissionMap = {
   'Roles and Permissions': {
     'Role List': 1,
@@ -54,14 +42,13 @@ const permissionMap = {
     Edit: 8,
     Delete: 9,
   },
-  // Add other permissions as needed
 }
 
-// Define columns for Tabulator
+// Table columns definition
 const columns = [
   {
     title: 'Role Name',
-    field: 'role name',
+    field: 'role_name',
     sorter: 'string',
     headerSort: true,
   },
@@ -73,7 +60,7 @@ const columns = [
   },
   {
     title: 'Last Modified',
-    field: 'last modified',
+    field: 'last_modified',
     sorter: 'date',
     headerSort: true,
     formatter: (cell) => {
@@ -95,7 +82,6 @@ const columns = [
   {
     title: 'Actions',
     formatter: function (cell) {
-      const record = cell.getRow().getData()
       return `
         <div class="flex gap-2">
           <button class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost edit-button">
@@ -131,11 +117,11 @@ const columns = [
   },
 ]
 
-// Modify initTable to use filteredRoles instead of roles directly
+// Table initialization
 const initTable = async () => {
   if (tableRef.value) {
     table = new Tabulator(tableRef.value, {
-      data: filteredRoles.value, // Changed from roles.value to filteredRoles.value
+      data: filteredRoles.value,
       columns: columns,
       layout: 'fitColumns',
       responsiveLayout: 'collapse',
@@ -153,7 +139,7 @@ const initTable = async () => {
   }
 }
 
-// Add search function
+// Search and refresh functions
 const handleSearch = () => {
   if (!searchInput.value.trim()) {
     filteredRoles.value = roles.value
@@ -161,30 +147,21 @@ const handleSearch = () => {
     const searchTerm = searchInput.value.toLowerCase()
     filteredRoles.value = roles.value.filter((role) => {
       return (
-        role['role name'].toLowerCase().includes(searchTerm) ||
-        role.description.toLowerCase().includes(searchTerm)
+        role.role_name.toLowerCase().includes(searchTerm) ||
+        (role.description?.toLowerCase() || '').includes(searchTerm)
       )
     })
   }
-
-  if (table) {
-    table.setData(filteredRoles.value)
-  }
+  table?.setData(filteredRoles.value)
 }
 
-// Add refresh function
 const handleRefresh = async () => {
-  // Clear search input
   searchInput.value = ''
-  // Reset filtered roles to all roles
   filteredRoles.value = roles.value
-  // Refresh table data
-  if (table) {
-    await table.setData(roles.value)
-  }
+  await table?.setData(roles.value)
 }
 
-// Initialize filteredRoles with all roles
+// Lifecycle hooks
 onMounted(async () => {
   filteredRoles.value = roles.value
   await initTable()
@@ -195,7 +172,6 @@ onMounted(async () => {
   }
 })
 
-// Modify the watch to use filteredRoles
 watch(
   () => roles.value,
   async (newData) => {
@@ -207,7 +183,6 @@ watch(
   { deep: true },
 )
 
-// Clean up
 onBeforeUnmount(() => {
   if (table) {
     table.destroy()
@@ -215,67 +190,117 @@ onBeforeUnmount(() => {
   }
 })
 
-// Modify the handleEdit function to show confirmation first
+// Action handlers
 const handleEdit = (rowData) => {
-  console.log('Editing role:', rowData) // Check if permissions are present
-  roleToEdit.value = rowData
-  editConfirmModal.value?.showModal()
+  router.push({
+    name: 'EditRole',
+    params: { id: rowData.id },
+  })
 }
 
-// Add confirmEdit function
-const confirmEdit = () => {
-  if (roleToEdit.value) {
-    router
-      .push({
-        name: 'CreateRole',
-        query: {
-          edit: 'true',
-          roleName: roleToEdit.value['role name'],
-        },
-      })
-      .catch((err) => {
-        if (err.name !== 'NavigationDuplicated') {
-          console.error(err)
-        }
-      })
-    editConfirmModal.value?.close()
-    roleToEdit.value = null
-  }
-}
-
-// Add cancelEdit function
-const cancelEdit = () => {
-  editConfirmModal.value?.close()
-  roleToEdit.value = null
-}
-
-// Modify handleDelete to show confirmation modal first
 const handleDelete = (rowData) => {
   roleToDelete.value = rowData
   deleteConfirmModal.value?.showModal()
 }
 
-// Add confirmDelete function that handles the actual deletion and shows toast
 const confirmDelete = async () => {
   if (roleToDelete.value) {
     try {
+      // First check if any users have this role
+      const response = await fetch(`http://localhost:5000/api/roles/${roleToDelete.value.id}/users`)
+      const data = await response.json()
+
+      if (data.usersCount > 0) {
+        const userList = data.userNames.join(', ')
+        toastMessage.value = `Cannot delete role: ${data.usersCount} user(s) are currently assigned to this role.\nAffected users: ${userList}`
+        toastType.value = 'error'
+        showToast.value = true
+
+        setTimeout(() => {
+          showToast.value = false
+        }, 5000) // Longer duration for this important message
+
+        deleteConfirmModal.value?.close()
+        roleToDelete.value = null
+        return
+      }
+
+      // If no users have this role, proceed with deletion
       await rolesStore.deleteRole(roleToDelete.value.id)
       deleteConfirmModal.value?.close()
       roleToDelete.value = null
-      showNotification('Role deleted successfully', 'success')
+
+      toastMessage.value = 'Role deleted successfully'
+      toastType.value = 'success'
+      showToast.value = true
+
+      setTimeout(() => {
+        showToast.value = false
+      }, 3000)
     } catch (error) {
-      showNotification(error.message, 'error')
+      toastMessage.value = error.response?.data?.message || 'Error deleting role'
+      toastType.value = 'error'
+      showToast.value = true
+
+      setTimeout(() => {
+        showToast.value = false
+      }, 3000)
     }
   }
 }
 
-// Add cancelDelete function
 const cancelDelete = () => {
   deleteConfirmModal.value?.close()
   roleToDelete.value = null
 }
 
-// Navigation function
+const handleDuplicate = (rowData) => {
+  roleToDuplicate.value = rowData
+  duplicateConfirmModal.value?.showModal()
+}
+
+const showToast = ref(false)
+const toastMessage = ref('')
+const toastType = ref('')
+
+const confirmDuplicate = async () => {
+  if (roleToDuplicate.value) {
+    try {
+      const newRoleData = {
+        'role name': `Copy of ${roleToDuplicate.value.role_name}`,
+        description: roleToDuplicate.value.description || '',
+        permissions: roleToDuplicate.value.permissions || [],
+      }
+      await rolesStore.addRole(newRoleData)
+      duplicateConfirmModal.value?.close()
+      roleToDuplicate.value = null
+
+      toastMessage.value = 'Role duplicated successfully'
+      toastType.value = 'success'
+      showToast.value = true
+
+      setTimeout(() => {
+        showToast.value = false
+      }, 3000)
+
+      await rolesStore.fetchRoles()
+    } catch (error) {
+      toastMessage.value = error.response?.data?.message || 'Error duplicating role'
+      toastType.value = 'error'
+      showToast.value = true
+
+      setTimeout(() => {
+        showToast.value = false
+      }, 3000)
+    }
+  }
+}
+
+const cancelDuplicate = () => {
+  duplicateConfirmModal.value?.close()
+  roleToDuplicate.value = null
+}
+
 const navigateToCreateRole = () => {
   router.push({ name: 'CreateRole' }).catch((err) => {
     if (err.name !== 'NavigationDuplicated') {
@@ -284,36 +309,10 @@ const navigateToCreateRole = () => {
   })
 }
 
-// Modify the handleSubmit function to show confirmation first
-const handleSubmit = async (roleData) => {
-  try {
-    await rolesStore.addRole(roleData)
-    showNotification('Role created successfully', 'success')
-  } catch (error) {
-    showNotification(error.message, 'error')
-  }
-}
-
-// Add confirmUpdate function
-const confirmUpdate = async () => {
-  if (roleDataToUpdate.value) {
-    await rolesStore.updateRole(roleDataToUpdate.value.id, roleDataToUpdate.value)
-    updateConfirmModal.value?.close()
-    showNotification('Role updated successfully', 'success')
-  }
-}
-
-// Add function to cancel update
-const cancelUpdate = () => {
-  updateConfirmModal.value?.close()
-  roleDataToUpdate.value = null
-}
-
-// Add this helper function in the script section
+// Helper function
 const formatPermissions = (permissions) => {
   if (!permissions || !Array.isArray(permissions)) return ''
 
-  // Map permission IDs to their names
   const permissionNames = permissions
     .map((id) => {
       return Object.entries(permissionMap)
@@ -323,9 +322,8 @@ const formatPermissions = (permissions) => {
         })
         .filter(Boolean)
     })
-    .flat() // Flatten the array
+    .flat()
 
-  // Group permissions by category
   const groupedPermissions = permissionNames.reduce((acc, permission) => {
     if (typeof permission === 'string') {
       const [section, perm] = permission.split(': ')
@@ -337,49 +335,11 @@ const formatPermissions = (permissions) => {
     return acc
   }, {})
 
-  // Convert to array of formatted strings
   return Object.entries(groupedPermissions)
     .map(([section, perms]) => {
       return `${section}:\n${perms.map((p) => `  • ${p}`).join('\n')}`
     })
     .join('\n\n')
-}
-
-// Add handleDuplicate function
-const handleDuplicate = (rowData) => {
-  roleToDuplicate.value = rowData
-  duplicateConfirmModal.value?.showModal()
-}
-
-// Modify confirmDuplicate function
-const confirmDuplicate = () => {
-  if (roleToDuplicate.value) {
-    try {
-      // Create new role data with "Copy of" prefix
-      const newRoleData = {
-        'role name': `Copy of ${roleToDuplicate.value['role name']}`,
-        description: roleToDuplicate.value.description,
-        permissions: [...roleToDuplicate.value.permissions],
-        'last modified': new Date().toLocaleString(),
-      }
-
-      // Add the new role
-      rolesStore.addRole(newRoleData)
-      duplicateConfirmModal.value?.close()
-      roleToDuplicate.value = null
-      showNotification('Role duplicated successfully', 'success')
-
-      // The table will automatically update due to the watch on roles
-    } catch (error) {
-      showNotification(error.message, 'error')
-    }
-  }
-}
-
-// Add cancelDuplicate function
-const cancelDuplicate = () => {
-  duplicateConfirmModal.value?.close()
-  roleToDuplicate.value = null
 }
 </script>
 
@@ -389,9 +349,7 @@ const cancelDuplicate = () => {
       <h1 class="text-[24px] font-semibold">Roles & Permission's</h1>
     </div>
 
-    <!-- action container -->
     <div class="flex flex-col gap-2 mt-5">
-      <!-- create role btn -->
       <div
         class="btn btn-sm font-thin w-35 border-none shadow-none bg-primaryColor hover:bg-primaryColor/80 cursor-pointer"
         @click="navigateToCreateRole"
@@ -399,7 +357,6 @@ const cancelDuplicate = () => {
         <Plus /> Create Role
       </div>
 
-      <!-- Modified search container -->
       <div class="flex items-center gap-5">
         <label class="input-search input-sm">
           <svg class="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
@@ -431,83 +388,12 @@ const cancelDuplicate = () => {
         </div>
       </div>
 
-      <!-- table container -->
       <div class="w-full bg-white shadow-md rounded-md">
         <div ref="tableRef"></div>
       </div>
     </div>
 
-    <!-- Add Update Confirmation Modal -->
-    <dialog ref="updateConfirmModal" class="modal">
-      <div class="modal-box bg-white w-96">
-        <h3 class="font-bold text-lg text-black">Confirm Update</h3>
-        <div
-          class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
-        ></div>
-
-        <div v-if="roleDataToUpdate" class="py-4">
-          <div class="flex flex-col gap-2">
-            <div class="flex flex-row">
-              <div class="w-32 text-gray-500">Role Name:</div>
-              <div class="text-black">{{ roleDataToUpdate['role name'] }}</div>
-            </div>
-            <div class="flex flex-row">
-              <div class="w-32 text-gray-500">Description:</div>
-              <div class="text-black">{{ roleDataToUpdate.description }}</div>
-            </div>
-            <div class="flex flex-col">
-              <div class="text-gray-500 mb-2">Permissions:</div>
-              <pre class="text-black text-sm whitespace-pre-wrap bg-gray-50 p-3 rounded-md">{{
-                formatPermissions(roleDataToUpdate.permissions)
-              }}</pre>
-            </div>
-          </div>
-        </div>
-
-        <div class="modal-action justify-center gap-4">
-          <button class="btn-primaryStyle" @click="confirmUpdate">Update</button>
-          <button class="btn-secondaryStyle" @click="cancelUpdate">Cancel</button>
-        </div>
-      </div>
-    </dialog>
-
-    <!-- Add Edit Confirmation Modal -->
-    <dialog ref="editConfirmModal" class="modal">
-      <div class="modal-box bg-white w-96">
-        <h3 class="font-bold text-lg text-black">Confirm Edit</h3>
-        <div
-          class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
-        ></div>
-
-        <div v-if="roleToEdit" class="py-4">
-          <p class="text-center text-black">
-            Are you sure you want to edit the role
-            <span class="font-bold">{{ roleToEdit['role name'] }}</span
-            >?
-          </p>
-
-          <div class="mt-4 flex flex-col gap-2">
-            <div class="flex flex-row">
-              <div class="w-32 text-gray-500">Description:</div>
-              <div class="text-black">{{ roleToEdit.description }}</div>
-            </div>
-            <div class="flex flex-col">
-              <div class="text-gray-500 mb-2">Permissions:</div>
-              <pre class="text-black text-sm whitespace-pre-wrap bg-gray-50 p-3 rounded-md">{{
-                formatPermissions(roleToEdit.permissions)
-              }}</pre>
-            </div>
-          </div>
-        </div>
-
-        <div class="modal-action justify-center gap-4">
-          <button class="btn-primaryStyle" @click="confirmEdit">Edit</button>
-          <button class="btn-secondaryStyle" @click="cancelEdit">Cancel</button>
-        </div>
-      </div>
-    </dialog>
-
-    <!-- Add Delete Confirmation Modal -->
+    <!-- Delete Confirmation Modal -->
     <dialog ref="deleteConfirmModal" class="modal">
       <div class="modal-box bg-white w-96">
         <h3 class="font-bold text-lg text-black">Confirm Delete</h3>
@@ -528,7 +414,7 @@ const cancelDuplicate = () => {
       </div>
     </dialog>
 
-    <!-- Add Duplicate Confirmation Modal -->
+    <!-- Duplicate Confirmation Modal -->
     <dialog ref="duplicateConfirmModal" class="modal">
       <div class="modal-box bg-white w-96">
         <h3 class="font-bold text-lg text-black">Confirm Duplicate</h3>
@@ -539,14 +425,14 @@ const cancelDuplicate = () => {
         <div v-if="roleToDuplicate" class="py-4">
           <p class="text-center text-black">
             Are you sure you want to duplicate the role
-            <span class="font-bold">{{ roleToDuplicate['role name'] }}</span
+            <span class="font-bold">{{ roleToDuplicate.role_name }}</span
             >?
           </p>
 
           <div class="mt-4 flex flex-col gap-2">
             <div class="flex flex-row">
               <div class="w-32 text-gray-500">New Name:</div>
-              <div class="text-black">Copy of {{ roleToDuplicate['role name'] }}</div>
+              <div class="text-black">Copy of {{ roleToDuplicate.role_name }}</div>
             </div>
             <div class="flex flex-row">
               <div class="w-32 text-gray-500">Description:</div>
@@ -568,12 +454,10 @@ const cancelDuplicate = () => {
       </div>
     </dialog>
 
-    <!-- Add Toast component -->
-    <Toast :show="toast.show" :type="toast.type" :message="toast.message" />
-
-    <!-- Add loading state -->
     <div v-if="rolesStore.loading" class="loading-overlay">
       <span class="loading loading-spinner loading-lg"></span>
     </div>
+
+    <Toast :show="showToast" :message="toastMessage" :type="toastType" />
   </div>
 </template>
