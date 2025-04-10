@@ -6,6 +6,7 @@ import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import { storeToRefs } from 'pinia'
 import { useUserStore } from '@/stores/Users & Role/userStore'
 import { useNotification } from '@/composables/Admin Composables/User & Role/role/useNotification'
+import Toast from '@/components/Admin Components/HR/Toast.vue'
 
 const router = useRouter()
 const step = ref(1)
@@ -44,6 +45,11 @@ const { roles } = storeToRefs(rolesStore)
 const userStore = useUserStore()
 const { showNotification } = useNotification()
 const confirmModal = ref(null)
+
+// Add these refs to manage toast state
+const showToast = ref(false)
+const toastMessage = ref('')
+const toastType = ref('')
 
 // Fetch roles on component mount
 onMounted(async () => {
@@ -170,6 +176,18 @@ const handleSubmit = () => {
   confirmModal.value?.showModal()
 }
 
+// Add this function to handle showing toast
+const showToastMessage = (message, type) => {
+  toastMessage.value = message
+  toastType.value = type
+  showToast.value = true
+  // Hide toast after 3 seconds
+  setTimeout(() => {
+    showToast.value = false
+  }, 3000)
+}
+
+// Update your confirmSave function
 const confirmSave = async () => {
   try {
     const userData = {
@@ -186,10 +204,16 @@ const confirmSave = async () => {
 
     await userStore.createUser(userData)
     confirmModal.value?.close()
-    showNotification('User created successfully', 'success')
-    router.push({ name: 'UserManagement' })
+
+    // Show success toast
+    showToastMessage('created successfully!', 'success')
+
+    // Navigate after a small delay
+    setTimeout(() => {
+      router.push('/users')
+    }, 500)
   } catch (error) {
-    showNotification(error.message, 'error')
+    showToastMessage(error.message || 'Error creating user', 'error')
   }
 }
 
@@ -546,6 +570,9 @@ const cancelSave = () => {
       </div>
     </div>
   </dialog>
+
+  <!-- Toast component -->
+  <Toast :show="showToast" :message="toastMessage" :type="toastType" />
 </template>
 
 <style>
