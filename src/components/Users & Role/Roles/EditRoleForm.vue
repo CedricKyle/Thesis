@@ -217,33 +217,41 @@ const cancelSave = () => {
       <div v-if="step === 1" class="mt-5 border border-gray-200 rounded-md p-5 bg-white shadow-sm">
         <div class="font-semibold">General Information</div>
         <div class="mt-5 grid gap-5">
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text text-black">Role Name</span>
-            </label>
-            <input
-              v-model="formData.roleName"
-              type="text"
-              class="input input-bordered bg-white text-black"
-              :class="{ 'input-error': formErrors.roleName }"
-            />
-            <label class="label" v-if="formErrors.roleName">
-              <span class="label-text-alt text-error">{{ formErrors.roleName }}</span>
-            </label>
+          <div class="form-control flex gap-2 items-center">
+            <div class="w-30">
+              <label class="label">
+                <span class="label-text text-gray-500">Role Name</span>
+              </label>
+            </div>
+            <div class="w-full">
+              <input
+                v-model="formData.roleName"
+                type="text"
+                class="input-search input-bordered bg-white text-black"
+                :class="{ 'input-error': formErrors.roleName }"
+              />
+              <label class="label" v-if="formErrors.roleName">
+                <span class="label-text-alt text-error">{{ formErrors.roleName }}</span>
+              </label>
+            </div>
           </div>
 
-          <div class="form-control">
-            <label class="label">
-              <span class="label-text text-black">Description</span>
-            </label>
-            <textarea
-              v-model="formData.description"
-              class="textarea textarea-bordered bg-white text-black h-24"
-              :class="{ 'textarea-error': formErrors.description }"
-            ></textarea>
-            <label class="label" v-if="formErrors.description">
-              <span class="label-text-alt text-error">{{ formErrors.description }}</span>
-            </label>
+          <div class="form-control flex gap-2 items-center">
+            <div class="w-30">
+              <label class="label">
+                <span class="label-text text-gray-500">Description</span>
+              </label>
+            </div>
+            <div class="w-full">
+              <textarea
+                v-model="formData.description"
+                class="textarea textarea-bordered border-black bg-white text-black h-24"
+                :class="{ 'textarea-error': formErrors.description }"
+              ></textarea>
+              <label class="label" v-if="formErrors.description">
+                <span class="label-text-alt text-error">{{ formErrors.description }}</span>
+              </label>
+            </div>
           </div>
         </div>
       </div>
@@ -265,9 +273,9 @@ const cancelSave = () => {
                     type="checkbox"
                     :checked="selectedPermissions.includes(permission.id)"
                     @change="togglePermission(permission.id)"
-                    class="checkbox checkbox-primary"
+                    class="checkbox checkbox-neutral checkbox-sm"
                   />
-                  <span class="label-text">{{ permission.name }}</span>
+                  <span class="label-text text-sm">{{ permission.name }}</span>
                 </label>
               </div>
             </div>

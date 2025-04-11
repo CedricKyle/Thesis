@@ -352,9 +352,15 @@ const clearSearch = () => {
 }
 
 // Refresh function
-const handleRefresh = () => {
-  if (tableInstance) {
-    tableInstance.replaceData(originalData.value)
+const handleRefresh = async () => {
+  searchQuery.value = ''
+  try {
+    await userStore.fetchUsers()
+    if (tableInstance) {
+      tableInstance.replaceData(users.value)
+    }
+  } catch (error) {
+    showToastMessage('Error refreshing data', 'error')
   }
 }
 
@@ -383,40 +389,34 @@ watch(users, (newUsers) => {
 
       <!-- search container -->
       <div class="flex items-center gap-5">
-        <div class="relative flex-1">
-          <div class="relative">
-            <input
-              v-model="searchQuery"
-              type="text"
-              placeholder="Search by name, email, role, status..."
-              class="input w-full pr-10 pl-10 bg-white border-gray-200"
-              @input="handleSearch"
-            />
-            <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <button
-              v-if="searchQuery"
-              class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              @click="clearSearch"
+        <label class="input-search input-sm">
+          <svg class="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+            <g
+              stroke-linejoin="round"
+              stroke-linecap="round"
+              stroke-width="2.5"
+              fill="none"
+              stroke="currentColor"
             >
-              <X class="w-5 h-5" />
-            </button>
-          </div>
-          <!-- Loading indicator -->
-          <div v-if="isSearching" class="absolute right-3 top-1/2 -translate-y-1/2">
-            <div
-              class="animate-spin rounded-full h-4 w-4 border-2 border-primary border-t-transparent"
-            ></div>
-          </div>
-        </div>
-
-        <!-- Refresh button -->
-        <button
-          class="btn btn-square btn-ghost btn-sm"
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="m21 21-4.3-4.3"></path>
+            </g>
+          </svg>
+          <input
+            v-model="searchQuery"
+            type="search"
+            placeholder="Search"
+            class=""
+            @input="handleSearch"
+          />
+        </label>
+        <div
+          class="border p-1 rounded-sm cursor-pointer hover:bg-gray-100"
           @click="handleRefresh"
-          :disabled="isSearching"
+          title="Refresh table"
         >
-          <RefreshCw class="w-5 h-5" :class="{ 'animate-spin': isSearching }" />
-        </button>
+          <RefreshCw class="text-primaryColor w-5 h-5" />
+        </div>
       </div>
 
       <!-- table container -->
