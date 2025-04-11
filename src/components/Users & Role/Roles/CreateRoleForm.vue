@@ -44,12 +44,67 @@ const permissionMap = {
     Edit: 8,
     Delete: 9,
   },
-
-  // Add other permissions as needed
+  'HR Dashboard': {
+    'View Dashboard': 10,
+    'Manage Dashboard': 11,
+  },
+  'Attendance Report': {
+    View: 12,
+    Create: 13,
+    Edit: 14,
+    Delete: 15,
+  },
+  'Employee Management': {
+    View: 16,
+    Create: 17,
+    Edit: 18,
+    Delete: 19,
+  },
+  'Attendance Management': {
+    View: 20,
+    Create: 21,
+    Edit: 22,
+    Delete: 23,
+  },
+  'Inventory Management': {
+    'Product List': 24,
+    View: 25,
+    Create: 26,
+    Edit: 27,
+    Delete: 28,
+  },
+  'Sales Management': {
+    'Order List': 29,
+    View: 30,
+    Create: 31,
+    Edit: 32,
+    Delete: 33,
+  },
+  'CRM Management': {
+    'Customer List': 34,
+    View: 35,
+    Create: 36,
+    Edit: 37,
+    Delete: 38,
+  },
+  'Finance Management': {
+    'Invoice List': 39,
+    View: 40,
+    Create: 41,
+    Edit: 42,
+    Delete: 43,
+  },
 }
 
-// If in edit mode, load the role data
+// Add after your existing refs
+const groupSelectState = ref({})
+
+// Initialize group select state for each section
 onMounted(() => {
+  Object.keys(permissionMap).forEach((section) => {
+    groupSelectState.value[section] = false
+  })
+
   // First uncheck all checkboxes regardless of mode
   const allCheckboxes = document.querySelectorAll('input[type="checkbox"]')
   allCheckboxes.forEach((checkbox) => {
@@ -169,6 +224,22 @@ const formatDate = (dateString) => {
     hour12: false,
   })
 }
+
+// Add these new functions
+const toggleGroupPermissions = (section) => {
+  // Toggle the group state
+  groupSelectState.value[section] = !groupSelectState.value[section]
+
+  const checkboxes = document.querySelectorAll(`[data-section="${section}"] input[type="checkbox"]`)
+  checkboxes.forEach((checkbox) => {
+    checkbox.checked = groupSelectState.value[section]
+  })
+}
+
+const isGroupFullySelected = (section) => {
+  const checkboxes = document.querySelectorAll(`[data-section="${section}"] input[type="checkbox"]`)
+  return Array.from(checkboxes).every((checkbox) => checkbox.checked)
+}
 </script>
 
 <template>
@@ -222,32 +293,43 @@ const formatDate = (dateString) => {
         <div class="permissions-list grid grid-cols-2 gap-5 border border-gray-200 rounded-md p-2">
           <!-- User Management -->
           <div class="user-management" data-section="User Management">
-            <p class="text-black text-sm border border-gray-200 rounded-md p-2 bg-gray-50">
-              User Management
-            </p>
+            <div
+              class="flex items-center justify-between border border-gray-200 rounded-md p-2 bg-gray-50"
+            >
+              <p class="text-black text-sm">User Management</p>
+              <div class="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  :checked="isGroupFullySelected('User Management')"
+                  @change="toggleGroupPermissions('User Management')"
+                  class="checkbox checkbox-neutral checkbox-xs"
+                />
+                <span class="label-text text-xs">Select all</span>
+              </div>
+            </div>
 
             <div class="p-5 flex flex-col gap-5">
               <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                 <p class="text-black text-sm">User List</p>
               </div>
               <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                 <p class="text-black text-sm">View</p>
               </div>
 
               <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                 <p class="text-black text-sm">Create</p>
               </div>
 
               <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                 <p class="text-black text-sm">Edit</p>
               </div>
 
               <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                 <p class="text-black text-sm">Delete</p>
               </div>
             </div>
@@ -255,28 +337,39 @@ const formatDate = (dateString) => {
 
           <!-- Roles and Permissions -->
           <div class="roles-and-permissions" data-section="Roles and Permissions">
-            <p class="text-black text-sm border border-gray-200 rounded-md p-2 bg-gray-50">
-              Roles and Permissions
-            </p>
+            <div
+              class="flex items-center justify-between border border-gray-200 rounded-md p-2 bg-gray-50"
+            >
+              <p class="text-black text-sm">Roles and Permissions</p>
+              <div class="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  :checked="isGroupFullySelected('Roles and Permissions')"
+                  @change="toggleGroupPermissions('Roles and Permissions')"
+                  class="checkbox checkbox-neutral checkbox-xs"
+                />
+                <span class="label-text text-xs">Select all</span>
+              </div>
+            </div>
 
             <div class="p-5 flex flex-col gap-5">
               <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                 <p class="text-black text-sm">Role List</p>
               </div>
 
               <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                 <p class="text-black text-sm">Create</p>
               </div>
 
               <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                 <p class="text-black text-sm">Edit</p>
               </div>
 
               <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                 <p class="text-black text-sm">Delete</p>
               </div>
             </div>
@@ -284,80 +377,109 @@ const formatDate = (dateString) => {
 
           <!-- Human Resource -->
           <div class="human-resource col-span-2" data-section="Human Resource">
-            <p class="text-black text-sm border border-gray-200 rounded-md p-2 bg-gray-50">
-              Human Resource
-            </p>
+            <div
+              class="flex items-center justify-between border border-gray-200 rounded-md p-2 bg-gray-50"
+            >
+              <p class="text-black text-sm">Human Resource</p>
+              <div class="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  :checked="isGroupFullySelected('Human Resource')"
+                  @change="toggleGroupPermissions('Human Resource')"
+                  class="checkbox checkbox-neutral checkbox-xs"
+                />
+                <span class="label-text text-xs">Select all</span>
+              </div>
+            </div>
 
             <div class="grid grid-cols-4 gap-5">
               <div class="p-5 flex flex-col gap-5" data-section="HR Dashboard">
-                <p class="text-black text-sm font-semibold">HR Dashboard</p>
+                <div class="flex items-center justify-between">
+                  <p class="text-black text-sm font-semibold">HR Dashboard</p>
+                </div>
                 <div class="flex items-center gap-2">
-                  <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                  <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                   <p class="text-black text-sm">View Dashboard</p>
                 </div>
 
                 <div class="flex items-center gap-2">
-                  <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                  <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                   <p class="text-black text-sm">Manage Dashboard</p>
                 </div>
               </div>
 
               <div class="p-5 flex flex-col gap-5" data-section="Attendance Report">
-                <p class="text-black text-sm font-semibold">Attendance Report</p>
+                <div class="flex items-center justify-between">
+                  <p class="text-black text-sm font-semibold">Attendance Report</p>
+                </div>
                 <div class="flex items-center gap-2">
-                  <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
-                  <p class="text-black text-sm">View Attendance Report</p>
+                  <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
+                  <p class="text-black text-sm">View</p>
                 </div>
 
                 <div class="flex items-center gap-2">
-                  <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
-                  <p class="text-black text-sm">Export Attendance Report</p>
+                  <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
+                  <p class="text-black text-sm">Create</p>
+                </div>
+
+                <div class="flex items-center gap-2">
+                  <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
+                  <p class="text-black text-sm">Edit</p>
+                </div>
+
+                <div class="flex items-center gap-2">
+                  <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
+                  <p class="text-black text-sm">Delete</p>
                 </div>
               </div>
 
               <div class="p-5 flex flex-col gap-5" data-section="Employee Management">
-                <p class="text-black text-sm font-semibold">Employee Management</p>
+                <div class="flex items-center justify-between">
+                  <p class="text-black text-sm font-semibold">Employee Management</p>
+                </div>
                 <div class="flex items-center gap-2">
-                  <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
-                  <p class="text-black text-sm">View Employee List</p>
+                  <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
+                  <p class="text-black text-sm">View</p>
                 </div>
 
                 <div class="flex items-center gap-2">
-                  <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
-                  <p class="text-black text-sm">Create Employee</p>
+                  <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
+                  <p class="text-black text-sm">Create</p>
                 </div>
 
                 <div class="flex items-center gap-2">
-                  <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
-                  <p class="text-black text-sm">Edit Employee</p>
+                  <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
+                  <p class="text-black text-sm">Edit</p>
                 </div>
 
                 <div class="flex items-center gap-2">
-                  <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
-                  <p class="text-black text-sm">Delete Employee</p>
+                  <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
+                  <p class="text-black text-sm">Delete</p>
                 </div>
               </div>
 
               <div class="p-5 flex flex-col gap-5" data-section="Attendance Management">
-                <p class="text-black text-sm font-semibold">Attendance Management</p>
+                <div class="flex items-center justify-between">
+                  <p class="text-black text-sm font-semibold">Attendance Management</p>
+                </div>
                 <div class="flex items-center gap-2">
-                  <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
-                  <p class="text-black text-sm">View Attendance List</p>
+                  <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
+                  <p class="text-black text-sm">View</p>
                 </div>
 
                 <div class="flex items-center gap-2">
-                  <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
-                  <p class="text-black text-sm">Create Attendance</p>
+                  <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
+                  <p class="text-black text-sm">Create</p>
                 </div>
 
                 <div class="flex items-center gap-2">
-                  <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
-                  <p class="text-black text-sm">Edit Attendance</p>
+                  <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
+                  <p class="text-black text-sm">Edit</p>
                 </div>
 
                 <div class="flex items-center gap-2">
-                  <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
-                  <p class="text-black text-sm">Delete Attendance</p>
+                  <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
+                  <p class="text-black text-sm">Delete</p>
                 </div>
               </div>
             </div>
@@ -365,32 +487,43 @@ const formatDate = (dateString) => {
 
           <!-- Inventory Management -->
           <div class="inventory-management" data-section="Inventory Management">
-            <p class="text-black text-sm border border-gray-200 rounded-md p-2 bg-gray-50">
-              Inventory Management
-            </p>
+            <div
+              class="flex items-center justify-between border border-gray-200 rounded-md p-2 bg-gray-50"
+            >
+              <p class="text-black text-sm">Inventory Management</p>
+              <div class="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  :checked="isGroupFullySelected('Inventory Management')"
+                  @change="toggleGroupPermissions('Inventory Management')"
+                  class="checkbox checkbox-neutral checkbox-xs"
+                />
+                <span class="label-text text-xs">Select all</span>
+              </div>
+            </div>
 
             <div class="p-5 flex flex-col gap-5">
               <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                 <p class="text-black text-sm">Product List</p>
               </div>
               <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                 <p class="text-black text-sm">View</p>
               </div>
 
               <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                 <p class="text-black text-sm">Create</p>
               </div>
 
               <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                 <p class="text-black text-sm">Edit</p>
               </div>
 
               <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                 <p class="text-black text-sm">Delete</p>
               </div>
             </div>
@@ -398,32 +531,43 @@ const formatDate = (dateString) => {
 
           <!-- Sales Management -->
           <div class="sales-management" data-section="Sales Management">
-            <p class="text-black text-sm border border-gray-200 rounded-md p-2 bg-gray-50">
-              Sales Management
-            </p>
+            <div
+              class="flex items-center justify-between border border-gray-200 rounded-md p-2 bg-gray-50"
+            >
+              <p class="text-black text-sm">Sales Management</p>
+              <div class="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  :checked="isGroupFullySelected('Sales Management')"
+                  @change="toggleGroupPermissions('Sales Management')"
+                  class="checkbox checkbox-neutral checkbox-xs"
+                />
+                <span class="label-text text-xs">Select all</span>
+              </div>
+            </div>
 
             <div class="p-5 flex flex-col gap-5">
               <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                 <p class="text-black text-sm">Order List</p>
               </div>
               <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                 <p class="text-black text-sm">View</p>
               </div>
 
               <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                 <p class="text-black text-sm">Create</p>
               </div>
 
               <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                 <p class="text-black text-sm">Edit</p>
               </div>
 
               <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                 <p class="text-black text-sm">Delete</p>
               </div>
             </div>
@@ -431,32 +575,43 @@ const formatDate = (dateString) => {
 
           <!-- CRM Management -->
           <div class="crm-management" data-section="CRM Management">
-            <p class="text-black text-sm border border-gray-200 rounded-md p-2 bg-gray-50">
-              CRM Management
-            </p>
+            <div
+              class="flex items-center justify-between border border-gray-200 rounded-md p-2 bg-gray-50"
+            >
+              <p class="text-black text-sm">CRM Management</p>
+              <div class="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  :checked="isGroupFullySelected('CRM Management')"
+                  @change="toggleGroupPermissions('CRM Management')"
+                  class="checkbox checkbox-neutral checkbox-xs"
+                />
+                <span class="label-text text-xs">Select all</span>
+              </div>
+            </div>
 
             <div class="p-5 flex flex-col gap-5">
               <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                 <p class="text-black text-sm">Customer List</p>
               </div>
               <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                 <p class="text-black text-sm">View</p>
               </div>
 
               <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                 <p class="text-black text-sm">Create</p>
               </div>
 
               <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                 <p class="text-black text-sm">Edit</p>
               </div>
 
               <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                 <p class="text-black text-sm">Delete</p>
               </div>
             </div>
@@ -464,32 +619,43 @@ const formatDate = (dateString) => {
 
           <!-- Finance Management -->
           <div class="finance-management" data-section="Finance Management">
-            <p class="text-black text-sm border border-gray-200 rounded-md p-2 bg-gray-50">
-              Finance Management
-            </p>
+            <div
+              class="flex items-center justify-between border border-gray-200 rounded-md p-2 bg-gray-50"
+            >
+              <p class="text-black text-sm">Finance Management</p>
+              <div class="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  :checked="isGroupFullySelected('Finance Management')"
+                  @change="toggleGroupPermissions('Finance Management')"
+                  class="checkbox checkbox-neutral checkbox-xs"
+                />
+                <span class="label-text text-xs">Select all</span>
+              </div>
+            </div>
 
             <div class="p-5 flex flex-col gap-5">
               <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                 <p class="text-black text-sm">Invoice List</p>
               </div>
               <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                 <p class="text-black text-sm">View</p>
               </div>
 
               <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                 <p class="text-black text-sm">Create</p>
               </div>
 
               <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                 <p class="text-black text-sm">Edit</p>
               </div>
 
               <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-sm checkbox-neutral" />
+                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
                 <p class="text-black text-sm">Delete</p>
               </div>
             </div>

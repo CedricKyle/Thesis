@@ -1,7 +1,7 @@
 <script setup>
 import { ChevronLeft, ChevronRight, Check } from 'lucide-vue-next'
 import { useRouter, useRoute } from 'vue-router'
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import Toast from '@/components/Admin Components/HR/Toast.vue'
 
@@ -53,7 +53,91 @@ const permissionGroups = ref([
       { id: 9, name: 'Delete' },
     ],
   },
+  {
+    name: 'HR Dashboard',
+    permissions: [
+      { id: 10, name: 'View Dashboard' },
+      { id: 11, name: 'Manage Dashboard' },
+    ],
+  },
+  {
+    name: 'Attendance Report',
+    permissions: [
+      { id: 12, name: 'View' },
+      { id: 13, name: 'Create' },
+      { id: 14, name: 'Edit' },
+      { id: 15, name: 'Delete' },
+    ],
+  },
+  {
+    name: 'Employee Management',
+    permissions: [
+      { id: 16, name: 'View' },
+      { id: 17, name: 'Create' },
+      { id: 18, name: 'Edit' },
+      { id: 19, name: 'Delete' },
+    ],
+  },
+  {
+    name: 'Attendance Management',
+    permissions: [
+      { id: 20, name: 'View' },
+      { id: 21, name: 'Create' },
+      { id: 22, name: 'Edit' },
+      { id: 23, name: 'Delete' },
+    ],
+  },
+  {
+    name: 'Inventory Management',
+    permissions: [
+      { id: 24, name: 'Product List' },
+      { id: 25, name: 'View' },
+      { id: 26, name: 'Create' },
+      { id: 27, name: 'Edit' },
+      { id: 28, name: 'Delete' },
+    ],
+  },
+  {
+    name: 'Sales Management',
+    permissions: [
+      { id: 29, name: 'Order List' },
+      { id: 30, name: 'View' },
+      { id: 31, name: 'Create' },
+      { id: 32, name: 'Edit' },
+      { id: 33, name: 'Delete' },
+    ],
+  },
+  {
+    name: 'CRM Management',
+    permissions: [
+      { id: 34, name: 'Customer List' },
+      { id: 35, name: 'View' },
+      { id: 36, name: 'Create' },
+      { id: 37, name: 'Edit' },
+      { id: 38, name: 'Delete' },
+    ],
+  },
+  {
+    name: 'Finance Management',
+    permissions: [
+      { id: 39, name: 'Invoice List' },
+      { id: 40, name: 'View' },
+      { id: 41, name: 'Create' },
+      { id: 42, name: 'Edit' },
+      { id: 43, name: 'Delete' },
+    ],
+  },
 ])
+
+// Add these after your existing refs
+const groupSelectState = ref({})
+
+// Initialize group select state
+onMounted(() => {
+  permissionGroups.value.forEach((group) => {
+    groupSelectState.value[group.name] = false
+  })
+})
 
 // Fetch role data on mount
 onMounted(async () => {
@@ -164,6 +248,51 @@ const confirmSave = async () => {
 const cancelSave = () => {
   confirmModal.value?.close()
 }
+
+// Add these new functions
+const toggleGroupPermissions = (groupName) => {
+  const group = permissionGroups.value.find((g) => g.name === groupName)
+  if (!group) return
+
+  // Toggle the group state
+  groupSelectState.value[groupName] = !groupSelectState.value[groupName]
+
+  // Get all permission IDs for this group
+  const groupPermissionIds = group.permissions.map((p) => p.id)
+
+  if (groupSelectState.value[groupName]) {
+    // Add all permissions from this group that aren't already selected
+    groupPermissionIds.forEach((id) => {
+      if (!selectedPermissions.value.includes(id)) {
+        selectedPermissions.value.push(id)
+      }
+    })
+  } else {
+    // Remove all permissions from this group
+    selectedPermissions.value = selectedPermissions.value.filter(
+      (id) => !groupPermissionIds.includes(id),
+    )
+  }
+}
+
+// Add this computed property
+const isGroupFullySelected = (groupName) => {
+  const group = permissionGroups.value.find((g) => g.name === groupName)
+  if (!group) return false
+
+  return group.permissions.every((permission) => selectedPermissions.value.includes(permission.id))
+}
+
+// Add this watch effect to update group select states
+watch(
+  selectedPermissions,
+  () => {
+    permissionGroups.value.forEach((group) => {
+      groupSelectState.value[group.name] = isGroupFullySelected(group.name)
+    })
+  },
+  { deep: true },
+)
 </script>
 
 <template>
@@ -260,9 +389,27 @@ const cancelSave = () => {
       <div v-if="step === 2" class="mt-5 border border-gray-200 rounded-md p-5 bg-white shadow-sm">
         <div class="font-semibold mb-4">Permissions</div>
         <div class="grid gap-6">
-          <div v-for="group in permissionGroups" :key="group.name" class="border-b pb-4">
-            <h3 class="font-medium mb-3">{{ group.name }}</h3>
-            <div class="grid grid-cols-2 gap-3">
+          <div v-for="group in permissionGroups" :key="group.name" class="">
+            <div class="flex items-center gap-2 mb-3">
+              <!-- Add select all checkbox -->
+              <label
+                class="label cursor-pointer border border-gray-200 rounded-md p-2 bg-gray-50 justify-between w-full items-center mb-3"
+              >
+                <div class="">
+                  <span class="label-text text-sm">{{ group.name }}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    :checked="isGroupFullySelected(group.name)"
+                    @change="toggleGroupPermissions(group.name)"
+                    class="checkbox checkbox-neutral checkbox-xs"
+                  />
+                  <span class="label-text text-xs">Select all</span>
+                </div>
+              </label>
+            </div>
+            <div class="grid grid-cols-2 gap-3 ml-4">
               <div
                 v-for="permission in group.permissions"
                 :key="permission.id"
@@ -273,7 +420,7 @@ const cancelSave = () => {
                     type="checkbox"
                     :checked="selectedPermissions.includes(permission.id)"
                     @change="togglePermission(permission.id)"
-                    class="checkbox checkbox-neutral checkbox-sm"
+                    class="checkbox checkbox-neutral checkbox-xs"
                   />
                   <span class="label-text text-sm">{{ permission.name }}</span>
                 </label>

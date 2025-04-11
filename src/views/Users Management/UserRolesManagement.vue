@@ -42,6 +42,7 @@ const permissionMap = {
     Edit: 8,
     Delete: 9,
   },
+  
 }
 
 // Table columns definition
