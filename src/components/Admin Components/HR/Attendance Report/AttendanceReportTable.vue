@@ -1,7 +1,10 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, onBeforeUnmount } from 'vue'
 import { Printer } from 'lucide-vue-next'
 import { TabulatorFull as Tabulator } from 'tabulator-tables'
+import { useAttendanceLogic } from '@/composables/Admin Composables/Human Resource/useAttendanceLogic'
+
+const { calculateOvertime } = useAttendanceLogic()
 
 const props = defineProps({
   records: {
@@ -12,6 +15,7 @@ const props = defineProps({
 
 const emit = defineEmits(['generate-pdf'])
 const tableRef = ref(null)
+const isTableBuilt = ref(false)
 let table = null
 
 // Define columns for Tabulator
@@ -41,47 +45,89 @@ const columns = [
     },
   },
   {
+    title: 'Overtime',
+    field: 'signOut',
+    formatter: (cell) => {
+      const signOut = cell.getValue()
+      const overtimeHours = calculateOvertime(signOut)
+      if (overtimeHours > 0) {
+        return `<span class="px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800">
+          ${overtimeHours}h
+        </span>`
+      }
+      return '-'
+    },
+    headerSort: false,
+  },
+  {
     title: 'Status',
     field: 'status',
     formatter: function (cell) {
       const status = cell.getValue()
+      const record = cell.getRow().getData()
+      const overtimeHours = calculateOvertime(record.signOut)
+
+      const baseStatus = status.split(' + ')[0] // Get base status without OT
       const statusClasses = {
         Present: 'bg-green-100 text-green-800',
         Absent: 'bg-red-100 text-red-800',
         Late: 'bg-yellow-100 text-yellow-800',
         'On Leave': 'bg-blue-100 text-blue-800',
       }
-      return `<span class="px-2 py-1 text-xs font-medium rounded-full ${statusClasses[status]}">${status}</span>`
+
+      let displayStatus = `<span class="px-2 py-1 text-xs font-medium rounded-full ${statusClasses[baseStatus]}">${baseStatus}</span>`
+
+      return displayStatus
     },
     headerSort: true,
   },
 ]
 
-onMounted(() => {
-  table = new Tabulator(tableRef.value, {
-    data: props.records,
-    columns: columns,
-    layout: 'fitColumns',
-    responsiveLayout: 'collapse',
-    height: '100%',
-    pagination: true,
-    paginationSize: 10,
-    paginationSizeSelector: [10, 25, 50],
-    placeholder: 'No attendance records available',
-    cssClass: 'custom-tabulator',
-  })
+// Initialize table
+const initTable = async () => {
+  if (tableRef.value) {
+    table = new Tabulator(tableRef.value, {
+      data: props.records,
+      columns: columns,
+      layout: 'fitColumns',
+      responsiveLayout: 'collapse',
+      height: '100%',
+      pagination: true,
+      paginationSize: 10,
+      paginationSizeSelector: [10, 25, 50],
+      placeholder: 'No attendance records available',
+      cssClass: 'custom-tabulator',
+    })
+
+    // Wait for table to be fully built
+    await table.on('tableBuilt', function () {
+      isTableBuilt.value = true
+    })
+  }
+}
+
+onMounted(async () => {
+  await initTable()
 })
 
 // Watch for data changes
 watch(
   () => props.records,
-  (newData) => {
-    if (table) {
-      table.setData(newData)
+  async (newData) => {
+    if (isTableBuilt.value && table) {
+      await table.setData(newData)
     }
   },
   { deep: true },
 )
+
+// Clean up on component unmount
+onBeforeUnmount(() => {
+  if (table) {
+    table.destroy()
+    table = null
+  }
+})
 </script>
 
 <template>
@@ -104,3 +150,15 @@ watch(
     </div>
   </div>
 </template>
+
+<style>
+/* Add these styles to ensure proper alignment of status badges */
+.tabulator-cell span {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.tabulator-cell span + span {
+  margin-left: 0.25rem;
+}
+</style>

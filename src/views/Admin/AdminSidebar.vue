@@ -61,10 +61,10 @@ const tabs = {
   Sales: { component: SalesManagement, icon: ChartNoAxesColumnIncreasing },
   Inventory: { component: InventoryManagement, icon: Archive },
   CRM: { component: CRMManagement, icon: Mail },
-  Users: {
-    component: UserManagement,
-    icon: Users,
-  },
+  // Users: {
+  //   component: UserManagement,
+  //   icon: Users,
+  // },
   'Human Resource': {
     component: HumanResourceManagement,
     icon: Building2,

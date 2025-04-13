@@ -67,10 +67,7 @@ const store = useEmployeeStore()
             <div class="w-40 text-gray-500">Gender</div>
             <div>{{ store.selectedEmployee.gender }}</div>
           </div>
-          <div class="flex flex-row">
-            <div class="w-40 text-gray-500">Marital Status</div>
-            <div>{{ store.selectedEmployee.maritalStatus }}</div>
-          </div>
+
           <div class="flex flex-row">
             <div class="w-40 text-gray-500">Contact Number</div>
             <div>{{ store.selectedEmployee.contactNumber }}</div>
@@ -92,6 +89,12 @@ const store = useEmployeeStore()
             <div class="w-40 text-gray-500">Full Name</div>
             <div>{{ store.selectedEmployee.emergencyContact.fullName }}</div>
           </div>
+
+          <div class="flex flex-row">
+            <div class="w-40 text-gray-500">Relationship</div>
+            <div>{{ store.selectedEmployee.emergencyContact.relationship }}</div>
+          </div>
+
           <div class="flex flex-row">
             <div class="w-40 text-gray-500">Contact Number</div>
             <div>{{ store.selectedEmployee.emergencyContact.contactNumber }}</div>

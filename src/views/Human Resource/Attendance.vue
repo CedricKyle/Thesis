@@ -315,7 +315,7 @@ console.log(filteredRecords.value)
         <div
           class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
         ></div>
-        <div v-if="state.selectedRecord" class="pt-4 flex flex-col gap-2">
+        <div v-if="state.selectedRecord" class="pt-4 flex flex-col gap-2 text-sm">
           <!-- Record Details -->
           <div class="flex flex-row">
             <div class="w-40 text-gray-500">Employee</div>
@@ -343,12 +343,7 @@ console.log(filteredRecords.value)
           </div>
         </div>
         <div class="modal-action">
-          <button
-            class="btn btn-sm bg-gray-200 text-gray-600 border-none shadow-none"
-            @click="state.showViewModal = false"
-          >
-            Close
-          </button>
+          <button class="btn-secondaryStyle" @click="state.showViewModal = false">Close</button>
         </div>
       </div>
     </dialog>
@@ -359,13 +354,8 @@ console.log(filteredRecords.value)
         <h3 class="font-bold text-lg">Confirm Delete</h3>
         <p class="py-4">Are you sure you want to delete this record?</p>
         <div class="modal-action">
-          <button class="btn btn-error btn-sm" @click="confirmDelete">Delete</button>
-          <button
-            class="btn btn-sm bg-gray-200 text-gray-600 border-none shadow-none"
-            @click="state.showDeleteModal = false"
-          >
-            Cancel
-          </button>
+          <button class="btn-errorStyle" @click="confirmDelete">Delete</button>
+          <button class="btn-secondaryStyle" @click="state.showDeleteModal = false">Cancel</button>
         </div>
       </div>
     </dialog>
@@ -400,18 +390,8 @@ console.log(filteredRecords.value)
           </div>
         </div>
         <div class="modal-action">
-          <button
-            @click="confirmAndSave"
-            class="btn bg-primaryColor border-none shadow-none text-white"
-          >
-            Confirm
-          </button>
-          <button
-            class="btn bg-gray-200 text-gray-600 border-none shadow-none"
-            @click="state.showConfirmModal = false"
-          >
-            Cancel
-          </button>
+          <button @click="confirmAndSave" class="btn-primaryStyle">Confirm</button>
+          <button class="btn-secondaryStyle" @click="state.showConfirmModal = false">Cancel</button>
         </div>
       </div>
     </dialog>
@@ -424,12 +404,6 @@ console.log(filteredRecords.value)
 </template>
 
 <style scoped>
-input[type='date']::-webkit-calendar-picker-indicator,
-input[type='time']::-webkit-calendar-picker-indicator {
-  filter: invert(0%) brightness(0%);
-  cursor: pointer;
-}
-
 .rotate-180 {
   transform: rotate(180deg);
 }

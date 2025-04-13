@@ -160,20 +160,48 @@ export const useAttendanceStore = defineStore('attendance', () => {
       return sum + (Number(record.workingHours) || 0)
     }, 0)
 
-    const presentDays = records.filter((r) => r.status === 'Present').length
-    const lateDays = records.filter((r) => r.status === 'Late').length
-    const absentDays = records.filter((r) => r.status === 'Absent').length
-    const onLeaveDays = records.filter((r) => r.status === 'On Leave').length
+    // Initialize counters
+    let presentDays = 0
+    let lateDays = 0
+    let absentDays = 0
+    let onLeaveDays = 0
+    let totalOvertime = 0
 
-    return {
+    // Count each record only once
+    records.forEach((record) => {
+      // Count attendance status
+      if (record.status === 'Present') presentDays++
+      else if (record.status === 'Late') lateDays++
+      else if (record.status === 'Absent') absentDays++
+      else if (record.status === 'On Leave') onLeaveDays++
+
+      // Calculate overtime
+      if (record.signOut) {
+        const [hours, minutes] = record.signOut.split(':')
+        const signOutTime = parseInt(hours) * 60 + parseInt(minutes)
+        const standardEndTime = 17 * 60
+        const overtimeThreshold = 17 * 60 + 20
+
+        if (signOutTime > overtimeThreshold) {
+          const overtimeMinutes = signOutTime - standardEndTime
+          totalOvertime += Math.round((overtimeMinutes / 60) * 10) / 10
+        }
+      }
+    })
+
+    // Create summary object
+    const summary = {
       'Total Days': totalDays,
       'Total Hours': totalHours.toFixed(2),
       'Present Days': presentDays,
       'Late Days': lateDays,
       'Absent Days': absentDays,
       'On Leave Days': onLeaveDays,
-      'Average Hours/Day': (totalHours / (presentDays + lateDays)).toFixed(2) || '0.00',
+      'Average Hours/Day': (totalHours / (presentDays + lateDays) || 0).toFixed(2),
+      'Total Overtime': Math.round(totalOvertime * 10) / 10,
     }
+
+    return summary
   })
 
   // Actions

@@ -1,10 +1,9 @@
 <script setup>
 import { ref, onMounted, watch, onBeforeUnmount } from 'vue'
-import { Eye, X } from 'lucide-vue-next'
 import { useAttendanceLogic } from '@/composables/Admin Composables/Human Resource/useAttendanceLogic'
 import { TabulatorFull as Tabulator } from 'tabulator-tables'
 
-const { formatDate } = useAttendanceLogic()
+const { formatDate, calculateOvertime } = useAttendanceLogic()
 
 const props = defineProps({
   records: {
@@ -52,13 +51,28 @@ const columns = [
     field: 'status',
     formatter: function (cell) {
       const status = cell.getValue()
+      const record = cell.getRow().getData()
+      const overtimeHours = calculateOvertime(record.signOut)
+
+      const baseStatus = status.split(' + ')[0] // Get base status without OT
       const statusClasses = {
         Present: 'bg-green-100 text-green-800',
         Absent: 'bg-red-100 text-red-800',
         Late: 'bg-yellow-100 text-yellow-800',
         'On Leave': 'bg-blue-100 text-blue-800',
       }
-      return `<span class="px-2 py-1 text-xs font-medium rounded-full ${statusClasses[status]}">${status}</span>`
+
+      let displayStatus = `<span class="px-2 py-1 text-xs font-medium rounded-full ${statusClasses[baseStatus]}">${baseStatus}</span>`
+
+      // Add overtime badge if applicable
+      if (overtimeHours > 0) {
+        displayStatus += `
+          <span class="ml-1 px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800">
+            OT: ${overtimeHours}h
+          </span>`
+      }
+
+      return displayStatus
     },
     headerSort: false,
   },
@@ -74,6 +88,11 @@ const columns = [
             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
               <circle cx="12" cy="12" r="3" />
+            </svg>
+          </button>
+          <button class="btn btn-sm btn-circle hover:bg-secondaryColor/80 border-none btn-ghost check-button">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 6L9 17l-5-5" />
             </svg>
           </button>
           <button class="btn btn-sm btn-circle hover:bg-red-400 border-none btn-ghost delete-button">

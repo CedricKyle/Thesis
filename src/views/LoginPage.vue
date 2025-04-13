@@ -1,5 +1,5 @@
 <script setup>
-import { Lock, Mail } from 'lucide-vue-next'
+import { Lock, IdCard } from 'lucide-vue-next'
 </script>
 
 <template>
@@ -24,10 +24,10 @@ import { Lock, Mail } from 'lucide-vue-next'
               <!-- Email Input -->
               <div class="relative w-full">
                 <label class="input bg-white">
-                  <Mail class="text-gray-500 w-4 h-4" />
+                  <IdCard class="text-gray-500 w-5 h-5" />
                   <input
-                    type="email"
-                    placeholder="Email"
+                    type="text"
+                    placeholder="User ID"
                     class="placeholder:text-gray-500 text-black w-full"
                   />
                 </label>
@@ -44,14 +44,20 @@ import { Lock, Mail } from 'lucide-vue-next'
                 </label>
               </div>
               <!-- Submit Button -->
-              <button
-                type="submit"
-                class="btn bg-secondaryColor border-none w-full shadow-none font-thin"
-              >
-                Login
-              </button>
+              <button type="submit" class="btn-loginStyle w-full h-10">Login</button>
             </div>
-            <p class="text-center mt-5 text-[12px]">All Right Reserved | 2025</p>
+
+            <div class="flex justify-between text-xs mt-2">
+              <div class="flex items-center gap-1">
+                <input type="checkbox" class="checkbox checkbox-white checkbox-xs" />
+                <p>Remember Me</p>
+              </div>
+              <div class="">
+                <p class="hover:text-secondaryColor cursor-pointer transition-all">
+                  Forgot Password?
+                </p>
+              </div>
+            </div>
           </form>
         </div>
       </div>

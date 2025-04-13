@@ -12,6 +12,7 @@ const props = defineProps({
   },
 })
 
+
 const emit = defineEmits(['submit', 'showConfirm'])
 
 const { newAttendance, formErrors, validateForm, resetForm } = useAttendanceForm()
@@ -132,7 +133,7 @@ const { calculateHours } = useAttendanceLogic() // Import if you need to calcula
               <option value="Supply Chain Department">Supply Chain Department</option>
               <option value="CRM Department">CRM Department</option>
             </select>
-            <span v-if="formErrors.department" class="text-red-500 text-sm mt-1">
+            <span v-if="formErrors.department" class="text-red-500 text-xs mt-1">
               {{ formErrors.department }}
             </span>
           </div>
@@ -153,7 +154,7 @@ const { calculateHours } = useAttendanceLogic() // Import if you need to calcula
                 {{ emp.fullName }}
               </option>
             </select>
-            <span v-if="formErrors.employeeName" class="text-red-500 text-sm mt-1">
+            <span v-if="formErrors.employeeName" class="text-red-500 text-xs mt-1">
               {{ formErrors.employeeName }}
             </span>
           </div>
@@ -170,7 +171,7 @@ const { calculateHours } = useAttendanceLogic() // Import if you need to calcula
                 'border-gray-200': !formErrors.signIn,
               }"
             />
-            <span v-if="formErrors.signIn" class="text-red-500 text-sm mt-1">
+            <span v-if="formErrors.signIn" class="text-red-500 text-xs mt-1">
               {{ formErrors.signIn }}
             </span>
           </div>
@@ -187,7 +188,7 @@ const { calculateHours } = useAttendanceLogic() // Import if you need to calcula
                 'border-gray-200': !formErrors.signOut,
               }"
             />
-            <span v-if="formErrors.signOut" class="text-red-500 text-sm mt-1">
+            <span v-if="formErrors.signOut" class="text-red-500 text-xs mt-1">
               {{ formErrors.signOut }}
             </span>
           </div>
@@ -204,27 +205,16 @@ const { calculateHours } = useAttendanceLogic() // Import if you need to calcula
                 'border-gray-200': !formErrors.date,
               }"
             />
-            <span v-if="formErrors.date" class="text-red-500 text-sm mt-1">
+            <span v-if="formErrors.date" class="text-red-500 text-xs mt-1">
               {{ formErrors.date }}
             </span>
           </div>
         </fieldset>
       </div>
       <div class="action-buttons flex justify-end mt-5">
-        <button
-          @click="handleSubmit"
-          class="btn bg-primaryColor text-white border-none hover:bg-primaryColor/80 btn-sm"
-        >
-          Add Attendance
-        </button>
+        <button @click="handleSubmit" class="btn-primaryStyle">Add Attendance</button>
       </div>
     </div>
-  </div>
-
-  <!-- Add debug info temporarily -->
-  <div v-if="newAttendance.department" class="text-sm text-gray-600">
-    <p>Selected Department: {{ newAttendance.department }}</p>
-    <p>Available Employees: {{ filteredEmployees.length }}</p>
   </div>
 </template>
 

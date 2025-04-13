@@ -14,6 +14,7 @@ import AttendanceReport from '@/views/Human Resource/AttendanceReport.vue'
 import CreateUserForm from '@/components/Users & Role/Users/CreateUserForm.vue'
 import EditUserForm from '@/components/Users & Role/Users/editUserForm.vue'
 import EditRoleForm from '@/components/Users & Role/Roles/EditRoleForm.vue'
+import LoginPage from '@/views/LoginPage.vue'
 const routes = [
   {
     path: '/',
@@ -94,6 +95,11 @@ const routes = [
         component: AttendanceReport,
       },
     ],
+  },
+  {
+    path: '/login',
+    name: 'Login',
+    component: LoginPage,
   },
 ]
 
