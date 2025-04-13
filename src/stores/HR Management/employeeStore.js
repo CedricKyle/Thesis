@@ -45,12 +45,34 @@ export const useEmployeeStore = defineStore('employee', () => {
   const totalPages = computed(() => Math.ceil(filteredEmployees.value.length / itemsPerPage.value))
 
   // Actions
-  function addEmployee(employeeData) {
+  async function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.readAsDataURL(file)
+      reader.onload = () => resolve(reader.result)
+      reader.onerror = (error) => reject(error)
+    })
+  }
+
+  async function addEmployee(employeeData) {
     try {
+      let resumeData = null
+
+      // Handle resume file if present
+      if (employeeData.resume instanceof File) {
+        resumeData = {
+          name: employeeData.resume.name,
+          type: employeeData.resume.type,
+          size: employeeData.resume.size,
+          data: await fileToBase64(employeeData.resume),
+        }
+      }
+
       const newEmployee = {
         ...employeeData,
+        resume: resumeData, // Replace File object with processed data
         createdAt: new Date().toISOString(),
-        status: 'Active', // You might want to add a status field
+        status: 'Active',
       }
 
       employees.value.push(newEmployee)
@@ -62,13 +84,29 @@ export const useEmployeeStore = defineStore('employee', () => {
     }
   }
 
-  function updateEmployee(id, updates) {
+  async function updateEmployee(id, updates) {
     try {
       const index = employees.value.findIndex((emp) => emp.id === id)
       if (index !== -1) {
+        let resumeData = employees.value[index].resume
+
+        // Process new resume if provided
+        if (updates.resume instanceof File) {
+          resumeData = {
+            name: updates.resume.name,
+            type: updates.resume.type,
+            size: updates.resume.size,
+            data: await fileToBase64(updates.resume),
+          }
+        } else if (updates.resume === null) {
+          // Handle resume removal
+          resumeData = null
+        }
+
         employees.value[index] = {
           ...employees.value[index],
           ...updates,
+          resume: resumeData,
           updatedAt: new Date().toISOString(),
         }
         saveToLocalStorage()
@@ -144,6 +182,38 @@ export const useEmployeeStore = defineStore('employee', () => {
     sortDesc.value = false
   }
 
+  // Add helper function to download resume
+  function downloadResume(employeeId) {
+    try {
+      const employee = employees.value.find((emp) => emp.id === employeeId)
+      if (!employee || !employee.resume) {
+        throw new Error('Resume not found')
+      }
+
+      // Create blob from base64 data
+      const byteString = atob(employee.resume.data.split(',')[1])
+      const ab = new ArrayBuffer(byteString.length)
+      const ia = new Uint8Array(ab)
+      for (let i = 0; i < byteString.length; i++) {
+        ia[i] = byteString.charCodeAt(i)
+      }
+      const blob = new Blob([ab], { type: employee.resume.type })
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = employee.resume.name
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(url)
+    } catch (error) {
+      console.error('Error downloading resume:', error)
+      throw error
+    }
+  }
+
   // Initialize employees from localStorage when store is created
   loadEmployees()
 
@@ -173,5 +243,6 @@ export const useEmployeeStore = defineStore('employee', () => {
     loadEmployees,
     searchEmployees,
     resetFilters,
+    downloadResume,
   }
 })

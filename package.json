@@ -16,6 +16,8 @@
     "jspdf": "^3.0.1",
     "jspdf-autotable": "^5.0.2",
     "lucide-vue-next": "^0.484.0",
+    "mammoth": "^1.9.0",
+    "pdfjs-dist": "^5.1.91",
     "pinia": "^3.0.1",
     "tabulator-tables": "^6.3.1",
     "tailwindcss": "^4.0.17",

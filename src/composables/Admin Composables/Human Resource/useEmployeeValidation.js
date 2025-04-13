@@ -7,6 +7,7 @@ export function useEmployeeValidation() {
       department: '',
       jobTitle: '',
       role: '',
+      resume: '',
     },
     personal: {
       firstName: '',
@@ -59,6 +60,29 @@ export function useEmployeeValidation() {
       errors.role = ''
     }
 
+    if (!employee.resume) {
+      errors.resume = 'Resume is required'
+      isValid = false
+    } else {
+      const allowedTypes = [
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      ]
+
+      if (!allowedTypes.includes(employee.resume.type)) {
+        errors.resume = 'Please upload a PDF or Word document'
+        isValid = false
+      } else if (employee.resume.size > 5 * 1024 * 1024) {
+        // 5MB limit
+        errors.resume = 'File size should not exceed 5MB'
+        isValid = false
+      } else {
+        errors.resume = ''
+      }
+    }
+
+    formErrors.professional = errors
     return isValid
   }
 
@@ -202,6 +226,7 @@ export function useEmployeeValidation() {
         department: '',
         jobTitle: '',
         role: '',
+        resume: '',
       },
       personal: {
         firstName: '',

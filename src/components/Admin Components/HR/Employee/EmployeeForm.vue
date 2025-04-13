@@ -5,11 +5,14 @@ import { useEmployeeValidation } from '@/composables/Admin Composables/Human Res
 import { useProfileImage } from '@/composables/Admin Composables/Human Resource/useProfileImage'
 import { Upload } from 'lucide-vue-next'
 import profilePlaceholder from '@/assets/Images/profile-placeholder.png'
-import NotificationModal from './NotificationModal.vue'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import { storeToRefs } from 'pinia'
 import Toast from '@/components/Admin Components/HR/Toast.vue'
+import ProfessionalInfo from './ProfessionalInfo.vue'
+import { useResumeUpload } from '@/composables/Admin Composables/Human Resource/useResumeUpload'
+import { useToast } from '@/composables/Admin Composables/Human Resource/useToast'
 
+// Store and composable setup
 const store = useEmployeeStore()
 const rolesStore = useRolesStore()
 const { roles } = storeToRefs(rolesStore)
@@ -17,11 +20,13 @@ const { formErrors, validateProfessionalInfo, validatePersonalInfo, validateEmer
   useEmployeeValidation()
 const { profileImage, showUploadText, handleProfileUpload, removeProfile } =
   useProfileImage(profilePlaceholder)
+const { showToast, toastMessage, toastType, showToastMessage } = useToast()
+const { resumeFile, resumeFileName, isProcessing, handleResumeUpload, removeResume } =
+  useResumeUpload(showToastMessage)
 
-// Toast state
-const showToast = ref(false)
-const toastMessage = ref('')
-const toastType = ref('success')
+// UI state
+const confirmModal = ref(null)
+const employeeToAdd = ref(null)
 
 // Form state
 const newEmployee = ref({
@@ -47,13 +52,9 @@ const newEmployee = ref({
     contactNumber: '',
   },
   profileImage: '',
+  resume: null,
 })
 
-// Add this after other refs
-const confirmModal = ref(null)
-const employeeToAdd = ref(null)
-
-//department jobs
 const departmentJobs = {
   'HR Department': ['HR Manager'],
   'Finance Department': ['Accountant'],
@@ -63,123 +64,77 @@ const departmentJobs = {
 }
 
 const availableJobs = computed(() => {
-  if (!newEmployee.value.department) {
-    return []
-  }
+  if (!newEmployee.value.department) return []
   return departmentJobs[newEmployee.value.department] || []
 })
 
+// Watchers
 watch(
   () => newEmployee.value.department,
-  (newDepartment) => {
-    //Reset job title when department changes
+  () => {
     newEmployee.value.jobTitle = ''
   },
 )
 
-// Watch for profile image changes
 watch(profileImage, (newValue) => {
   newEmployee.value.profileImage = newValue
 })
 
-// Load roles on mount
-onMounted(async () => {
-  try {
-    await rolesStore.fetchRoles()
-  } catch (error) {
-    toastMessage.value = 'Failed to load roles'
-    toastType.value = 'error'
-    showToast.value = true
-
-    setTimeout(() => {
-      showToast.value = false
-    }, 3000)
-  }
+watch(resumeFile, (newValue) => {
+  newEmployee.value.resume = newValue
 })
 
-// Form submission
+// Form submission handlers
 const handleFormSubmit = () => {
-  // Validate all sections with the newEmployee value
   const isProfessionalValid = validateProfessionalInfo(newEmployee.value)
   const isPersonalValid = validatePersonalInfo(newEmployee.value)
   const isEmergencyValid = validateEmergencyContact(newEmployee.value)
 
   if (!isProfessionalValid || !isPersonalValid || !isEmergencyValid) {
-    // Show error toast
-    toastMessage.value = 'Please fill in all required fields correctly'
-    toastType.value = 'error'
-    showToast.value = true
-
-    setTimeout(() => {
-      showToast.value = false
-    }, 3000)
+    showToastMessage('Please fill in all required fields correctly', 'error')
     return
   }
 
-  // Show confirmation modal
   employeeToAdd.value = { ...newEmployee.value }
   confirmModal.value?.showModal()
 }
 
-// Add confirmation handlers
 const confirmAdd = () => {
   const hireYear = new Date(employeeToAdd.value.dateOfHire).getFullYear()
+  const employeeData = createEmployeeData(employeeToAdd.value, hireYear)
 
-  // Use store's employees for ID generation
+  store.addEmployee(employeeData)
+  confirmModal.value?.close()
+  employeeToAdd.value = null
+  showToastMessage('Employee added successfully!', 'success')
+  resetForm()
+}
+
+const createEmployeeData = (employee, hireYear) => {
   const yearEmployees = store.employees
     .filter((emp) => emp.id.startsWith(hireYear.toString()))
     .map((emp) => parseInt(emp.id.split('-')[1]))
 
   const nextNumber = yearEmployees.length > 0 ? Math.max(...yearEmployees) + 1 : 50000
-
   const newId = `${hireYear}-${nextNumber.toString().padStart(5, '0')}`
 
-  // Create full name from components
-  const fullName = [
-    employeeToAdd.value.firstName,
-    employeeToAdd.value.middleName,
-    employeeToAdd.value.lastName,
-  ]
-    .filter(Boolean)
-    .join(' ')
-
-  // Create emergency contact full name
-  const emergencyContactFullName = [
-    employeeToAdd.value.emergencyContact.firstName,
-    employeeToAdd.value.emergencyContact.middleName,
-    employeeToAdd.value.emergencyContact.lastName,
-  ]
-    .filter(Boolean)
-    .join(' ')
-
-  // Create new employee object with the generated ID
-  const employeeData = {
-    ...employeeToAdd.value,
+  return {
+    ...employee,
     id: newId,
-    fullName,
+    fullName: [employee.firstName, employee.middleName, employee.lastName]
+      .filter(Boolean)
+      .join(' '),
     emergencyContact: {
-      ...employeeToAdd.value.emergencyContact,
-      fullName: emergencyContactFullName,
+      ...employee.emergencyContact,
+      fullName: [
+        employee.emergencyContact.firstName,
+        employee.emergencyContact.middleName,
+        employee.emergencyContact.lastName,
+      ]
+        .filter(Boolean)
+        .join(' '),
     },
   }
-
-  // Use store action to add employee
-  store.addEmployee(employeeData)
-
-  // Close modal
-  confirmModal.value?.close()
-  employeeToAdd.value = null
-
-  // Show success toast
-  toastMessage.value = 'Employee added successfully!'
-  toastType.value = 'success'
-  showToast.value = true
-
-  setTimeout(() => {
-    showToast.value = false
-  }, 3000)
-
-  resetForm()
 }
 
 const cancelAdd = () => {
@@ -187,7 +142,6 @@ const cancelAdd = () => {
   employeeToAdd.value = null
 }
 
-// Update resetForm to also reset notification
 const resetForm = () => {
   newEmployee.value = {
     id: '',
@@ -212,9 +166,20 @@ const resetForm = () => {
       contactNumber: '',
     },
     profileImage: '',
+    resume: null,
   }
   removeProfile()
+  removeResume()
 }
+
+// Initialize roles on mount
+onMounted(async () => {
+  try {
+    await rolesStore.fetchRoles()
+  } catch {
+    showToastMessage('Failed to load roles', 'error')
+  }
+})
 </script>
 
 <template>
@@ -328,6 +293,41 @@ const resetForm = () => {
             </select>
             <span v-if="formErrors.professional.role" class="text-red-500 text-xs mt-1">
               {{ formErrors.professional.role }}
+            </span>
+          </div>
+
+          <div class="overflow-hidden">
+            <legend class="fieldset-legend text-black text-xs">Upload Resume</legend>
+            <div class="flex flex-col gap-2">
+              <div class="flex items-center gap-2">
+                <label
+                  class="cursor-pointer flex items-center gap-2 text-primaryColor hover:text-primaryColor/80"
+                  :class="{ 'opacity-50 cursor-not-allowed': isProcessing }"
+                >
+                  <input
+                    type="file"
+                    accept=".pdf"
+                    class="hidden"
+                    @change="handleResumeUpload"
+                    :disabled="isProcessing"
+                  />
+                  <Upload class="w-4 h-4" />
+                  <span class="text-sm">
+                    {{ isProcessing ? 'Processing...' : resumeFileName || 'Upload Resume' }}
+                  </span>
+                </label>
+                <button
+                  v-if="resumeFileName && !isProcessing"
+                  @click="removeResume"
+                  class="text-red-500 hover:text-red-600 text-md"
+                >
+                  ×
+                </button>
+              </div>
+              <p class="text-xs text-gray-500">* PDF files only, max 5MB</p>
+            </div>
+            <span v-if="formErrors.professional.resume" class="text-red-500 text-xs mt-1">
+              {{ formErrors.professional.resume }}
             </span>
           </div>
 
