@@ -42,7 +42,6 @@ const permissionMap = {
     Edit: 8,
     Delete: 9,
   },
-  
 }
 
 // Table columns definition
@@ -394,7 +393,6 @@ const formatPermissions = (permissions) => {
       </div>
     </div>
 
-    <!-- Delete Confirmation Modal -->
     <dialog ref="deleteConfirmModal" class="modal">
       <div class="modal-box bg-white w-96">
         <h3 class="font-bold text-lg text-black">Confirm Delete</h3>

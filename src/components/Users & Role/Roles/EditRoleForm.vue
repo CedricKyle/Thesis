@@ -230,7 +230,7 @@ const confirmSave = async () => {
 
     confirmModal.value?.close()
     setTimeout(() => {
-      router.push('/roles')
+      router.push('/hr/roles')
     }, 500)
     setTimeout(() => {
       showToast.value = false

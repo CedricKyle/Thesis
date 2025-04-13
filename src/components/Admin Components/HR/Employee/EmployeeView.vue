@@ -22,9 +22,15 @@ const store = useEmployeeStore()
               class="w-full h-full object-cover"
             />
           </div>
-          <div class="name-container">
+          <div class="name-container text-center">
             <h3 class="font-bold text-lg">{{ store.selectedEmployee.fullName }}</h3>
-            <p class="text-gray-500 text-sm text-center">{{ store.selectedEmployee.jobTitle }}</p>
+            <p class="badge badge-outline badge-warning mt-1 text-xs">
+              {{ store.selectedEmployee.jobTitle }}
+            </p>
+            <br />
+            <span class="text-gray-500 text-xs">
+              {{ store.selectedEmployee.role }}
+            </span>
           </div>
         </div>
 
@@ -39,10 +45,7 @@ const store = useEmployeeStore()
             <div class="w-40 text-gray-500">Department</div>
             <div>{{ store.selectedEmployee.department }}</div>
           </div>
-          <div class="flex flex-row">
-            <div class="w-40 text-gray-500">Job Title</div>
-            <div>{{ store.selectedEmployee.jobTitle }}</div>
-          </div>
+
           <div class="flex flex-row">
             <div class="w-40 text-gray-500">Date of Hire</div>
             <div>{{ store.selectedEmployee.dateOfHire }}</div>

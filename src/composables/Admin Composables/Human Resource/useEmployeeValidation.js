@@ -6,18 +6,23 @@ export function useEmployeeValidation() {
       dateOfHire: '',
       department: '',
       jobTitle: '',
+      role: '',
     },
     personal: {
-      fullName: '',
+      firstName: '',
+      middleName: '',
+      lastName: '',
       dateOfBirth: '',
       gender: '',
-      maritalStatus: '',
       contactNumber: '',
       email: '',
       address: '',
     },
     emergencyContact: {
-      fullName: '',
+      firstName: '',
+      middleName: '',
+      lastName: '',
+      relationship: '',
       contactNumber: '',
     },
   })
@@ -47,6 +52,13 @@ export function useEmployeeValidation() {
       errors.jobTitle = ''
     }
 
+    if (!employee.role) {
+      errors.role = 'Role is required'
+      isValid = false
+    } else {
+      errors.role = ''
+    }
+
     return isValid
   }
 
@@ -54,14 +66,26 @@ export function useEmployeeValidation() {
     let isValid = true
     const errors = formErrors.value.personal
 
-    if (!employee.fullName) {
-      errors.fullName = 'Full name is required'
+    if (!employee.firstName) {
+      errors.firstName = 'First name is required'
       isValid = false
-    } else if (employee.fullName.length < 2) {
-      errors.fullName = 'Full name must be at least 2 characters'
+    } else if (employee.firstName.length < 2) {
+      errors.firstName = 'First name must be at least 2 characters'
       isValid = false
     } else {
-      errors.fullName = ''
+      errors.firstName = ''
+    }
+
+    errors.middleName = ''
+
+    if (!employee.lastName) {
+      errors.lastName = 'Last name is required'
+      isValid = false
+    } else if (employee.lastName.length < 2) {
+      errors.lastName = 'Last name must be at least 2 characters'
+      isValid = false
+    } else {
+      errors.lastName = ''
     }
 
     if (!employee.dateOfBirth) {
@@ -84,13 +108,6 @@ export function useEmployeeValidation() {
       isValid = false
     } else {
       errors.gender = ''
-    }
-
-    if (!employee.maritalStatus) {
-      errors.maritalStatus = 'Marital status is required'
-      isValid = false
-    } else {
-      errors.maritalStatus = ''
     }
 
     const emailRegex = /^[^\s@]+@gmail\.com$/
@@ -132,11 +149,33 @@ export function useEmployeeValidation() {
     let isValid = true
     const errors = formErrors.value.emergencyContact
 
-    if (!employee.emergencyContact.fullName) {
-      errors.fullName = 'Emergency contact name is required'
+    if (!employee.emergencyContact.firstName) {
+      errors.firstName = 'First name is required'
+      isValid = false
+    } else if (employee.emergencyContact.firstName.length < 2) {
+      errors.firstName = 'First name must be at least 2 characters'
       isValid = false
     } else {
-      errors.fullName = ''
+      errors.firstName = ''
+    }
+
+    errors.middleName = ''
+
+    if (!employee.emergencyContact.lastName) {
+      errors.lastName = 'Last name is required'
+      isValid = false
+    } else if (employee.emergencyContact.lastName.length < 2) {
+      errors.lastName = 'Last name must be at least 2 characters'
+      isValid = false
+    } else {
+      errors.lastName = ''
+    }
+
+    if (!employee.emergencyContact.relationship) {
+      errors.relationship = 'Relationship is required'
+      isValid = false
+    } else {
+      errors.relationship = ''
     }
 
     const phoneRegex = /^09\d{9}$/
@@ -162,18 +201,23 @@ export function useEmployeeValidation() {
         dateOfHire: '',
         department: '',
         jobTitle: '',
+        role: '',
       },
       personal: {
-        fullName: '',
+        firstName: '',
+        middleName: '',
+        lastName: '',
         dateOfBirth: '',
         gender: '',
-        maritalStatus: '',
         contactNumber: '',
         email: '',
         address: '',
       },
       emergencyContact: {
-        fullName: '',
+        firstName: '',
+        middleName: '',
+        lastName: '',
+        relationship: '',
         contactNumber: '',
       },
     }

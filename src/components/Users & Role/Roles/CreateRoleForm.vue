@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ChevronLeft } from 'lucide-vue-next'
-import NotificationModal from '@/components/Admin Components/HR/Employee/NotificationModal.vue'
+import Toast from '@/components/Admin Components/HR/Toast.vue'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import { storeToRefs } from 'pinia'
 import { useFormValidation } from '@/composables/Admin Composables/User & Role/role/useRoleFormValidation'
@@ -27,7 +27,9 @@ const description = ref('')
 const permissions = ref([])
 
 // Modal state
-const { notification, showNotification, closeNotification } = useNotification()
+const showToast = ref(false)
+const toastMessage = ref('')
+const toastType = ref('success')
 
 // Example mapping based on your permissions table
 const permissionMap = {
@@ -158,8 +160,28 @@ const getSelectedPermissions = () => {
     .filter((perm) => perm.id !== undefined) // Filter out undefined IDs
 }
 
-// Form submission
+// Add ref for confirmation modal
+const confirmModal = ref(null)
+const roleToAdd = ref(null)
+
+// Modify handleSubmit to show confirmation modal after validation
 const handleSubmit = () => {
+  // Check if form is completely empty
+  if (
+    !roleName.value.trim() &&
+    !description.value.trim() &&
+    getSelectedPermissions().length === 0
+  ) {
+    toastMessage.value = 'Please fill in the required fields'
+    toastType.value = 'error'
+    showToast.value = true
+
+    setTimeout(() => {
+      showToast.value = false
+    }, 3000)
+    return
+  }
+
   const selectedPermissions = getSelectedPermissions()
 
   // Validate all fields
@@ -172,44 +194,81 @@ const handleSubmit = () => {
     (role) => role['role name'] === roleName.value && roleName.value !== originalRoleName.value,
   )
   if (isDuplicateRole) {
-    showNotification('error', 'Error', 'Role name already exists')
+    toastMessage.value = 'Role name already exists'
+    toastType.value = 'error'
+    showToast.value = true
+
+    setTimeout(() => {
+      showToast.value = false
+    }, 3000)
     return
   }
 
   if (isRoleNameValid && isDescriptionValid && isPermissionsValid) {
-    // Find the role by name and get its ID
-    const roleId = roles.value.find((r) => r['role name'] === originalRoleName.value)?.id
-    const roleData = {
+    // Store the role data temporarily
+    roleToAdd.value = {
       'role name': roleName.value,
       description: description.value,
       permissions: selectedPermissions.map((perm) => perm.id),
     }
 
-    try {
-      if (isEditMode.value) {
-        if (roleId) {
-          rolesStore.updateRole(roleId, roleData)
-          showNotification('success', 'Success', 'Role updated successfully')
-        } else {
-          showNotification('error', 'Error', 'Role ID not found')
-        }
-      } else {
-        rolesStore.addRole(roleData)
-        showNotification('success', 'Success', 'Role added successfully')
-      }
-    } catch (error) {
-      showNotification('error', 'Error', 'An error occurred while saving the role')
-    }
+    // Show confirmation modal
+    confirmModal.value?.showModal()
+  } else {
+    // Show validation errors in toast
+    toastMessage.value = 'Please fill in all required fields correctly'
+    toastType.value = 'error'
+    showToast.value = true
+
+    setTimeout(() => {
+      showToast.value = false
+    }, 3000)
   }
 }
 
-// Modify the closeNotification function to handle navigation
-const handleCloseNotification = () => {
-  closeNotification()
-  // Only navigate if it was a success notification
-  if (notification.value.type === 'success') {
-    router.push('/roles')
+// Add confirmation handlers
+const confirmAdd = async () => {
+  try {
+    if (isEditMode.value) {
+      const roleId = roles.value.find((r) => r['role name'] === originalRoleName.value)?.id
+      if (roleId) {
+        await rolesStore.updateRole(roleId, roleToAdd.value)
+        toastMessage.value = 'Role updated successfully'
+      } else {
+        toastMessage.value = 'Role ID not found'
+        toastType.value = 'error'
+      }
+    } else {
+      await rolesStore.addRole(roleToAdd.value)
+      toastMessage.value = 'Role added successfully'
+    }
+    toastType.value = 'success'
+    showToast.value = true
+
+    // Close modal
+    confirmModal.value?.close()
+    roleToAdd.value = null
+
+    setTimeout(() => {
+      showToast.value = false
+      if (toastType.value === 'success') {
+        router.push('/hr/roles')
+      }
+    }, 3000)
+  } catch (error) {
+    toastMessage.value = 'An error occurred while saving the role'
+    toastType.value = 'error'
+    showToast.value = true
+
+    setTimeout(() => {
+      showToast.value = false
+    }, 3000)
   }
+}
+
+const cancelAdd = () => {
+  confirmModal.value?.close()
+  roleToAdd.value = null
 }
 
 const formatDate = (dateString) => {
@@ -291,52 +350,8 @@ const isGroupFullySelected = (section) => {
       <div class="flex flex-col gap-5">
         <!-- permissions list -->
         <div class="permissions-list grid grid-cols-2 gap-5 border border-gray-200 rounded-md p-2">
-          <!-- User Management -->
-          <div class="user-management" data-section="User Management">
-            <div
-              class="flex items-center justify-between border border-gray-200 rounded-md p-2 bg-gray-50"
-            >
-              <p class="text-black text-sm">User Management</p>
-              <div class="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  :checked="isGroupFullySelected('User Management')"
-                  @change="toggleGroupPermissions('User Management')"
-                  class="checkbox checkbox-neutral checkbox-xs"
-                />
-                <span class="label-text text-xs">Select all</span>
-              </div>
-            </div>
-
-            <div class="p-5 flex flex-col gap-5">
-              <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
-                <p class="text-black text-sm">User List</p>
-              </div>
-              <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
-                <p class="text-black text-sm">View</p>
-              </div>
-
-              <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
-                <p class="text-black text-sm">Create</p>
-              </div>
-
-              <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
-                <p class="text-black text-sm">Edit</p>
-              </div>
-
-              <div class="flex items-center gap-2">
-                <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
-                <p class="text-black text-sm">Delete</p>
-              </div>
-            </div>
-          </div>
-
           <!-- Roles and Permissions -->
-          <div class="roles-and-permissions" data-section="Roles and Permissions">
+          <div class="roles-and-permissions col-span-2" data-section="Roles and Permissions">
             <div
               class="flex items-center justify-between border border-gray-200 rounded-md p-2 bg-gray-50"
             >
@@ -663,24 +678,53 @@ const isGroupFullySelected = (section) => {
         </div>
 
         <!-- add permission -->
-        <div class="">
-          <button
-            class="btn bg-primaryColor text-white rounded-none btn-sm border-none"
-            @click="handleSubmit"
-          >
-            {{ isEditMode ? 'Update Role' : 'Add Role' }}
+        <div class="flex justify-end">
+          <button class="btn-primaryStyle" @click="handleSubmit">
+            {{ isEditMode ? 'Update Role' : '+ Add Role' }}
           </button>
         </div>
       </div>
     </div>
 
-    <!-- Success Modal -->
-    <NotificationModal
-      :show="notification.show"
-      :type="notification.type"
-      :title="notification.title"
-      :message="notification.message"
-      :on-close="handleCloseNotification"
-    />
+    <!-- Add Confirmation Modal -->
+    <dialog ref="confirmModal" class="modal">
+      <div class="modal-box bg-white w-96">
+        <h3 class="font-bold text-lg text-black">Confirm Add Role</h3>
+        <div
+          class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
+        ></div>
+
+        <div v-if="roleToAdd" class="py-4">
+          <p class="text-center text-black mb-4">
+            Are you sure you want to {{ isEditMode ? 'update' : 'add' }} the role
+            <span class="font-bold">{{ roleToAdd['role name'] }}</span
+            >?
+          </p>
+
+          <div class="mt-4 flex flex-col gap-2">
+            <div class="flex flex-row">
+              <div class="w-32 text-gray-500">Description:</div>
+              <div class="text-black">{{ roleToAdd.description }}</div>
+            </div>
+            <div class="flex flex-col">
+              <div class="text-gray-500 mb-2">Selected Permissions:</div>
+              <div class="text-black text-sm">
+                {{ getSelectedPermissions().length }} permissions selected
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-action justify-center gap-4">
+          <button class="btn-primaryStyle" @click="confirmAdd">
+            {{ isEditMode ? 'Update Role' : 'Add Role' }}
+          </button>
+          <button class="btn-secondaryStyle" @click="cancelAdd">Cancel</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Toast -->
+    <Toast :show="showToast" :message="toastMessage" :type="toastType" />
   </div>
 </template>

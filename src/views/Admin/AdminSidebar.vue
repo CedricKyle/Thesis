@@ -65,15 +65,11 @@ const tabs = {
     component: UserManagement,
     icon: Users,
   },
-  Roles: {
-    component: UserRolesManagement,
-    icon: LockKeyhole,
-  },
   'Human Resource': {
     component: HumanResourceManagement,
     icon: Building2,
     submenu: {
-      Dashboard: AsyncHRDashboard, // Use async component
+      Dashboard: AsyncHRDashboard,
       Employees: defineAsyncComponent({
         loader: () => import('../Human Resource/Employees.vue'),
         loadingComponent: LoadingSpinner,
@@ -86,6 +82,11 @@ const tabs = {
       }),
       'Attendance Report': defineAsyncComponent({
         loader: () => import('../Human Resource/AttendanceReport.vue'),
+        loadingComponent: LoadingSpinner,
+        delay: 1000,
+      }),
+      Roles: defineAsyncComponent({
+        loader: () => import('../Users Management/UserRolesManagement.vue'),
         loadingComponent: LoadingSpinner,
         delay: 1000,
       }),
@@ -160,7 +161,9 @@ onMounted(() => {
   if (routeToTab[route.name]) {
     currentTab.value = routeToTab[route.name]
     // If it's an HR route, open the HR submenu
-    if (['HRDashboard', 'Employees', 'Attendance', 'AttendanceReport'].includes(route.name)) {
+    if (
+      ['HRDashboard', 'Employees', 'Attendance', 'AttendanceReport', 'Roles'].includes(route.name)
+    ) {
       openParentMenu.value = 'Human Resource'
     }
   }

@@ -1,32 +1,37 @@
 <script setup>
-import { ref, watch, computed } from 'vue'
+import { ref, watch, computed, onMounted } from 'vue'
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
 import { useEmployeeValidation } from '@/composables/Admin Composables/Human Resource/useEmployeeValidation'
 import { useProfileImage } from '@/composables/Admin Composables/Human Resource/useProfileImage'
 import { Upload } from 'lucide-vue-next'
 import profilePlaceholder from '@/assets/Images/profile-placeholder.png'
 import NotificationModal from './NotificationModal.vue'
+import { useRolesStore } from '@/stores/Users & Role/roleStore'
+import { storeToRefs } from 'pinia'
+import Toast from '@/components/Admin Components/HR/Toast.vue'
 
 const store = useEmployeeStore()
+const rolesStore = useRolesStore()
+const { roles } = storeToRefs(rolesStore)
 const { formErrors, validateProfessionalInfo, validatePersonalInfo, validateEmergencyContact } =
   useEmployeeValidation()
 const { profileImage, showUploadText, handleProfileUpload, removeProfile } =
   useProfileImage(profilePlaceholder)
 
-// Notification state
-const notification = ref({
-  show: false,
-  type: 'success',
-  title: '',
-  message: '',
-})
+// Toast state
+const showToast = ref(false)
+const toastMessage = ref('')
+const toastType = ref('success')
 
 // Form state
 const newEmployee = ref({
   id: '',
-  fullName: '',
+  firstName: '',
+  middleName: '',
+  lastName: '',
   department: '',
   jobTitle: '',
+  role: '',
   dateOfHire: '',
   dateOfBirth: '',
   gender: '',
@@ -35,11 +40,18 @@ const newEmployee = ref({
   email: '',
   address: '',
   emergencyContact: {
-    fullName: '',
+    firstName: '',
+    middleName: '',
+    lastName: '',
+    relationship: '',
     contactNumber: '',
   },
   profileImage: '',
 })
+
+// Add this after other refs
+const confirmModal = ref(null)
+const employeeToAdd = ref(null)
 
 //department jobs
 const departmentJobs = {
@@ -70,6 +82,21 @@ watch(profileImage, (newValue) => {
   newEmployee.value.profileImage = newValue
 })
 
+// Load roles on mount
+onMounted(async () => {
+  try {
+    await rolesStore.fetchRoles()
+  } catch (error) {
+    toastMessage.value = 'Failed to load roles'
+    toastType.value = 'error'
+    showToast.value = true
+
+    setTimeout(() => {
+      showToast.value = false
+    }, 3000)
+  }
+})
+
 // Form submission
 const handleFormSubmit = () => {
   // Validate all sections with the newEmployee value
@@ -78,17 +105,25 @@ const handleFormSubmit = () => {
   const isEmergencyValid = validateEmergencyContact(newEmployee.value)
 
   if (!isProfessionalValid || !isPersonalValid || !isEmergencyValid) {
-    // Show error notification
-    notification.value = {
-      show: true,
-      type: 'error',
-      title: 'Validation Error',
-      message: 'Please fill in all required fields correctly',
-    }
+    // Show error toast
+    toastMessage.value = 'Please fill in all required fields correctly'
+    toastType.value = 'error'
+    showToast.value = true
+
+    setTimeout(() => {
+      showToast.value = false
+    }, 3000)
     return
   }
 
-  const hireYear = new Date(newEmployee.value.dateOfHire).getFullYear()
+  // Show confirmation modal
+  employeeToAdd.value = { ...newEmployee.value }
+  confirmModal.value?.showModal()
+}
+
+// Add confirmation handlers
+const confirmAdd = () => {
+  const hireYear = new Date(employeeToAdd.value.dateOfHire).getFullYear()
 
   // Use store's employees for ID generation
   const yearEmployees = store.employees
@@ -99,41 +134,69 @@ const handleFormSubmit = () => {
 
   const newId = `${hireYear}-${nextNumber.toString().padStart(5, '0')}`
 
+  // Create full name from components
+  const fullName = [
+    employeeToAdd.value.firstName,
+    employeeToAdd.value.middleName,
+    employeeToAdd.value.lastName,
+  ]
+    .filter(Boolean)
+    .join(' ')
+
+  // Create emergency contact full name
+  const emergencyContactFullName = [
+    employeeToAdd.value.emergencyContact.firstName,
+    employeeToAdd.value.emergencyContact.middleName,
+    employeeToAdd.value.emergencyContact.lastName,
+  ]
+    .filter(Boolean)
+    .join(' ')
+
   // Create new employee object with the generated ID
   const employeeData = {
-    ...newEmployee.value,
+    ...employeeToAdd.value,
     id: newId,
+    fullName,
+    emergencyContact: {
+      ...employeeToAdd.value.emergencyContact,
+      fullName: emergencyContactFullName,
+    },
   }
 
   // Use store action to add employee
   store.addEmployee(employeeData)
 
-  // Show success notification
-  notification.value = {
-    show: true,
-    type: 'success',
-    title: 'Success',
-    message: 'Employee added successfully!',
-  }
+  // Close modal
+  confirmModal.value?.close()
+  employeeToAdd.value = null
+
+  // Show success toast
+  toastMessage.value = 'Employee added successfully!'
+  toastType.value = 'success'
+  showToast.value = true
+
+  setTimeout(() => {
+    showToast.value = false
+  }, 3000)
+
   resetForm()
 }
 
-// Close notification modal
-const closeNotification = () => {
-  notification.value.show = false
-  // Only reset form completely when closing success notification
-  if (notification.value.type === 'success') {
-    resetForm()
-  }
+const cancelAdd = () => {
+  confirmModal.value?.close()
+  employeeToAdd.value = null
 }
 
 // Update resetForm to also reset notification
 const resetForm = () => {
   newEmployee.value = {
     id: '',
-    fullName: '',
+    firstName: '',
+    middleName: '',
+    lastName: '',
     department: '',
     jobTitle: '',
+    role: '',
     dateOfHire: '',
     dateOfBirth: '',
     gender: '',
@@ -142,13 +205,15 @@ const resetForm = () => {
     email: '',
     address: '',
     emergencyContact: {
-      fullName: '',
+      firstName: '',
+      middleName: '',
+      lastName: '',
+      relationship: '',
       contactNumber: '',
     },
     profileImage: '',
   }
   removeProfile()
-  // Don't reset notification here as we want to show the success message
 }
 </script>
 
@@ -213,19 +278,6 @@ const resetForm = () => {
 
         <div class="form-control flex flex-col gap-5">
           <div class="">
-            <legend class="fieldset-legend text-black text-xs">Date of Hire</legend>
-            <input
-              v-model="newEmployee.dateOfHire"
-              type="date"
-              class="border-b-1 w-full outline-none border-gray-300 p-0 pt-3 text-black"
-              :class="{ 'border-red-500': formErrors.professional.dateOfHire }"
-            />
-            <span v-if="formErrors.professional.dateOfHire" class="text-red-500 text-xs mt-1">
-              {{ formErrors.professional.dateOfHire }}
-            </span>
-          </div>
-
-          <div class="">
             <legend class="fieldset-legend text-black text-xs">Department</legend>
             <select
               v-model="newEmployee.department"
@@ -261,6 +313,36 @@ const resetForm = () => {
               {{ formErrors.professional.jobTitle }}
             </span>
           </div>
+
+          <div class="">
+            <legend class="fieldset-legend text-black text-xs">Role</legend>
+            <select
+              v-model="newEmployee.role"
+              class="select focus:outline-none bg-white border-black text-black"
+              :class="{ 'border-red-500': formErrors.professional.role }"
+            >
+              <option disabled value="">Select Role</option>
+              <option v-for="role in roles" :key="role.id" :value="role.role_name">
+                {{ role.role_name }}
+              </option>
+            </select>
+            <span v-if="formErrors.professional.role" class="text-red-500 text-xs mt-1">
+              {{ formErrors.professional.role }}
+            </span>
+          </div>
+
+          <div class="">
+            <legend class="fieldset-legend text-black text-xs">Date of Hire</legend>
+            <input
+              v-model="newEmployee.dateOfHire"
+              type="date"
+              class="border-b-1 w-full outline-none border-gray-300 p-0 pt-3 text-black"
+              :class="{ 'border-red-500': formErrors.professional.dateOfHire }"
+            />
+            <span v-if="formErrors.professional.dateOfHire" class="text-red-500 text-xs mt-1">
+              {{ formErrors.professional.dateOfHire }}
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -277,12 +359,39 @@ const resetForm = () => {
 
         <div class="form-control grid grid-cols-2 gap-5">
           <div class="">
-            <legend class="fieldset-legend text-black text-xs">Full Name</legend>
+            <legend class="fieldset-legend text-black text-xs">First Name</legend>
             <input
-              v-model="newEmployee.fullName"
+              v-model="newEmployee.firstName"
               type="text"
               class="border-b-1 w-full outline-none border-gray-300 p-0 pt-3 text-black"
-              :class="{ 'border-red-500': formErrors.personal.fullName }"
+              :class="{ 'border-red-500': formErrors.personal.firstName }"
+            />
+            <span v-if="formErrors.personal.firstName" class="text-red-500 text-xs mt-1">
+              {{ formErrors.personal.firstName }}
+            </span>
+          </div>
+
+          <div class="">
+            <legend class="fieldset-legend text-black text-xs">Middle Name</legend>
+            <input
+              v-model="newEmployee.middleName"
+              type="text"
+              placeholder="(Optional)"
+              class="border-b-1 w-full outline-none border-gray-300 p-0 pt-3 text-black placeholder:text-xs"
+              :class="{ 'border-red-500': formErrors.personal.middleName }"
+            />
+            <span v-if="formErrors.personal.middleName" class="text-red-500 text-xs mt-1">
+              {{ formErrors.personal.middleName }}
+            </span>
+          </div>
+
+          <div class="col-span-2">
+            <legend class="fieldset-legend text-black text-xs">Last Name</legend>
+            <input
+              v-model="newEmployee.lastName"
+              type="text"
+              class="border-b-1 w-full outline-none border-gray-300 p-0 pt-3 text-black"
+              :class="{ 'border-red-500': formErrors.personal.lastName }"
             />
             <span v-if="formErrors.personal.fullName" class="text-red-500 text-xs mt-1">
               {{ formErrors.personal.fullName }}
@@ -315,22 +424,6 @@ const resetForm = () => {
             </select>
             <span v-if="formErrors.personal.gender" class="text-red-500 text-xs mt-1">
               {{ formErrors.personal.gender }}
-            </span>
-          </div>
-
-          <div class="">
-            <legend class="fieldset-legend text-black text-xs">Marital Status</legend>
-            <select
-              v-model="newEmployee.maritalStatus"
-              class="select focus:outline-none bg-white border-black text-black"
-              :class="{ 'border-red-500': formErrors.personal.maritalStatus }"
-            >
-              <option disabled value="">Select Marital Status</option>
-              <option>Single</option>
-              <option>Married</option>
-            </select>
-            <span v-if="formErrors.personal.maritalStatus" class="text-red-500 text-xs mt-1">
-              {{ formErrors.personal.maritalStatus }}
             </span>
           </div>
 
@@ -377,18 +470,58 @@ const resetForm = () => {
           </div>
         </div>
 
-        <div class="title font-bold text-lg mt-4">Emergency Contact</div>
+        <div class="title font-bold mt-4 text-red-500">Emergency Contact</div>
         <div class="form-control grid grid-cols-2 gap-5">
           <div class="">
-            <legend class="fieldset-legend text-black text-xs">Full Name</legend>
+            <legend class="fieldset-legend text-black text-xs">First Name</legend>
             <input
-              v-model="newEmployee.emergencyContact.fullName"
+              v-model="newEmployee.emergencyContact.firstName"
               type="text"
               class="border-b-1 w-full outline-none border-gray-300 p-0 pt-3 text-black"
-              :class="{ 'border-red-500': formErrors.emergencyContact.fullName }"
+              :class="{ 'border-red-500': formErrors.emergencyContact.firstName }"
             />
-            <span v-if="formErrors.emergencyContact.fullName" class="text-red-500 text-xs mt-1">
-              {{ formErrors.emergencyContact.fullName }}
+            <span v-if="formErrors.emergencyContact.firstName" class="text-red-500 text-xs mt-1">
+              {{ formErrors.emergencyContact.firstName }}
+            </span>
+          </div>
+
+          <div class="">
+            <legend class="fieldset-legend text-black text-xs">Middle Name</legend>
+            <input
+              v-model="newEmployee.emergencyContact.middleName"
+              type="text"
+              placeholder="(Optional)"
+              class="border-b-1 w-full outline-none border-gray-300 p-0 pt-3 text-black placeholder:text-xs"
+              :class="{ 'border-red-500': formErrors.emergencyContact.middleName }"
+            />
+            <span v-if="formErrors.emergencyContact.middleName" class="text-red-500 text-xs mt-1">
+              {{ formErrors.emergencyContact.middleName }}
+            </span>
+          </div>
+
+          <div class="col-span-2">
+            <legend class="fieldset-legend text-black text-xs">Last Name</legend>
+            <input
+              v-model="newEmployee.emergencyContact.lastName"
+              type="text"
+              class="border-b-1 w-full outline-none border-gray-300 p-0 pt-3 text-black"
+              :class="{ 'border-red-500': formErrors.emergencyContact.lastName }"
+            />
+            <span v-if="formErrors.emergencyContact.lastName" class="text-red-500 text-xs mt-1">
+              {{ formErrors.emergencyContact.lastName }}
+            </span>
+          </div>
+
+          <div class="">
+            <legend class="fieldset-legend text-black text-xs">Relationship</legend>
+            <input
+              v-model="newEmployee.emergencyContact.relationship"
+              type="text"
+              class="border-b-1 w-full outline-none border-gray-300 p-0 pt-3 text-black"
+              :class="{ 'border-red-500': formErrors.emergencyContact.relationship }"
+            />
+            <span v-if="formErrors.emergencyContact.relationship" class="text-red-500 text-xs mt-1">
+              {{ formErrors.emergencyContact.relationship }}
             </span>
           </div>
 
@@ -415,13 +548,13 @@ const resetForm = () => {
         <div class="btn-container flex justify-end mt-6 gap-2">
           <button
             @click="handleFormSubmit"
-            class="btn btn-sm bg-secondaryColor border-none text-white shadow-none"
+            class="btn-primaryStyle btn-sm bg-primaryColor border-none text-white shadow-none"
           >
-            Save
+            + Add
           </button>
           <button
             @click="resetForm"
-            class="btn btn-sm bg-gray-400 border-none text-white shadow-none"
+            class="btn-secondaryStyle btn-sm bg-gray-400 border-none text-white shadow-none"
           >
             Cancel
           </button>
@@ -429,13 +562,49 @@ const resetForm = () => {
       </div>
     </div>
 
-    <!-- Notification Modal -->
-    <NotificationModal
-      :show="notification.show"
-      :type="notification.type"
-      :title="notification.title"
-      :message="notification.message"
-      :on-close="closeNotification"
-    />
+    <!-- Confirmation Modal -->
+    <dialog ref="confirmModal" class="modal">
+      <div class="modal-box bg-white w-96">
+        <h3 class="font-bold text-lg text-black">Confirm Add Employee</h3>
+        <div
+          class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
+        ></div>
+
+        <div v-if="employeeToAdd" class="py-4">
+          <p class="text-center text-black mb-4">
+            Are you sure you want to add employee
+            <span class="font-bold">{{
+              [employeeToAdd.firstName, employeeToAdd.middleName, employeeToAdd.lastName]
+                .filter(Boolean)
+                .join(' ')
+            }}</span
+            >?
+          </p>
+
+          <div class="mt-4 flex flex-col gap-2">
+            <div class="flex flex-row">
+              <div class="w-32 text-gray-500">Department:</div>
+              <div class="text-black">{{ employeeToAdd.department }}</div>
+            </div>
+            <div class="flex flex-row">
+              <div class="w-32 text-gray-500">Job Title:</div>
+              <div class="text-black">{{ employeeToAdd.jobTitle }}</div>
+            </div>
+            <div class="flex flex-row">
+              <div class="w-32 text-gray-500">Role:</div>
+              <div class="text-black">{{ employeeToAdd.role }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-action justify-center gap-4">
+          <button class="btn-primaryStyle" @click="confirmAdd">Add Employee</button>
+          <button class="btn-secondaryStyle" @click="cancelAdd">Cancel</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Replace NotificationModal with Toast -->
+    <Toast :show="showToast" :message="toastMessage" :type="toastType" />
   </div>
 </template>

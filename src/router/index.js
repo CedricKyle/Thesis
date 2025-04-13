@@ -21,20 +21,20 @@ const routes = [
     children: [
       {
         path: '',
-        redirect: '/roles',
+        redirect: '/hr/dashboard',
       },
       {
-        path: 'roles',
+        path: 'hr/roles',
         name: 'Roles',
         component: UserRolesManagement,
       },
       {
-        path: 'roles/create',
+        path: 'hr/roles/create',
         name: 'CreateRole',
         component: CreateRoleForm,
       },
       {
-        path: 'roles/:id/edit',
+        path: 'hr/roles/:id/edit',
         name: 'EditRole',
         component: EditRoleForm,
       },
