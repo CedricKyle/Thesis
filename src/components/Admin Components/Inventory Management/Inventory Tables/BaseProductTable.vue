@@ -103,22 +103,22 @@ const columns = [
 
       // If either quantity or maxQty is not set, show "No Stock"
       if (!quantity || !maxQty) {
-        return '<span class="badge badge-error">No Stock</span>'
+        return '<span class="px-2 py-1 text-xs font-medium rounded-full bg-red-100 text-red-800">No Stock</span>'
       }
 
-      let status, className
+      let status, statusClass
       if (quantity >= maxQty * 0.5) {
         status = 'In Stock'
-        className = 'badge badge-success'
+        statusClass = 'bg-green-100 text-green-800'
       } else if (quantity > 0) {
         status = 'Low Stock'
-        className = 'badge badge-warning'
+        statusClass = 'bg-yellow-100 text-yellow-800'
       } else {
         status = 'No Stock'
-        className = 'badge badge-error'
+        statusClass = 'bg-red-100 text-red-800'
       }
 
-      return `<span class="${className}">${status}</span>`
+      return `<span class="px-2 py-1 text-xs font-medium rounded-full ${statusClass}">${status}</span>`
     },
     headerSort: true,
   },
@@ -260,11 +260,14 @@ watch(
             <div>
               <span
                 :class="{
-                  'badge badge-success': productToView?.quantity >= productToView?.maxQty * 0.5,
-                  'badge badge-warning':
+                  'px-2 py-1 text-xs font-medium rounded-full': true,
+                  'bg-green-100 text-green-800':
+                    productToView?.quantity >= productToView?.maxQty * 0.5,
+                  'bg-yellow-100 text-yellow-800':
                     productToView?.quantity > 0 &&
                     productToView?.quantity < productToView?.maxQty * 0.5,
-                  'badge badge-error': !productToView?.quantity || productToView?.quantity <= 0,
+                  'bg-red-100 text-red-800':
+                    !productToView?.quantity || productToView?.quantity <= 0,
                 }"
               >
                 {{

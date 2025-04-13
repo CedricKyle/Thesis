@@ -1,7 +1,5 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import axios from 'axios'
-import { roleService } from '@/services/roleService'
 
 export const useRolesStore = defineStore('roles', {
   state: () => ({
@@ -11,22 +9,16 @@ export const useRolesStore = defineStore('roles', {
   }),
 
   actions: {
-    // Load roles from API with localStorage backup
+    // Load roles from localStorage
     async fetchRoles() {
       try {
         this.loading = true
-        const response = await axios.get('http://localhost:5000/api/roles')
-        this.roles = response.data
-        console.log('Fetched roles:', this.roles) // Add this to debug
-        localStorage.setItem('roles', JSON.stringify(this.roles))
-      } catch (error) {
-        console.error('Error fetching roles:', error)
-        this.error = error.message
-        // Load from localStorage if API fails
         const cachedRoles = localStorage.getItem('roles')
-        if (cachedRoles) {
-          this.roles = JSON.parse(cachedRoles)
-        }
+        this.roles = cachedRoles ? JSON.parse(cachedRoles) : []
+      } catch (error) {
+        console.error('Error loading roles from localStorage:', error)
+        this.error = error.message
+        this.roles = []
       } finally {
         this.loading = false
       }
@@ -35,9 +27,16 @@ export const useRolesStore = defineStore('roles', {
     async addRole(role) {
       try {
         this.loading = true
-        const response = await roleService.createRole(role)
+        const currentRoles = localStorage.getItem('roles')
+        const roles = currentRoles ? JSON.parse(currentRoles) : []
+
+        // Generate a simple unique ID
+        role.id = Date.now().toString()
+        roles.push(role)
+
+        localStorage.setItem('roles', JSON.stringify(roles))
         await this.fetchRoles() // Refresh the roles list
-        return response
+        return role
       } catch (error) {
         this.error = error.message
         throw error
@@ -48,10 +47,17 @@ export const useRolesStore = defineStore('roles', {
 
     async updateRole(roleId, updatedRole) {
       try {
-        console.log('Updating role with ID:', roleId) // Log the role ID
-        const response = await roleService.updateRole(roleId, updatedRole)
-        await this.fetchRoles() // Refresh the roles list
-        return response
+        const currentRoles = localStorage.getItem('roles')
+        let roles = currentRoles ? JSON.parse(currentRoles) : []
+
+        const index = roles.findIndex((role) => role.id === roleId)
+        if (index !== -1) {
+          roles[index] = { ...roles[index], ...updatedRole }
+          localStorage.setItem('roles', JSON.stringify(roles))
+          await this.fetchRoles() // Refresh the roles list
+          return roles[index]
+        }
+        throw new Error('Role not found')
       } catch (error) {
         this.error = error.message
         throw error
@@ -61,7 +67,11 @@ export const useRolesStore = defineStore('roles', {
     async deleteRole(id) {
       try {
         this.loading = true
-        await roleService.deleteRole(id)
+        const currentRoles = localStorage.getItem('roles')
+        let roles = currentRoles ? JSON.parse(currentRoles) : []
+
+        roles = roles.filter((role) => role.id !== id)
+        localStorage.setItem('roles', JSON.stringify(roles))
         await this.fetchRoles() // Refresh the roles list
       } catch (error) {
         this.error = error.message
@@ -71,21 +81,20 @@ export const useRolesStore = defineStore('roles', {
       }
     },
 
-    // Add getRoleById function
     async getRoleById(id) {
       try {
         this.loading = true
-        console.log('Fetching role with ID:', id) // Debug log
+        const currentRoles = localStorage.getItem('roles')
+        const roles = currentRoles ? JSON.parse(currentRoles) : []
 
-        const response = await axios.get(`http://localhost:5000/api/roles/${id}`)
-        console.log('Role data received:', response.data) // Debug log
-
-        return response.data
+        const role = roles.find((role) => role.id === id)
+        if (!role) {
+          throw new Error('Role not found')
+        }
+        return role
       } catch (error) {
-        console.error('Error in getRoleById:', error.response || error) // Detailed error log
-        throw new Error(
-          error.response?.data?.message || error.message || 'Error fetching role details',
-        )
+        console.error('Error in getRoleById:', error)
+        throw error
       } finally {
         this.loading = false
       }

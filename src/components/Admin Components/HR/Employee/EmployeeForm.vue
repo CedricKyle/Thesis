@@ -8,7 +8,6 @@ import profilePlaceholder from '@/assets/Images/profile-placeholder.png'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import { storeToRefs } from 'pinia'
 import Toast from '@/components/Admin Components/HR/Toast.vue'
-import ProfessionalInfo from './ProfessionalInfo.vue'
 import { useResumeUpload } from '@/composables/Admin Composables/Human Resource/useResumeUpload'
 import { useToast } from '@/composables/Admin Composables/Human Resource/useToast'
 
@@ -40,7 +39,6 @@ const newEmployee = ref({
   dateOfHire: '',
   dateOfBirth: '',
   gender: '',
-  maritalStatus: '',
   contactNumber: '',
   email: '',
   address: '',
@@ -154,7 +152,6 @@ const resetForm = () => {
     dateOfHire: '',
     dateOfBirth: '',
     gender: '',
-    maritalStatus: '',
     contactNumber: '',
     email: '',
     address: '',
@@ -608,3 +605,34 @@ onMounted(async () => {
     <Toast :show="showToast" :message="toastMessage" :type="toastType" />
   </div>
 </template>
+
+<style scoped>
+.fieldset-legend {
+  color: black;
+  font-size: 0.75rem; /* text-xs */
+}
+
+.form-input {
+  width: 100%;
+  outline: none;
+  border-bottom-width: 1px;
+  border-color: rgb(209 213 219); /* border-gray-300 */
+  padding: 0;
+  padding-top: 0.75rem;
+  color: black;
+}
+
+.form-select {
+  width: 100%;
+  outline: none;
+  background-color: white;
+  border-color: black;
+  color: black;
+}
+
+.error-text {
+  color: rgb(239 68 68); /* text-red-500 */
+  font-size: 0.75rem; /* text-xs */
+  margin-top: 0.25rem;
+}
+</style>

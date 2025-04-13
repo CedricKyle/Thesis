@@ -109,13 +109,13 @@ const router = createRouter({
 })
 
 // Add navigation guards for debugging
-router.beforeEach((to, from, next) => {
-  console.log('Navigation started:', { from: from.path, to: to.path })
-  next()
-})
+// router.beforeEach((to, from, next) => {
+//   console.log('Navigation started:', { from: from.path, to: to.path })
+//   next()
+// })
 
-router.afterEach((to, from) => {
-  console.log('Navigation completed:', { from: from.path, to: to.path })
-})
+// router.afterEach((to, from) => {
+//   console.log('Navigation completed:', { from: from.path, to: to.path })
+// })
 
 export default router

@@ -17,7 +17,16 @@ const tableRef = ref(null)
 const isTableBuilt = ref(false)
 let table = null
 
-// Define columns for Tabulator
+// Status styling configuration
+const statusClasses = {
+  Present: 'bg-green-100 text-green-800',
+  Absent: 'bg-red-100 text-red-800',
+  Late: 'bg-yellow-100 text-yellow-800',
+  'On Leave': 'bg-blue-100 text-blue-800',
+}
+
+const commonButtonClasses = 'btn btn-sm btn-circle border-none btn-ghost'
+
 const columns = [
   {
     title: 'Name',
@@ -49,53 +58,40 @@ const columns = [
   {
     title: 'Status',
     field: 'status',
-    formatter: function (cell) {
+    formatter: (cell) => {
       const status = cell.getValue()
       const record = cell.getRow().getData()
       const overtimeHours = calculateOvertime(record.signOut)
+      const baseStatus = status.split(' + ')[0]
 
-      const baseStatus = status.split(' + ')[0] // Get base status without OT
-      const statusClasses = {
-        Present: 'bg-green-100 text-green-800',
-        Absent: 'bg-red-100 text-red-800',
-        Late: 'bg-yellow-100 text-yellow-800',
-        'On Leave': 'bg-blue-100 text-blue-800',
-      }
+      const statusBadge = `<span class="px-2 py-1 text-xs font-medium rounded-full ${statusClasses[baseStatus]}">${baseStatus}</span>`
 
-      let displayStatus = `<span class="px-2 py-1 text-xs font-medium rounded-full ${statusClasses[baseStatus]}">${baseStatus}</span>`
-
-      // Add overtime badge if applicable
-      if (overtimeHours > 0) {
-        displayStatus += `
-          <span class="ml-1 px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800">
-            OT: ${overtimeHours}h
-          </span>`
-      }
-
-      return displayStatus
+      return overtimeHours > 0
+        ? `${statusBadge}<span class="ml-1 px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800">OT: ${overtimeHours}h</span>`
+        : statusBadge
     },
     headerSort: false,
   },
   {
     title: 'Action',
-    formatter: function (cell) {
+    formatter: (cell) => {
       const record = cell.getRow().getData()
       if (record.id.toString().startsWith('absent-')) return ''
 
       return `
         <div class="flex gap-2">
-          <button class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost view-button">
+          <button class="${commonButtonClasses} hover:bg-primaryColor/80 view-button">
             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
               <circle cx="12" cy="12" r="3" />
             </svg>
           </button>
-          <button class="btn btn-sm btn-circle hover:bg-secondaryColor/80 border-none btn-ghost check-button">
+          <button class="${commonButtonClasses} hover:bg-secondaryColor/80 check-button">
             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M20 6L9 17l-5-5" />
             </svg>
           </button>
-          <button class="btn btn-sm btn-circle hover:bg-red-400 border-none btn-ghost delete-button">
+          <button class="${commonButtonClasses} hover:bg-red-400 delete-button">
             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 6 6 18M6 6l12 12" />
             </svg>
@@ -103,7 +99,7 @@ const columns = [
         </div>`
     },
     headerSort: false,
-    cellClick: function (e, cell) {
+    cellClick: (e, cell) => {
       const record = cell.getRow().getData()
       if (e.target.closest('.view-button')) {
         emit('view', record)
@@ -114,12 +110,11 @@ const columns = [
   },
 ]
 
-// Initialize table
-const initTable = async () => {
+const initTable = () => {
   if (tableRef.value) {
     table = new Tabulator(tableRef.value, {
       data: props.records,
-      columns: columns,
+      columns,
       layout: 'fitColumns',
       responsiveLayout: 'collapse',
       height: '100%',
@@ -130,34 +125,26 @@ const initTable = async () => {
       cssClass: 'custom-tabulator',
     })
 
-    // Wait for table to be fully built
-    await table.on('tableBuilt', function () {
+    table.on('tableBuilt', () => {
       isTableBuilt.value = true
-      console.log(
-        'Table built, checking classes:',
-        tableRef.value.classList.contains('custom-tabulator'),
-      )
-      console.log('Table element:', tableRef.value)
     })
   }
 }
 
-onMounted(async () => {
-  await initTable()
+onMounted(() => {
+  initTable()
 })
 
-// Watch for data changes
 watch(
   () => props.records,
-  async (newData) => {
+  (newData) => {
     if (isTableBuilt.value && table) {
-      await table.setData(newData)
+      table.setData(newData)
     }
   },
   { deep: true },
 )
 
-// Clean up
 onBeforeUnmount(() => {
   if (table) {
     table.destroy()

@@ -4,21 +4,9 @@ require('dotenv').config()
 
 const app = express()
 
-// Middleware
 app.use(cors())
 app.use(express.json())
 
-// Add request logging
-app.use((req, res, next) => {
-  console.log(`${req.method} ${req.url}`, req.body)
-  next()
-})
-
-// Routes
-app.use('/api/roles', require('./routes/roles'))
-app.use('/api/users', require('./routes/users'))
-
-// Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error:', err)
   res.status(500).json({
@@ -27,7 +15,7 @@ app.use((err, req, res, next) => {
   })
 })
 
-const PORT = process.env.PORT || 5000
+const PORT = process.env.PORT || 3000
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`)
 })

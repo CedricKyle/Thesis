@@ -41,6 +41,14 @@
     @apply bg-primaryColor border-primaryColor;
   }
 
+  .error-text {
+    @apply text-red-500 text-xs mt-1;
+  }
+
+  .form-field {
+    @apply flex flex-col gap-1;
+  }
+
   .loading-overlay {
     color: #466114;
     position: fixed;
