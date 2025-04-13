@@ -1,8 +1,28 @@
 <script setup>
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
 import profilePlaceholder from '@/assets/Images/profile-placeholder.png'
+import { computed } from 'vue'
 
 const store = useEmployeeStore()
+
+// Format date helper
+const formatDate = (dateString) => {
+  if (!dateString) return ''
+  return new Date(dateString).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+}
+
+// Add handleCall method
+const handleCall = (phoneNumber) => {
+  if (phoneNumber) {
+    window.open(`tel:${phoneNumber}`, '_self')
+  }
+}
+
+// No need for the computed emergency contact property since we're getting direct data
 </script>
 
 <template>
@@ -18,14 +38,15 @@ const store = useEmployeeStore()
         <div class="flex justify-center mb-4 flex-col items-center">
           <div class="w-24 h-24 rounded-full overflow-hidden ring ring-secondaryColor">
             <img
-              :src="store.selectedEmployee.profileImage || profilePlaceholder"
+              :src="store.selectedEmployee.profile_image || profilePlaceholder"
               class="w-full h-full object-cover"
+              alt="Profile"
             />
           </div>
           <div class="name-container text-center">
-            <h3 class="font-bold text-lg">{{ store.selectedEmployee.fullName }}</h3>
+            <h3 class="font-bold text-lg">{{ store.selectedEmployee.full_name }}</h3>
             <p class="badge badge-outline badge-warning mt-1 text-xs">
-              {{ store.selectedEmployee.jobTitle }}
+              {{ store.selectedEmployee.job_title }}
             </p>
             <br />
             <span class="text-gray-500 text-xs">
@@ -36,80 +57,167 @@ const store = useEmployeeStore()
 
         <!-- Professional Information -->
         <div class="mb-4 text-sm">
-          <h4 class="font-semibold mb-2">Professional Information</h4>
-          <div class="flex flex-row">
-            <div class="w-40 text-gray-500">Employee ID</div>
-            <div>{{ store.selectedEmployee.id }}</div>
-          </div>
-          <div class="flex flex-row">
-            <div class="w-40 text-gray-500">Department</div>
-            <div>{{ store.selectedEmployee.department }}</div>
-          </div>
-
-          <div class="flex flex-row">
-            <div class="w-40 text-gray-500">Date of Hire</div>
-            <div>{{ store.selectedEmployee.dateOfHire }}</div>
+          <h4 class="font-semibold mb-2 text-primaryColor">Professional Information</h4>
+          <div class="grid gap-2 bg-gray-50 p-3 rounded-lg">
+            <div class="flex flex-row">
+              <div class="w-40 text-gray-500">Employee ID</div>
+              <div>{{ store.selectedEmployee.employee_id }}</div>
+            </div>
+            <div class="flex flex-row">
+              <div class="w-40 text-gray-500">Department</div>
+              <div>{{ store.selectedEmployee.department }}</div>
+            </div>
+            <div class="flex flex-row">
+              <div class="w-40 text-gray-500">Date of Hire</div>
+              <div>{{ formatDate(store.selectedEmployee.date_of_hire) }}</div>
+            </div>
           </div>
         </div>
 
         <!-- Personal Information -->
         <div class="mb-4 text-sm">
-          <h4 class="font-semibold mb-2">Personal Information</h4>
-          <div class="flex flex-row">
-            <div class="w-40 text-gray-500">Full Name</div>
-            <div>{{ store.selectedEmployee.fullName }}</div>
-          </div>
-          <div class="flex flex-row">
-            <div class="w-40 text-gray-500">Date of Birth</div>
-            <div>{{ store.selectedEmployee.dateOfBirth }}</div>
-          </div>
-          <div class="flex flex-row">
-            <div class="w-40 text-gray-500">Gender</div>
-            <div>{{ store.selectedEmployee.gender }}</div>
-          </div>
-
-          <div class="flex flex-row">
-            <div class="w-40 text-gray-500">Contact Number</div>
-            <div>{{ store.selectedEmployee.contactNumber }}</div>
-          </div>
-          <div class="flex flex-row">
-            <div class="w-40 text-gray-500">Email</div>
-            <div>{{ store.selectedEmployee.email }}</div>
-          </div>
-          <div class="flex flex-row">
-            <div class="w-40 text-gray-500">Address</div>
-            <div>{{ store.selectedEmployee.address }}</div>
+          <h4 class="font-semibold mb-2 text-primaryColor">Personal Information</h4>
+          <div class="grid gap-2 bg-gray-50 p-3 rounded-lg">
+            <div class="flex flex-row">
+              <div class="w-40 text-gray-500">Full Name</div>
+              <div>{{ store.selectedEmployee.full_name }}</div>
+            </div>
+            <div class="flex flex-row">
+              <div class="w-40 text-gray-500">Date of Birth</div>
+              <div>{{ formatDate(store.selectedEmployee.date_of_birth) }}</div>
+            </div>
+            <div class="flex flex-row">
+              <div class="w-40 text-gray-500">Gender</div>
+              <div>{{ store.selectedEmployee.gender }}</div>
+            </div>
+            <div class="flex flex-row">
+              <div class="w-40 text-gray-500">Contact Number</div>
+              <div>{{ store.selectedEmployee.contact_number }}</div>
+            </div>
+            <div class="flex flex-row">
+              <div class="w-40 text-gray-500">Email</div>
+              <div>{{ store.selectedEmployee.email }}</div>
+            </div>
+            <div class="flex flex-row">
+              <div class="w-40 text-gray-500">Address</div>
+              <div class="break-words">{{ store.selectedEmployee.address }}</div>
+            </div>
           </div>
         </div>
 
-        <!-- Emergency Contact -->
+        <!-- Emergency Contact Section -->
         <div class="text-sm">
-          <h4 class="font-semibold mb-2">Emergency Contact</h4>
-          <div class="flex flex-row">
-            <div class="w-40 text-gray-500">Full Name</div>
-            <div>{{ store.selectedEmployee.emergencyContact.fullName }}</div>
-          </div>
+          <h4 class="font-semibold text-primaryColor flex items-center gap-2">
+            Emergency Contact
+            <span class="text-red-500 text-xs">(In case of emergency)</span>
+          </h4>
 
-          <div class="flex flex-row">
-            <div class="w-40 text-gray-500">Relationship</div>
-            <div>{{ store.selectedEmployee.emergencyContact.relationship }}</div>
-          </div>
+          <div class="bg-gray-50 p-4 rounded-lg mt-2">
+            <div class="grid gap-1">
+              <!-- Name Information -->
+              <div class="flex">
+                <div class="w-40 text-gray-500">First Name</div>
+                <div class="text-black">
+                  {{ store.selectedEmployee?.emergencyContact?.firstName }}
+                </div>
+              </div>
 
-          <div class="flex flex-row">
-            <div class="w-40 text-gray-500">Contact Number</div>
-            <div>{{ store.selectedEmployee.emergencyContact.contactNumber }}</div>
+              <div class="flex">
+                <div class="w-40 text-gray-500">Middle Name</div>
+                <div class="text-black">
+                  {{ store.selectedEmployee?.emergencyContact?.middleName || 'N/A' }}
+                </div>
+              </div>
+
+              <div class="flex">
+                <div class="w-40 text-gray-500">Last Name</div>
+                <div class="text-black">
+                  {{ store.selectedEmployee?.emergencyContact?.lastName }}
+                </div>
+              </div>
+
+              <div class="flex">
+                <div class="w-40 text-gray-500">Full Name</div>
+                <div class="text-black">
+                  {{ store.selectedEmployee?.emergencyContact?.fullName }}
+                </div>
+              </div>
+
+              <!-- Empty line for spacing -->
+              <div class="h-2"></div>
+
+              <!-- Contact Information -->
+              <div class="flex">
+                <div class="w-40 text-gray-500">Relationship</div>
+                <div class="text-black">
+                  {{ store.selectedEmployee?.emergencyContact?.relationship }}
+                </div>
+              </div>
+
+              <div class="flex">
+                <div class="w-40 text-gray-500">Contact Number</div>
+                <div class="flex items-center gap-2">
+                  <span class="text-black">{{
+                    store.selectedEmployee?.emergencyContact?.contactNumber
+                  }}</span>
+                  <button
+                    class="underline text-secondaryColor cursor-pointer text-xs hover:text-secondaryColor/80"
+                    @click="handleCall(store.selectedEmployee?.emergencyContact?.contactNumber)"
+                  >
+                    Call
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Note text -->
+            <div class="mt-4 text-gray-500 italic text-xs">
+              Please ensure emergency contact information is kept up to date.
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="modal-action">
-        <button
-          class="btn btn-sm bg-gray-200 text-gray-600 border-none shadow-none"
-          @click="store.closeViewModal"
-        >
-          Close
-        </button>
+      <!-- Action Buttons -->
+      <div class="modal-action flex gap-2">
+        <button class="btn-primaryStyle" @click="store.closeViewModal">Close</button>
       </div>
     </div>
   </dialog>
 </template>
+
+<style scoped>
+.modal-box {
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-box::-webkit-scrollbar {
+  width: 6px;
+}
+
+.modal-box::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 3px;
+}
+
+.modal-box::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 3px;
+}
+
+.modal-box::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Add smooth transitions */
+.modal-box {
+  transition: all 0.3s ease;
+}
+
+/* Add hover effects to interactive elements */
+.btn:hover {
+  transform: translateY(-1px);
+  transition: transform 0.2s ease;
+}
+</style>

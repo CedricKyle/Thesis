@@ -97,15 +97,17 @@ const handleFormSubmit = () => {
   confirmModal.value?.showModal()
 }
 
-const confirmAdd = () => {
-  const hireYear = new Date(employeeToAdd.value.dateOfHire).getFullYear()
-  const employeeData = createEmployeeData(employeeToAdd.value, hireYear)
-
-  store.addEmployee(employeeData)
-  confirmModal.value?.close()
-  employeeToAdd.value = null
-  showToastMessage('Employee added successfully!', 'success')
-  resetForm()
+const confirmAdd = async () => {
+  try {
+    const employeeData = createEmployeeData(employeeToAdd.value)
+    await store.addEmployee(employeeData)
+    confirmModal.value?.close()
+    employeeToAdd.value = null
+    showToastMessage('Employee added successfully!', 'success')
+    resetForm()
+  } catch (error) {
+    showToastMessage(error.message || 'Error adding employee', 'error')
+  }
 }
 
 const createEmployeeData = (employee, hireYear) => {

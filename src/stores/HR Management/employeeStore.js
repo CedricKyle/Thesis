@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { employeeAPI } from '@/services/main branch/api'
 
 export const useEmployeeStore = defineStore('employee', () => {
   // State
@@ -54,81 +55,56 @@ export const useEmployeeStore = defineStore('employee', () => {
     })
   }
 
+  // Load employees from API
+  async function loadEmployees() {
+    try {
+      const response = await employeeAPI.getAllEmployees()
+      employees.value = response.data
+    } catch (error) {
+      console.error('Error loading employees:', error)
+      throw error
+    }
+  }
+
+  // Add employee
   async function addEmployee(employeeData) {
     try {
-      let resumeData = null
-
-      // Handle resume file if present
-      if (employeeData.resume instanceof File) {
-        resumeData = {
-          name: employeeData.resume.name,
-          type: employeeData.resume.type,
-          size: employeeData.resume.size,
-          data: await fileToBase64(employeeData.resume),
-        }
-      }
-
-      const newEmployee = {
-        ...employeeData,
-        resume: resumeData, // Replace File object with processed data
-        createdAt: new Date().toISOString(),
-        status: 'Active',
-      }
-
-      employees.value.push(newEmployee)
-      saveToLocalStorage()
-      return newEmployee
+      const response = await employeeAPI.createEmployee(employeeData)
+      employees.value.push(response.data)
+      return response.data
     } catch (error) {
       console.error('Error adding employee:', error)
       throw error
     }
   }
 
+  // Update employee
   async function updateEmployee(id, updates) {
     try {
-      const index = employees.value.findIndex((emp) => emp.id === id)
+      const response = await employeeAPI.updateEmployee(id, updates)
+      const index = employees.value.findIndex((emp) => emp.employee_id === id)
       if (index !== -1) {
-        let resumeData = employees.value[index].resume
-
-        // Process new resume if provided
-        if (updates.resume instanceof File) {
-          resumeData = {
-            name: updates.resume.name,
-            type: updates.resume.type,
-            size: updates.resume.size,
-            data: await fileToBase64(updates.resume),
-          }
-        } else if (updates.resume === null) {
-          // Handle resume removal
-          resumeData = null
-        }
-
-        employees.value[index] = {
-          ...employees.value[index],
-          ...updates,
-          resume: resumeData,
-          updatedAt: new Date().toISOString(),
-        }
-        saveToLocalStorage()
-        return employees.value[index]
+        employees.value[index] = response.data
       }
-      return null
+      return response.data
     } catch (error) {
       console.error('Error updating employee:', error)
       throw error
     }
   }
 
-  function deleteEmployee(id) {
+  // Delete employee
+  async function deleteEmployee(id) {
     try {
-      employees.value = employees.value.filter((emp) => emp.id !== id)
-      saveToLocalStorage()
+      await employeeAPI.deleteEmployee(id)
+      employees.value = employees.value.filter((emp) => emp.employee_id !== id)
     } catch (error) {
       console.error('Error deleting employee:', error)
       throw error
     }
   }
 
+  // View employee details
   function setSelectedEmployee(employee) {
     selectedEmployee.value = employee
     showViewModal.value = true
@@ -145,28 +121,6 @@ export const useEmployeeStore = defineStore('employee', () => {
     } else {
       sortBy.value = column
       sortDesc.value = false
-    }
-  }
-
-  // Local Storage Functions
-  function saveToLocalStorage() {
-    try {
-      localStorage.setItem('employees', JSON.stringify(employees.value))
-    } catch (error) {
-      console.error('Error saving to localStorage:', error)
-      throw error
-    }
-  }
-
-  function loadEmployees() {
-    try {
-      const savedEmployees = localStorage.getItem('employees')
-      if (savedEmployees) {
-        employees.value = JSON.parse(savedEmployees)
-      }
-    } catch (error) {
-      console.error('Error loading employees:', error)
-      employees.value = []
     }
   }
 
@@ -214,9 +168,6 @@ export const useEmployeeStore = defineStore('employee', () => {
     }
   }
 
-  // Initialize employees from localStorage when store is created
-  loadEmployees()
-
   return {
     // State
     employees,
@@ -234,13 +185,13 @@ export const useEmployeeStore = defineStore('employee', () => {
     totalPages,
 
     // Actions
+    loadEmployees,
     addEmployee,
     updateEmployee,
     deleteEmployee,
     setSelectedEmployee,
     closeViewModal,
     handleSort,
-    loadEmployees,
     searchEmployees,
     resetFilters,
     downloadResume,
