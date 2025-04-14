@@ -27,10 +27,11 @@ exports.createEmployee = async (req, res) => {
       profileImagePath = `uploads/main branch/profiles/profile-${uniqueSuffix}${path.extname(profileFile.originalname)}`
 
       // Ensure directory exists
-      await fs.mkdir(path.dirname(profileImagePath), { recursive: true })
+      const fullPath = path.join(__dirname, '../../../uploads/main branch/profiles')
+      await fs.mkdir(fullPath, { recursive: true })
 
-      // Save file
-      await fs.writeFile(profileImagePath, profileFile.buffer)
+      // Save file to the correct location
+      await fs.writeFile(path.join(__dirname, '../../../', profileImagePath), profileFile.buffer)
     }
 
     // Handle resume file

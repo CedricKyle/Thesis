@@ -17,7 +17,7 @@ const rolesStore = useRolesStore()
 const { roles } = storeToRefs(rolesStore)
 const { formErrors, validateProfessionalInfo, validatePersonalInfo, validateEmergencyContact } =
   useEmployeeValidation()
-const { profileImage, showUploadText, handleProfileUpload, removeProfile } =
+const { profileImage, profileImageFile, showUploadText, handleProfileUpload, removeProfile } =
   useProfileImage(profilePlaceholder)
 const { showToast, toastMessage, toastType, showToastMessage } = useToast()
 const { resumeFile, resumeFileName, isProcessing, handleResumeUpload, removeResume } =
@@ -75,7 +75,8 @@ watch(
 )
 
 watch(profileImage, (newValue) => {
-  newEmployee.value.profileImage = newValue
+  // We don't need to store the base64 in newEmployee anymore
+  // newEmployee.value.profileImage = newValue
 })
 
 watch(resumeFile, (newValue) => {
@@ -110,22 +111,45 @@ const confirmAdd = async () => {
   }
 }
 
-const createEmployeeData = (employee, hireYear) => {
+const createEmployeeData = (employee) => {
+  // Get hire year from dateOfHire
+  const hireYear = new Date(employee.dateOfHire).getFullYear()
+
+  // Create FormData for handling file uploads
+  const formData = new FormData()
+
+  // Generate ID
   const yearEmployees = store.employees
-    .filter((emp) => emp.id.startsWith(hireYear.toString()))
+    .filter((emp) => String(emp.id).startsWith(String(hireYear)))
     .map((emp) => parseInt(emp.id.split('-')[1]))
 
   const nextNumber = yearEmployees.length > 0 ? Math.max(...yearEmployees) + 1 : 50000
   const newId = `${hireYear}-${nextNumber.toString().padStart(5, '0')}`
 
-  return {
-    ...employee,
+  // Create the employee object first
+  const employeeData = {
     id: newId,
+    firstName: employee.firstName,
+    middleName: employee.middleName || '',
+    lastName: employee.lastName,
     fullName: [employee.firstName, employee.middleName, employee.lastName]
       .filter(Boolean)
       .join(' '),
+    department: employee.department,
+    jobTitle: employee.jobTitle,
+    role: employee.role,
+    dateOfHire: employee.dateOfHire,
+    dateOfBirth: employee.dateOfBirth,
+    gender: employee.gender,
+    contactNumber: employee.contactNumber,
+    email: employee.email,
+    address: employee.address,
     emergencyContact: {
-      ...employee.emergencyContact,
+      firstName: employee.emergencyContact.firstName,
+      middleName: employee.emergencyContact.middleName || '',
+      lastName: employee.emergencyContact.lastName,
+      relationship: employee.emergencyContact.relationship,
+      contactNumber: employee.emergencyContact.contactNumber,
       fullName: [
         employee.emergencyContact.firstName,
         employee.emergencyContact.middleName,
@@ -135,6 +159,19 @@ const createEmployeeData = (employee, hireYear) => {
         .join(' '),
     },
   }
+
+  // Append the stringified employee data
+  formData.append('employeeData', JSON.stringify(employeeData))
+
+  // Add files if they exist - Use the File object instead of base64
+  if (profileImageFile.value) {
+    formData.append('profileImage', profileImageFile.value)
+  }
+  if (resumeFile.value) {
+    formData.append('resume', resumeFile.value)
+  }
+
+  return formData
 }
 
 const cancelAdd = () => {

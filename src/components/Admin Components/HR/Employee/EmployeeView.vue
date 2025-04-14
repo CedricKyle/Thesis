@@ -2,8 +2,20 @@
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
 import profilePlaceholder from '@/assets/Images/profile-placeholder.png'
 import { computed } from 'vue'
+import { File } from 'lucide-vue-next'
 
 const store = useEmployeeStore()
+
+// Simplified computed property for profile image
+const profileImageUrl = computed(() => {
+  if (!store.selectedEmployee?.profile_image_path) return profilePlaceholder
+  return `http://localhost:3000/${store.selectedEmployee.profile_image_path}`
+})
+
+const resumeUrl = computed(() => {
+  if (!store.selectedEmployee?.resume_path) return null
+  return `http://localhost:3000/${store.selectedEmployee.resume_path}`
+})
 
 // Format date helper
 const formatDate = (dateString) => {
@@ -19,6 +31,12 @@ const formatDate = (dateString) => {
 const handleCall = (phoneNumber) => {
   if (phoneNumber) {
     window.open(`tel:${phoneNumber}`, '_self')
+  }
+}
+
+const handleViewResume = () => {
+  if (resumeUrl.value) {
+    window.open(resumeUrl.value, '_blank')
   }
 }
 
@@ -38,9 +56,11 @@ const handleCall = (phoneNumber) => {
         <div class="flex justify-center mb-4 flex-col items-center">
           <div class="w-24 h-24 rounded-full overflow-hidden ring ring-secondaryColor">
             <img
-              :src="store.selectedEmployee.profile_image || profilePlaceholder"
+              :src="profileImageUrl"
               class="w-full h-full object-cover"
               alt="Profile"
+              @error="$event.target.src = profilePlaceholder"
+              loading="lazy"
             />
           </div>
           <div class="name-container text-center">
@@ -70,6 +90,20 @@ const handleCall = (phoneNumber) => {
             <div class="flex flex-row">
               <div class="w-40 text-gray-500">Date of Hire</div>
               <div>{{ formatDate(store.selectedEmployee.date_of_hire) }}</div>
+            </div>
+
+            <!-- Add resume button/link -->
+            <div v-if="store.selectedEmployee?.resume_path" class="flex flex-row">
+              <div class="w-40 text-gray-500">Resume</div>
+              <div class="">
+                <button
+                  @click="handleViewResume"
+                  class="badge badge-outline badge-warning mt-1 text-xs cursor-pointer"
+                >
+                  <File class="w-4 h-4" />
+                  View Resume
+                </button>
+              </div>
             </div>
           </div>
         </div>

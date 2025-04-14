@@ -7,12 +7,12 @@ class Employee {
     try {
       await connection.beginTransaction()
 
-      // Insert employee
+      // Insert employee - Updated columns
       const [employeeResult] = await connection.execute(
         `INSERT INTO employees (
           employee_id, first_name, middle_name, last_name, full_name,
           department, job_title, role, date_of_hire, date_of_birth,
-          gender, contact_number, email, address, profile_image, resume
+          gender, contact_number, email, address, profile_image_path, resume_path
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           employeeData.id,
@@ -29,8 +29,8 @@ class Employee {
           employeeData.contactNumber,
           employeeData.email,
           employeeData.address,
-          employeeData.profileImage || null,
-          employeeData.resume || null,
+          employeeData.profile_image_path || null, // Changed from profileImage
+          employeeData.resume_path || null, // Changed from resume
         ],
       )
 

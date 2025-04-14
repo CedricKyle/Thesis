@@ -2,6 +2,7 @@ import { ref } from 'vue'
 
 export function useProfileImage(defaultImage) {
   const profileImage = ref('')
+  const profileImageFile = ref(null)
   const showUploadText = ref(true)
 
   const handleProfileUpload = (event) => {
@@ -18,6 +19,8 @@ export function useProfileImage(defaultImage) {
       return
     }
 
+    profileImageFile.value = file
+
     const reader = new FileReader()
     reader.onload = (e) => {
       profileImage.value = e.target.result
@@ -28,11 +31,13 @@ export function useProfileImage(defaultImage) {
 
   const removeProfile = () => {
     profileImage.value = ''
+    profileImageFile.value = null
     showUploadText.value = true
   }
 
   return {
     profileImage,
+    profileImageFile,
     showUploadText,
     handleProfileUpload,
     removeProfile,

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { employeeAPI } from '@/services/main branch/api'
+import axios from 'axios'
 
 export const useEmployeeStore = defineStore('employee', () => {
   // State
@@ -67,13 +68,15 @@ export const useEmployeeStore = defineStore('employee', () => {
   }
 
   // Add employee
-  async function addEmployee(employeeData) {
+  const createEmployee = async (employeeData) => {
     try {
-      const response = await employeeAPI.createEmployee(employeeData)
-      employees.value.push(response.data)
+      const response = await axios.post('/api/employees', employeeData)
+
+      // After successful creation, immediately load the updated list
+      await loadEmployees() // This will refresh the list automatically
+
       return response.data
     } catch (error) {
-      console.error('Error adding employee:', error)
       throw error
     }
   }
@@ -186,7 +189,7 @@ export const useEmployeeStore = defineStore('employee', () => {
 
     // Actions
     loadEmployees,
-    addEmployee,
+    createEmployee,
     updateEmployee,
     deleteEmployee,
     setSelectedEmployee,
