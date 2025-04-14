@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useAttendanceStore } from '@/stores/HR Management/attendanceStore'
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
@@ -21,10 +21,16 @@ const formData = ref({
   endDate: '',
 })
 
-// Load initial data
+// Add a state to track if a report has been generated
+const hasGeneratedReport = ref(false)
+
+// Load initial data and reset report
 onMounted(() => {
   employeeStore.loadEmployees()
   attendanceStore.loadRecords()
+  // Reset report data on mount
+  attendanceStore.resetReportFilters()
+  hasGeneratedReport.value = false
 })
 
 const handleFormSubmit = (employeeId) => {
@@ -34,7 +40,20 @@ const handleFormSubmit = (employeeId) => {
     department: formData.value.department,
     employeeId,
   })
+  hasGeneratedReport.value = true
 }
+
+// Watch for form data changes to reset report
+watch(
+  formData,
+  () => {
+    if (hasGeneratedReport.value) {
+      attendanceStore.resetReportFilters()
+      hasGeneratedReport.value = false
+    }
+  },
+  { deep: true },
+)
 
 const { generatePDF } = usePDFGenerator()
 </script>
@@ -45,13 +64,13 @@ const { generatePDF } = usePDFGenerator()
       <AttendanceReportForm v-model:formData="formData" @submit="handleFormSubmit" />
 
       <AttendanceReportSummary
-        v-if="reportSummary"
+        v-if="hasGeneratedReport && reportSummary"
         :employee-name="formData.employeeName"
         :summary="reportSummary"
       />
 
       <AttendanceReportTable
-        v-if="getAttendanceReport.length"
+        v-if="hasGeneratedReport && getAttendanceReport.length"
         :records="getAttendanceReport"
         @generate-pdf="generatePDF(formData, reportSummary, getAttendanceReport)"
       />

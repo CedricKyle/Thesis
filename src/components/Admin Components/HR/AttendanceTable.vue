@@ -1,9 +1,11 @@
 <script setup>
 import { ref, onMounted, watch, onBeforeUnmount } from 'vue'
 import { useAttendanceLogic } from '@/composables/Admin Composables/Human Resource/useAttendanceLogic'
+import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
 import { TabulatorFull as Tabulator } from 'tabulator-tables'
 
 const { formatDate, calculateOvertime } = useAttendanceLogic()
+const employeeStore = useEmployeeStore()
 
 const props = defineProps({
   records: {
@@ -27,18 +29,44 @@ const statusClasses = {
 
 const commonButtonClasses = 'btn btn-sm btn-circle border-none btn-ghost'
 
+// Add a function to get default attendance data for employees
+const getDefaultAttendanceData = (employees) => {
+  const currentDate = new Date()
+  return employees.map((employee) => ({
+    id: `absent-${employee.employee_id}`,
+    employee_id: employee.employee_id,
+    full_name: employee.full_name,
+    department: employee.department,
+    signIn: '-',
+    signOut: '-',
+    workingHours: '-',
+    status: 'Absent',
+  }))
+}
+
+// Add a function to merge attendance records with employee data
+const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
+  const defaultAttendance = getDefaultAttendanceData(employees)
+
+  // Create a map of existing attendance records by employee_id
+  const attendanceMap = new Map(attendanceRecords.map((record) => [record.employee_id, record]))
+
+  // Return either the actual attendance record or the default one
+  return defaultAttendance.map((defaultRecord) => {
+    return attendanceMap.get(defaultRecord.employee_id) || defaultRecord
+  })
+}
+
 const columns = [
   {
-    title: 'Name',
-    field: 'name',
+    title: 'Full Name',
+    field: 'full_name',
     sorter: 'string',
-    headerSort: true,
   },
   {
     title: 'Department',
     field: 'department',
     sorter: 'string',
-    headerSort: true,
   },
   {
     title: 'Time In',
@@ -60,23 +88,19 @@ const columns = [
     field: 'status',
     formatter: (cell) => {
       const status = cell.getValue()
-      const record = cell.getRow().getData()
-      const overtimeHours = calculateOvertime(record.signOut)
-      const baseStatus = status.split(' + ')[0]
-
-      const statusBadge = `<span class="px-2 py-1 text-xs font-medium rounded-full ${statusClasses[baseStatus]}">${baseStatus}</span>`
-
-      return overtimeHours > 0
-        ? `${statusBadge}<span class="ml-1 px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800">OT: ${overtimeHours}h</span>`
-        : statusBadge
+      const statusClass = statusClasses[status] || ''
+      return `<span class="px-2 py-1 text-xs font-medium rounded-full ${statusClass}">${status}</span>`
     },
-    headerSort: false,
   },
   {
     title: 'Action',
     formatter: (cell) => {
       const record = cell.getRow().getData()
-      if (record.id.toString().startsWith('absent-')) return ''
+      if (record.id.toString().startsWith('absent-')) {
+        // Only show check-in button for absent employees
+        return `
+          `
+      }
 
       return `
         <div class="flex gap-2">
@@ -86,11 +110,14 @@ const columns = [
               <circle cx="12" cy="12" r="3" />
             </svg>
           </button>
-          <button class="${commonButtonClasses} hover:bg-secondaryColor/80 check-button">
-            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 6L9 17l-5-5" />
-            </svg>
-          </button>
+
+          <div class="flex gap-2">
+            <button class="${commonButtonClasses} hover:bg-secondaryColor/80 check-in-button">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 6L9 17l-5-5" />
+              </svg>
+            </button>
+          </div>
           <button class="${commonButtonClasses} hover:bg-red-400 delete-button">
             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 6 6 18M6 6l12 12" />
@@ -105,15 +132,23 @@ const columns = [
         emit('view', record)
       } else if (e.target.closest('.delete-button')) {
         emit('delete', record)
+      } else if (e.target.closest('.check-in-button')) {
+        emit('checkIn', record)
       }
     },
   },
 ]
 
-const initTable = () => {
+const initTable = async () => {
   if (tableRef.value) {
+    // Load employees first
+    await employeeStore.loadEmployees()
+
+    // Merge attendance records with employee data
+    const mergedData = mergeAttendanceWithEmployees(props.records, employeeStore.employees)
+
     table = new Tabulator(tableRef.value, {
-      data: props.records,
+      data: mergedData,
       columns,
       layout: 'fitColumns',
       responsiveLayout: 'collapse',
@@ -135,11 +170,13 @@ onMounted(() => {
   initTable()
 })
 
+// Update watch to handle merged data
 watch(
-  () => props.records,
-  (newData) => {
-    if (isTableBuilt.value && table) {
-      table.setData(newData)
+  [() => props.records, () => employeeStore.employees],
+  ([newRecords, employees]) => {
+    if (isTableBuilt.value && table && employees) {
+      const mergedData = mergeAttendanceWithEmployees(newRecords, employees)
+      table.setData(mergedData)
     }
   },
   { deep: true },

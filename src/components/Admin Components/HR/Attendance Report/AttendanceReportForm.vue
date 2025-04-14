@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
 
@@ -15,8 +15,20 @@ const emit = defineEmits(['update:formData', 'submit'])
 const employeeStore = useEmployeeStore()
 const { employees } = storeToRefs(employeeStore)
 
+// Load employees when component mounts
+onMounted(async () => {
+  await employeeStore.loadEmployees()
+  console.log('Loaded employees:', employees.value) // Debug log
+})
+
 const filteredEmployees = computed(() => {
   if (!props.formData.department) return []
+
+  console.log('Filtering employees:', {
+    department: props.formData.department,
+    employees: employees.value,
+  })
+
   return employees.value.filter((emp) => emp.department === props.formData.department)
 })
 
@@ -30,10 +42,13 @@ const departments = [
 
 const handleSubmit = () => {
   const selectedEmployee = employees.value.find(
-    (emp) => emp.fullName === props.formData.employeeName,
+    (emp) => emp.full_name === props.formData.employeeName, // Changed from fullName to full_name
   )
+
+  console.log('Selected employee:', selectedEmployee)
+
   if (!selectedEmployee) return
-  emit('submit', selectedEmployee.id)
+  emit('submit', selectedEmployee.employee_id) // Changed from id to employee_id
 }
 </script>
 
@@ -68,8 +83,12 @@ const handleSubmit = () => {
               :disabled="!formData.department"
             >
               <option value="">Select Employee</option>
-              <option v-for="emp in filteredEmployees" :key="emp.id" :value="emp.fullName">
-                {{ emp.fullName }}
+              <option
+                v-for="emp in filteredEmployees"
+                :key="emp.employee_id"
+                :value="emp.full_name"
+              >
+                {{ emp.full_name }}
               </option>
             </select>
           </div>

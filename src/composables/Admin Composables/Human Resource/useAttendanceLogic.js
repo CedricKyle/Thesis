@@ -22,19 +22,41 @@ export function useAttendanceLogic() {
   }
 
   const calculateHours = (signIn, signOut) => {
-    if (!signIn || !signOut || signIn.trim() === '' || signOut.trim() === '') {
-      return '-'
+    if (!signIn || !signOut || signIn === '-' || signOut === '-') return '-'
+
+    const [inHours, inMinutes] = signIn.split(':').map(Number)
+    const [outHours, outMinutes] = signOut.split(':').map(Number)
+
+    const inTime = inHours * 60 + inMinutes
+    const outTime = outHours * 60 + outMinutes
+
+    if (outTime <= inTime) return '-'
+
+    // Calculate regular working hours (up to 5:00 PM / 17:00)
+    let regularMinutes = Math.min(outTime, TIME_CONSTANTS.STANDARD_END) - inTime
+    regularMinutes = Math.max(0, regularMinutes) // Ensure non-negative
+
+    // Calculate overtime (after 5:20 PM / 17:20)
+    let overtimeMinutes = 0
+    if (outTime > TIME_CONSTANTS.OVERTIME_THRESHOLD) {
+      overtimeMinutes = outTime - TIME_CONSTANTS.STANDARD_END
     }
 
-    const [inHours, inMinutes] = signIn.split(':')
-    const [outHours, outMinutes] = signOut.split(':')
+    // Format regular hours
+    const regularHours = Math.floor(regularMinutes / 60)
+    const regularMins = regularMinutes % 60
 
-    const startTime = new Date(2024, 0, 1, inHours, inMinutes)
-    const endTime = new Date(2024, 0, 1, outHours, outMinutes)
+    // Format overtime hours
+    const overtimeHours = Math.floor(overtimeMinutes / 60)
+    const overtimeMins = overtimeMinutes % 60
 
-    // Calculate total working hours
-    const diffInHours = (endTime - startTime) / (1000 * 60 * 60)
-    return `${Math.max(0, Math.round(diffInHours * 10) / 10)} hours`
+    // Create the display string
+    let displayString = `${regularHours}h ${regularMins}m`
+    if (overtimeMinutes > 0) {
+      displayString += ` + ${overtimeHours}h ${overtimeMins}m OT`
+    }
+
+    return displayString
   }
 
   const calculateOvertime = (signOut) => {

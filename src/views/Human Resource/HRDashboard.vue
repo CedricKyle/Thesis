@@ -32,47 +32,90 @@ const { employees } = storeToRefs(employeeStore)
 
 // Filtered stats based on selected date
 const filteredStats = computed(() => {
-  if (!attendanceRecords.value || !employees.value)
+  if (!attendanceRecords.value || !employees.value) {
     return { present: 0, absent: 0, late: 0, onLeave: 0 }
+  }
 
   const dateToCheck = new Date(selectedDate.value)
+
+  // Get all records for the selected date
   const recordsForDate = attendanceRecords.value.filter((record) => {
     const recordDate = new Date(record.date)
     return recordDate.toDateString() === dateToCheck.toDateString()
   })
 
-  // Create a map of employees who have attendance records for the day
-  const attendanceMap = new Map(recordsForDate.map((record) => [record.employeeId, record]))
+  // Create a map of attendance records by employee_id
+  const attendanceMap = new Map(recordsForDate.map((record) => [record.employee_id, record]))
 
-  // Count total employees who are absent (no attendance record for the day)
-  const absentCount = employees.value.filter((emp) => !attendanceMap.has(emp.id)).length
+  // Initialize counters
+  let present = 0
+  let absent = 0
+  let late = 0
+  let onLeave = 0
+
+  // Check each employee's attendance status
+  employees.value.forEach((employee) => {
+    const record = attendanceMap.get(employee.employee_id)
+
+    if (record) {
+      // Employee has an attendance record for this date
+      switch (record.status) {
+        case 'Present':
+        case 'Present + OT':
+          present++
+          break
+        case 'Late':
+        case 'Late + OT':
+          late++
+          break
+        case 'On Leave':
+          onLeave++
+          break
+        default:
+          absent++
+      }
+    } else {
+      // No attendance record means absent
+      absent++
+    }
+  })
 
   return {
-    present: recordsForDate.filter((r) => r.status === 'Present').length,
-    absent: absentCount, // Use the calculated absent count
-    late: recordsForDate.filter((r) => r.status === 'Late').length,
-    onLeave: recordsForDate.filter((r) => r.status === 'On Leave').length,
+    present,
+    absent,
+    late,
+    onLeave,
   }
 })
 
 // Chart data based on filtered stats
-const filteredChartData = computed(() => ({
-  labels: ['Present', 'Absent', 'Late', 'On Leave'],
-  datasets: [
-    {
-      data: [
-        filteredStats.value.present,
-        filteredStats.value.absent,
-        filteredStats.value.late,
-        filteredStats.value.onLeave,
-      ],
-      backgroundColor: ['#466114', '#ef4444', '#F87A14', '#866135'],
-      borderColor: '#ffffff',
-      borderWidth: 2,
-      hoverOffset: 4,
-    },
-  ],
-}))
+const filteredChartData = computed(() => {
+  const total = employees.value?.length || 0
+  const stats = filteredStats.value
+
+  // Calculate percentages
+  const getPercentage = (value) => {
+    return total > 0 ? Math.round((value / total) * 100) : 0
+  }
+
+  return {
+    labels: ['Present', 'Absent', 'Late', 'On Leave'],
+    datasets: [
+      {
+        data: [
+          getPercentage(stats.present),
+          getPercentage(stats.absent),
+          getPercentage(stats.late),
+          getPercentage(stats.onLeave),
+        ],
+        backgroundColor: ['#466114', '#ef4444', '#F87A14', '#866135'],
+        borderColor: '#ffffff',
+        borderWidth: 2,
+        hoverOffset: 4,
+      },
+    ],
+  }
+})
 
 // Format date for display
 const formattedDate = computed(() => {
@@ -144,8 +187,8 @@ const chartOptions = ref({
       callbacks: {
         label: function (context) {
           const label = context.label || ''
-          const value = context.formattedValue
-          return `${label}: ${value}%`
+          const value = context.raw || 0 // Use raw value instead of formatted
+          return `${label}: ${value}% (${filteredStats.value[label.toLowerCase()]} employees)`
         },
       },
     },
@@ -300,7 +343,7 @@ onMounted(() => {
           class="todo w-[28%] glass flex flex-col rounded-md shadow-md border border-black bg-white"
         >
           <div
-            class="todo-content flex flex-col justify-center items-center max-h-[400px] overflow-y-auto mt-5"
+            class="todo-content flex flex-col justify-center items-center max-h-[400px] overflow-y-auto mt-5 text-sm"
           >
             <div class="todo-input w-[80%]">
               <input

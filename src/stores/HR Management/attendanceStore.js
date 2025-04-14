@@ -205,49 +205,33 @@ export const useAttendanceStore = defineStore('attendance', () => {
   })
 
   // Actions
-  async function addRecord(record) {
+  const addRecord = async (attendanceData) => {
     try {
-      console.log('Record received:', record)
+      // Generate a new ID for the record
+      const newId = generateId()
 
-      if (!record.employeeId || !record.name) {
-        throw new Error('Employee information is required')
-      }
-
-      // Check for duplicate attendance
-      const existingRecord = attendanceRecords.value.find(
-        (att) =>
-          att.employeeId === record.employeeId &&
-          new Date(att.date).toISOString().split('T')[0] ===
-            new Date(record.date).toISOString().split('T')[0],
-      )
-
-      if (existingRecord) {
-        throw new Error('Attendance record already exists for this employee on this date')
-      }
-
-      const status = determineStatus(record.signIn)
-      const workingHours = calculateHours(record.signIn, record.signOut)
-
+      // Create the new record with all required fields
       const newRecord = {
-        id: generateId(),
-        employeeId: record.employeeId,
-        name: record.name,
-        department: record.department,
-        date: new Date(record.date),
-        signIn: record.signIn,
-        signOut: record.signOut,
-        workingHours: workingHours,
-        status: status,
-        createdAt: new Date(),
+        id: newId,
+        full_name: attendanceData.full_name,
+        employee_id: attendanceData.employee_id,
+        department: attendanceData.department,
+        date: new Date(attendanceData.date),
+        signIn: attendanceData.signIn || '-',
+        signOut: attendanceData.signOut || '-',
+        workingHours: calculateHours(attendanceData.signIn, attendanceData.signOut) || '-',
+        status: determineStatus(attendanceData.signIn),
       }
 
-      console.log('New record to be added:', newRecord)
+      // Update the local state
+      attendanceRecords.value = [...attendanceRecords.value, newRecord]
 
-      attendanceRecords.value.push(newRecord)
+      // Save to localStorage
       saveToLocalStorage()
+
       return newRecord
     } catch (error) {
-      console.error('Failed to add record:', error)
+      console.error('Error adding attendance record:', error)
       throw error
     }
   }
@@ -359,6 +343,9 @@ export const useAttendanceStore = defineStore('attendance', () => {
       department: '',
       employeeId: '',
     }
+    // Also clear the computed values by forcing them to recalculate
+    getAttendanceReport.value = []
+    reportSummary.value = null
   }
 
   return {

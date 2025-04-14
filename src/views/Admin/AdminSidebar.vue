@@ -4,8 +4,6 @@ import CRMManagement from './CRMManagement.vue'
 import FinancialManagement from './FinancialManagement.vue'
 import InventoryManagement from './InventoryManagement.vue'
 import SalesManagement from './SalesManagement.vue'
-import UserManagement from '../Users Management/UserManagement.vue'
-import UserRolesManagement from '../Users Management/UserRolesManagement.vue'
 
 //this is sub menu for hr management
 import { ref, defineAsyncComponent, onMounted } from 'vue'

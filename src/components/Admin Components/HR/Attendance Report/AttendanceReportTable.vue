@@ -25,6 +25,14 @@ const columns = [
     field: 'date',
     sorter: 'string',
     headerSort: true,
+    formatter: (cell) => {
+      const date = new Date(cell.getValue())
+      return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      })
+    },
   },
   {
     title: 'Time In',
@@ -37,47 +45,29 @@ const columns = [
     formatter: (cell) => cell.getValue() || '-',
   },
   {
-    title: 'Worked Hours',
+    title: 'Working Hours',
     field: 'workingHours',
     formatter: (cell) => {
       const value = cell.getValue()
-      return typeof value === 'number' ? parseFloat(value).toFixed(2) : '-'
+      // This will handle the format "8h 30m + 2h 15m OT"
+      return value || '-'
     },
-  },
-  {
-    title: 'Overtime',
-    field: 'signOut',
-    formatter: (cell) => {
-      const signOut = cell.getValue()
-      const overtimeHours = calculateOvertime(signOut)
-      if (overtimeHours > 0) {
-        return `<span class="px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800">
-          ${overtimeHours}h
-        </span>`
-      }
-      return '-'
-    },
-    headerSort: false,
   },
   {
     title: 'Status',
     field: 'status',
     formatter: function (cell) {
       const status = cell.getValue()
-      const record = cell.getRow().getData()
-      const overtimeHours = calculateOvertime(record.signOut)
-
-      const baseStatus = status.split(' + ')[0] // Get base status without OT
       const statusClasses = {
         Present: 'bg-green-100 text-green-800',
+        'Present + OT': 'bg-green-100 text-green-800',
         Absent: 'bg-red-100 text-red-800',
         Late: 'bg-yellow-100 text-yellow-800',
+        'Late + OT': 'bg-yellow-100 text-yellow-800',
         'On Leave': 'bg-blue-100 text-blue-800',
       }
 
-      let displayStatus = `<span class="px-2 py-1 text-xs font-medium rounded-full ${statusClasses[baseStatus]}">${baseStatus}</span>`
-
-      return displayStatus
+      return `<span class="px-2 py-1 text-xs font-medium rounded-full ${statusClasses[status]}">${status}</span>`
     },
     headerSort: true,
   },
@@ -132,7 +122,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="bg-white shadow-md rounded-md p-5">
-    <div class="flex gap-4 flex-col">
+    <div class="flex gap-4 flex-col shadow-lg">
       <div class="flex justify-between items-center">
         <h1 class="font-semibold">Attendance Summary</h1>
         <button

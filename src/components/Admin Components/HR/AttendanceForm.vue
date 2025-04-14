@@ -12,7 +12,6 @@ const props = defineProps({
   },
 })
 
-
 const emit = defineEmits(['submit', 'showConfirm'])
 
 const { newAttendance, formErrors, validateForm, resetForm } = useAttendanceForm()
@@ -30,12 +29,20 @@ const departmentMap = {
   'CRM Department': 'CRM Department',
 }
 
-// Updated filteredEmployees computed
+// Updated filteredEmployees computed property
 const filteredEmployees = computed(() => {
   if (!newAttendance.value.department) return []
 
   console.log('Selected Department:', newAttendance.value.department)
-  return employees.value.filter((emp) => emp.department === newAttendance.value.department)
+  console.log('All Employees:', employees.value) // Debug log
+
+  return employees.value.filter((emp) => {
+    const matchesDepartment = emp.department === newAttendance.value.department
+    console.log(
+      `Employee ${emp.full_name}: Department ${emp.department} matches ${newAttendance.value.department}? ${matchesDepartment}`,
+    )
+    return matchesDepartment
+  })
 })
 
 // Watch for department changes to reset selected employee
@@ -50,8 +57,16 @@ const isLoading = ref(false)
 const hasAvailableEmployees = computed(() => filteredEmployees.value.length > 0)
 
 // Load employees when component mounts
-onMounted(() => {
-  employeeStore.loadEmployees()
+onMounted(async () => {
+  isLoading.value = true
+  try {
+    await employeeStore.loadEmployees()
+    console.log('Loaded employees:', employees.value) // Debug log
+  } catch (error) {
+    console.error('Error loading employees:', error)
+  } finally {
+    isLoading.value = false
+  }
 })
 
 const handleSubmit = () => {
@@ -63,29 +78,26 @@ const handleSubmit = () => {
   if (validateForm()) {
     // Find the selected employee from filteredEmployees
     const selectedEmployee = filteredEmployees.value.find(
-      (emp) => emp.fullName === newAttendance.value.employeeName,
+      (emp) => emp.full_name === newAttendance.value.employeeName,
     )
 
     if (!selectedEmployee) {
-      formErrors.value.employeeName = 'Please select an employee'
+      formErrors.value.employeeName = 'Selected employee does not exist'
       return
     }
 
-    // Important: Pass the complete data including employeeId
+    // Important: Pass the complete data including employee_id
     const attendanceData = {
-      employeeName: selectedEmployee.fullName,
-      employeeId: selectedEmployee.id,
+      employeeName: selectedEmployee.full_name,
+      employeeId: selectedEmployee.employee_id,
       department: newAttendance.value.department,
       date: newAttendance.value.date,
       signIn: newAttendance.value.signIn,
       signOut: newAttendance.value.signOut,
+      status: calculateStatus(newAttendance.value.signIn),
     }
 
-    console.log('Form submitting:', attendanceData) // Debug log
-    emit('show-confirm', attendanceData)
-
-    // Reset the form after successful submission
-    resetForm()
+    emit('showConfirm', attendanceData)
   }
 }
 
@@ -147,15 +159,27 @@ const { calculateHours } = useAttendanceLogic() // Import if you need to calcula
                 'border-red-500': formErrors.employeeName,
                 'border-gray-200': !formErrors.employeeName,
               }"
-              :disabled="!newAttendance.department"
+              :disabled="!newAttendance.department || isLoading"
             >
-              <option value="" disabled selected>Select Employee</option>
-              <option v-for="emp in filteredEmployees" :key="emp.id" :value="emp.fullName">
-                {{ emp.fullName }}
+              <option value="" disabled selected>
+                {{ isLoading ? 'Loading employees...' : 'Select Employee' }}
+              </option>
+              <option
+                v-for="emp in filteredEmployees"
+                :key="emp.employee_id"
+                :value="emp.full_name"
+              >
+                {{ emp.full_name }}
               </option>
             </select>
             <span v-if="formErrors.employeeName" class="text-red-500 text-xs mt-1">
               {{ formErrors.employeeName }}
+            </span>
+            <span
+              v-if="newAttendance.department && !hasAvailableEmployees && !isLoading"
+              class="text-yellow-600 text-xs mt-1"
+            >
+              No employees found in this department
             </span>
           </div>
 

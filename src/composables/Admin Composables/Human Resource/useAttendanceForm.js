@@ -38,9 +38,8 @@ export function useAttendanceForm() {
       formErrors.value.employeeName = 'Employee is required'
       isValid = false
     } else {
-      // Validate that the employee exists
       const employeeExists = employees.value.some(
-        (emp) => emp.fullName === newAttendance.value.employeeName,
+        (emp) => emp.full_name === newAttendance.value.employeeName,
       )
       if (!employeeExists) {
         formErrors.value.employeeName = 'Selected employee does not exist'

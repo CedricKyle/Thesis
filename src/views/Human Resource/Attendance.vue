@@ -18,7 +18,7 @@ const { addRecord, deleteRecord, loadRecords } = attendanceStore
 
 // Form and logic setup
 const { newAttendance, departments, resetForm } = useAttendanceForm(attendanceRecords)
-const { formatDate } = useAttendanceLogic()
+const { formatDate, calculateHours, determineStatus } = useAttendanceLogic()
 
 // State management
 const state = ref({
@@ -130,33 +130,35 @@ const filteredRecords = computed(() => {
 
   const dateRecords = new Map(
     attendanceRecords.value
-      .filter(record => {
+      .filter((record) => {
         const recordDate = new Date(record.date).toISOString().split('T')[0]
         return recordDate === state.value.selectedDate
       })
-      .map(record => [record.employeeId, record])
+      .map((record) => [record.employee_id, record]),
   )
 
-  let records = employees.value.map(employee => (
-    dateRecords.get(employee.id) || {
-      id: `absent-${employee.id}`,
-      employeeId: employee.id,
-      name: employee.fullName,
-      department: employee.department,
-      date: new Date(state.value.selectedDate),
-      signIn: '-',
-      signOut: '-',
-      workingHours: '-',
-      status: 'Absent',
-      createdAt: new Date(),
-    }
-  ))
+  let records = employees.value.map(
+    (employee) =>
+      dateRecords.get(employee.employee_id) || {
+        id: `absent-${employee.employee_id}`,
+        employee_id: employee.employee_id,
+        full_name: employee.full_name,
+        department: employee.department,
+        date: new Date(state.value.selectedDate),
+        signIn: '-',
+        signOut: '-',
+        workingHours: '-',
+        status: 'Absent',
+        createdAt: new Date(),
+      },
+  )
 
   if (state.value.searchQuery) {
     const query = state.value.searchQuery.toLowerCase()
-    records = records.filter(record =>
-      record.name.toLowerCase().includes(query) ||
-      record.department.toLowerCase().includes(query)
+    records = records.filter(
+      (record) =>
+        record.full_name.toLowerCase().includes(query) ||
+        record.department.toLowerCase().includes(query),
     )
   }
 
@@ -164,9 +166,10 @@ const filteredRecords = computed(() => {
   const sortMultiplier = state.value.sortDesc ? -1 : 1
 
   return records.sort((a, b) => {
-    const compareValue = (sortField === 'name' || sortField === 'department') 
-      ? a[sortField].localeCompare(b[sortField])
-      : 0
+    const compareValue =
+      sortField === 'full_name' || sortField === 'department'
+        ? a[sortField].localeCompare(b[sortField])
+        : 0
     return compareValue * sortMultiplier
   })
 })
@@ -177,8 +180,62 @@ const paginatedRecords = computed(() => {
 })
 
 const totalPages = computed(() =>
-  Math.ceil(filteredRecords.value.length / state.value.itemsPerPage)
+  Math.ceil(filteredRecords.value.length / state.value.itemsPerPage),
 )
+
+const handleAttendanceSubmit = async (attendanceData) => {
+  try {
+    console.log('Submitting attendance data:', attendanceData)
+
+    const record = {
+      id: Date.now(),
+      full_name: attendanceData.employeeName,
+      employee_id: attendanceData.employeeId,
+      department: attendanceData.department,
+      date: new Date(attendanceData.date),
+      signIn: attendanceData.signIn || '-',
+      signOut: attendanceData.signOut || '-',
+      workingHours: calculateHours(attendanceData.signIn, attendanceData.signOut),
+      status: determineStatus(attendanceData.signIn),
+    }
+
+    await addRecord(record)
+
+    // Clear the form by resetting newAttendance
+    newAttendance.value = {
+      employeeName: '',
+      employeeId: '',
+      department: '',
+      date: '',
+      signIn: '',
+      signOut: '',
+    }
+
+    // Close the confirmation modal
+    modalState.value.confirm = false
+
+    // Show success message
+    showToast('Attendance added successfully')
+
+    // Refresh the records
+    await loadRecords()
+  } catch (error) {
+    console.error('Error saving attendance:', error)
+    showToast('Failed to add attendance', 'error')
+  }
+}
+
+// Function to fetch updated records
+const fetchAttendanceRecords = async () => {
+  try {
+    // Update your attendance records state here
+    // This will automatically update the table due to reactivity
+    await loadRecords()
+  } catch (error) {
+    console.error('Error fetching attendance records:', error)
+    // Handle error
+  }
+}
 </script>
 
 <template>
@@ -204,17 +261,18 @@ const totalPages = computed(() =>
 
           <label class="input-search input-sm">
             <svg class="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-              <g stroke-linejoin="round" stroke-linecap="round" stroke-width="2.5" fill="none" stroke="currentColor">
+              <g
+                stroke-linejoin="round"
+                stroke-linecap="round"
+                stroke-width="2.5"
+                fill="none"
+                stroke="currentColor"
+              >
                 <circle cx="11" cy="11" r="8" />
                 <path d="m21 21-4.3-4.3" />
               </g>
             </svg>
-            <input
-              v-model="state.searchQuery"
-              type="search"
-              required
-              placeholder="Search"
-            />
+            <input v-model="state.searchQuery" type="search" required placeholder="Search" />
           </label>
         </div>
 
@@ -231,7 +289,11 @@ const totalPages = computed(() =>
       <!-- Add Attendance Tab -->
       <input type="radio" name="my_tabs_2" class="tab" aria-label="Add Attendance" />
       <div class="tab-content bg-white p-10 min-h-[600px]">
-        <AttendanceForm :departments="departments" @show-confirm="handleFormSubmit" />
+        <AttendanceForm
+          :departments="departments"
+          @showConfirm="handleFormSubmit"
+          @submit="handleAttendanceSubmit"
+        />
       </div>
     </div>
 
@@ -239,24 +301,30 @@ const totalPages = computed(() =>
     <dialog :open="modalState.view" class="modal">
       <div class="modal-box bg-white text-black">
         <h3 class="font-bold text-lg">Attendance Details</h3>
-        <div class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]" />
-        
-        <div v-if="modalState.selectedRecord" class="pt-4 flex flex-col gap-2 text-sm">
-          <template v-for="(value, key) in {
-            Employee: modalState.selectedRecord.name,
-            Date: formatDate(modalState.selectedRecord.date),
-            'Sign In': modalState.selectedRecord.signIn,
-            'Sign Out': modalState.selectedRecord.signOut,
-            Department: modalState.selectedRecord.department,
-            Status: modalState.selectedRecord.status
-          }" :key="key">
+        <div
+          class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
+        />
+
+        <div v-if="modalState.selectedRecord">
+          <template
+            v-for="(value, key) in {
+              Employee: modalState.selectedRecord.full_name,
+              Date: formatDate(modalState.selectedRecord.date),
+              'Sign In': modalState.selectedRecord.signIn,
+              'Sign Out': modalState.selectedRecord.signOut,
+              Department: modalState.selectedRecord.department,
+              Status: modalState.selectedRecord.status,
+              'Working Hours': modalState.selectedRecord.workingHours,
+            }"
+            :key="key"
+          >
             <div class="flex flex-row">
               <div class="w-40 text-gray-500">{{ key }}</div>
               <div>{{ value }}</div>
             </div>
           </template>
         </div>
-        
+
         <div class="modal-action">
           <button class="btn-secondaryStyle" @click="modalState.view = false">Close</button>
         </div>
@@ -279,19 +347,26 @@ const totalPages = computed(() =>
     <dialog :open="modalState.confirm" class="modal">
       <div class="modal-box bg-white text-black">
         <h3 class="font-bold text-lg">Confirm Attendance</h3>
-        <div class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]" />
-        
+        <div
+          class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
+        />
+
         <div class="pt-4 flex flex-col gap-2">
-          <template v-for="(key, index) in ['employeeName', 'department', 'date', 'signIn', 'signOut']" :key="index">
+          <template
+            v-for="(key, index) in ['employeeName', 'department', 'date', 'signIn', 'signOut']"
+            :key="index"
+          >
             <div class="flex flex-row">
               <div class="w-40 text-gray-500">{{ key.charAt(0).toUpperCase() + key.slice(1) }}</div>
               <div>{{ newAttendance?.[key] || '-' }}</div>
             </div>
           </template>
         </div>
-        
+
         <div class="modal-action">
-          <button @click="confirmAndSave" class="btn-primaryStyle">Confirm</button>
+          <button @click="handleAttendanceSubmit(newAttendance)" class="btn-primaryStyle">
+            Confirm
+          </button>
           <button class="btn-secondaryStyle" @click="modalState.confirm = false">Cancel</button>
         </div>
       </div>

@@ -4,6 +4,10 @@ import { useRouter, useRoute } from 'vue-router'
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import Toast from '@/components/Admin Components/HR/Toast.vue'
+import {
+  PERMISSION_IDS,
+  permissionGroups,
+} from '@/composables/Admin Composables/User & Role/role/permissionsId'
 
 const router = useRouter()
 const route = useRoute()
@@ -32,128 +36,47 @@ const showToast = ref(false)
 const toastMessage = ref('')
 const toastType = ref('success')
 
-// Define permissions structure
-const permissionGroups = ref([
-  {
-    name: 'Roles and Permissions',
-    permissions: [
-      { id: 1, name: 'Role List' },
-      { id: 2, name: 'Create' },
-      { id: 3, name: 'Edit' },
-      { id: 4, name: 'Delete' },
-    ],
-  },
-  {
-    name: 'User Management',
-    permissions: [
-      { id: 5, name: 'User List' },
-      { id: 6, name: 'View' },
-      { id: 7, name: 'Create' },
-      { id: 8, name: 'Edit' },
-      { id: 9, name: 'Delete' },
-    ],
-  },
-  {
-    name: 'HR Dashboard',
-    permissions: [
-      { id: 10, name: 'View Dashboard' },
-      { id: 11, name: 'Manage Dashboard' },
-    ],
-  },
-  {
-    name: 'Attendance Report',
-    permissions: [
-      { id: 12, name: 'View' },
-      { id: 13, name: 'Create' },
-      { id: 14, name: 'Edit' },
-      { id: 15, name: 'Delete' },
-    ],
-  },
-  {
-    name: 'Employee Management',
-    permissions: [
-      { id: 16, name: 'View' },
-      { id: 17, name: 'Create' },
-      { id: 18, name: 'Edit' },
-      { id: 19, name: 'Delete' },
-    ],
-  },
-  {
-    name: 'Attendance Management',
-    permissions: [
-      { id: 20, name: 'View' },
-      { id: 21, name: 'Create' },
-      { id: 22, name: 'Edit' },
-      { id: 23, name: 'Delete' },
-    ],
-  },
-  {
-    name: 'Inventory Management',
-    permissions: [
-      { id: 24, name: 'Product List' },
-      { id: 25, name: 'View' },
-      { id: 26, name: 'Create' },
-      { id: 27, name: 'Edit' },
-      { id: 28, name: 'Delete' },
-    ],
-  },
-  {
-    name: 'Sales Management',
-    permissions: [
-      { id: 29, name: 'Order List' },
-      { id: 30, name: 'View' },
-      { id: 31, name: 'Create' },
-      { id: 32, name: 'Edit' },
-      { id: 33, name: 'Delete' },
-    ],
-  },
-  {
-    name: 'CRM Management',
-    permissions: [
-      { id: 34, name: 'Customer List' },
-      { id: 35, name: 'View' },
-      { id: 36, name: 'Create' },
-      { id: 37, name: 'Edit' },
-      { id: 38, name: 'Delete' },
-    ],
-  },
-  {
-    name: 'Finance Management',
-    permissions: [
-      { id: 39, name: 'Invoice List' },
-      { id: 40, name: 'View' },
-      { id: 41, name: 'Create' },
-      { id: 42, name: 'Edit' },
-      { id: 43, name: 'Delete' },
-    ],
-  },
-])
+// Replace the existing permissionGroups ref with the imported one
+const permissionGroupsRef = ref(permissionGroups)
 
 // Add these after your existing refs
 const groupSelectState = ref({})
 
 // Initialize group select state
 onMounted(() => {
-  permissionGroups.value.forEach((group) => {
+  permissionGroupsRef.value.forEach((group) => {
     groupSelectState.value[group.name] = false
   })
 })
 
-// Fetch role data on mount
+// Update the fetch role data function
 onMounted(async () => {
   try {
     const roleId = route.params.id
+    console.log('Fetching role with ID:', roleId)
+
     const roleData = await rolesStore.getRoleById(roleId)
+    console.log('Fetched role data:', roleData)
 
     formData.value = {
       roleName: roleData.role_name,
       description: roleData.description || '',
     }
     selectedPermissions.value = roleData.permissions || []
+
+    // Update group select states based on loaded permissions
+    permissionGroupsRef.value.forEach((group) => {
+      groupSelectState.value[group.name] = isGroupFullySelected(group.name)
+    })
   } catch (error) {
+    console.error('Error loading role:', error)
     toastType.value = 'error'
-    toastMessage.value = error.message || 'Error loading role data. Please try again.'
+    toastMessage.value = 'Error loading role data. Please try again.'
     showToast.value = true
+
+    setTimeout(() => {
+      router.push('/hr/roles')
+    }, 3000)
   }
 })
 
@@ -249,45 +172,40 @@ const cancelSave = () => {
   confirmModal.value?.close()
 }
 
-// Add these new functions
+// Update the toggleGroupPermissions function
 const toggleGroupPermissions = (groupName) => {
-  const group = permissionGroups.value.find((g) => g.name === groupName)
+  const group = permissionGroupsRef.value.find((g) => g.name === groupName)
   if (!group) return
 
-  // Toggle the group state
   groupSelectState.value[groupName] = !groupSelectState.value[groupName]
-
-  // Get all permission IDs for this group
   const groupPermissionIds = group.permissions.map((p) => p.id)
 
   if (groupSelectState.value[groupName]) {
-    // Add all permissions from this group that aren't already selected
     groupPermissionIds.forEach((id) => {
       if (!selectedPermissions.value.includes(id)) {
         selectedPermissions.value.push(id)
       }
     })
   } else {
-    // Remove all permissions from this group
     selectedPermissions.value = selectedPermissions.value.filter(
       (id) => !groupPermissionIds.includes(id),
     )
   }
 }
 
-// Add this computed property
+// Update the isGroupFullySelected function
 const isGroupFullySelected = (groupName) => {
-  const group = permissionGroups.value.find((g) => g.name === groupName)
+  const group = permissionGroupsRef.value.find((g) => g.name === groupName)
   if (!group) return false
 
   return group.permissions.every((permission) => selectedPermissions.value.includes(permission.id))
 }
 
-// Add this watch effect to update group select states
+// Update the watch effect
 watch(
   selectedPermissions,
   () => {
-    permissionGroups.value.forEach((group) => {
+    permissionGroupsRef.value.forEach((group) => {
       groupSelectState.value[group.name] = isGroupFullySelected(group.name)
     })
   },
@@ -349,7 +267,7 @@ watch(
           <div class="form-control flex gap-2 items-center">
             <div class="w-30">
               <label class="label">
-                <span class="label-text text-gray-500">Role Name</span>
+                <span class="label-text text-gray-500 text-sm">Role Name</span>
               </label>
             </div>
             <div class="w-full">
@@ -360,7 +278,7 @@ watch(
                 :class="{ 'input-error': formErrors.roleName }"
               />
               <label class="label" v-if="formErrors.roleName">
-                <span class="label-text-alt text-error">{{ formErrors.roleName }}</span>
+                <span class="label-text-alt text-error text-xs">{{ formErrors.roleName }}</span>
               </label>
             </div>
           </div>
@@ -368,7 +286,7 @@ watch(
           <div class="form-control flex gap-2 items-center">
             <div class="w-30">
               <label class="label">
-                <span class="label-text text-gray-500">Description</span>
+                <span class="label-text text-gray-500 text-sm">Description</span>
               </label>
             </div>
             <div class="w-full">
@@ -378,7 +296,7 @@ watch(
                 :class="{ 'textarea-error': formErrors.description }"
               ></textarea>
               <label class="label" v-if="formErrors.description">
-                <span class="label-text-alt text-error">{{ formErrors.description }}</span>
+                <span class="label-text-alt text-error text-xs">{{ formErrors.description }}</span>
               </label>
             </div>
           </div>
@@ -389,9 +307,8 @@ watch(
       <div v-if="step === 2" class="mt-5 border border-gray-200 rounded-md p-5 bg-white shadow-sm">
         <div class="font-semibold mb-4">Permissions</div>
         <div class="grid gap-6">
-          <div v-for="group in permissionGroups" :key="group.name" class="">
+          <div v-for="group in permissionGroupsRef" :key="group.name" class="">
             <div class="flex items-center gap-2 mb-3">
-              <!-- Add select all checkbox -->
               <label
                 class="label cursor-pointer border border-gray-200 rounded-md p-2 bg-gray-50 justify-between w-full items-center mb-3"
               >
@@ -454,7 +371,7 @@ watch(
           <div class="mb-4">
             <h4 class="font-semibold mb-2">Selected Permissions</h4>
             <div class="bg-gray-50 p-4 rounded-md">
-              <div v-for="group in permissionGroups" :key="group.name" class="mb-3">
+              <div v-for="group in permissionGroupsRef" :key="group.name" class="mb-3">
                 <h5 class="font-medium text-sm mb-2">{{ group.name }}</h5>
                 <div class="grid grid-cols-2 gap-2">
                   <div
