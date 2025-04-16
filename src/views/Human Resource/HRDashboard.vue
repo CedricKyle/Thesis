@@ -33,7 +33,7 @@ const { employees } = storeToRefs(employeeStore)
 // Filtered stats based on selected date
 const filteredStats = computed(() => {
   if (!attendanceRecords.value || !employees.value) {
-    return { present: 0, absent: 0, late: 0, onLeave: 0 }
+    return { present: 0, absent: 0, late: 0 }
   }
 
   const dateToCheck = new Date(selectedDate.value)
@@ -51,7 +51,6 @@ const filteredStats = computed(() => {
   let present = 0
   let absent = 0
   let late = 0
-  let onLeave = 0
 
   // Check each employee's attendance status
   employees.value.forEach((employee) => {
@@ -68,9 +67,6 @@ const filteredStats = computed(() => {
         case 'Late + OT':
           late++
           break
-        case 'On Leave':
-          onLeave++
-          break
         default:
           absent++
       }
@@ -84,7 +80,6 @@ const filteredStats = computed(() => {
     present,
     absent,
     late,
-    onLeave,
   }
 })
 
@@ -99,16 +94,15 @@ const filteredChartData = computed(() => {
   }
 
   return {
-    labels: ['Present', 'Absent', 'Late', 'On Leave'],
+    labels: ['Present', 'Absent', 'Late'],
     datasets: [
       {
         data: [
           getPercentage(stats.present),
           getPercentage(stats.absent),
           getPercentage(stats.late),
-          getPercentage(stats.onLeave),
         ],
-        backgroundColor: ['#466114', '#ef4444', '#F87A14', '#866135'],
+        backgroundColor: ['#466114', '#ef4444', '#F87A14'],
         borderColor: '#ffffff',
         borderWidth: 2,
         hoverOffset: 4,
@@ -223,111 +217,137 @@ onMounted(() => {
       </div>
     </div>
 
-    <div class="flex flex-col w-full gap-7">
-      <div class="card-container flex flex-row w-full text-black justify-between gap-3">
-        <div class="card bg-white w-70 shadow-md">
-          <div class="card-body">
-            <!--Card Content-->
-            <div class="card-header flex flex-row gap-2 justify-between">
-              <div class="">
-                <h1 class="text-gray-600">Present</h1>
+    <div class="grid grid-cols-4 grid-rows-[auto_auto_auto_auto] gap-4 text-black">
+      <!--Stats Grid-->
+      <div class="col-span-3 flex gap-4 justify-between">
+        <div class="">
+          <div class="card bg-white w-65 shadow-md">
+            <div class="card-body">
+              <!--Card Content-->
+              <div class="card-header flex flex-row gap-2 justify-between">
+                <div class="">
+                  <h1 class="text-gray-600">Present</h1>
+                </div>
+                <div class="">
+                  <EllipsisVertical class="w-4 h-4" />
+                </div>
               </div>
-              <div class="">
-                <EllipsisVertical class="w-4 h-4" />
+              <div class="card-content mt-4 flex flex-row gap-2 justify-between">
+                <div class="">
+                  <h1 class="text-4xl font-bold">{{ filteredStats.present }}</h1>
+                </div>
+                <div class="">
+                  <UserRoundCheck class="w-9 h-9 text-white rounded-full p-2 bg-[#466114]" />
+                </div>
               </div>
+              <div
+                class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
+              ></div>
             </div>
-            <div class="card-content mt-4 flex flex-row gap-2 justify-between">
-              <div class="">
-                <h1 class="text-4xl font-bold">{{ filteredStats.present }}</h1>
-              </div>
-              <div class="">
-                <UserRoundCheck class="w-9 h-9 text-white rounded-full p-2 bg-[#466114]" />
-              </div>
-            </div>
-            <div
-              class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
-            ></div>
           </div>
         </div>
-
-        <div class="card bg-white w-70 shadow-md">
-          <div class="card-body">
-            <!--Card Content-->
-            <div class="card-header flex flex-row gap-2 justify-between">
-              <div class="">
-                <h1 class="text-gray-600">Absent</h1>
+        <div>
+          <div class="card bg-white w-65 shadow-md">
+            <div class="card-body">
+              <!--Card Content-->
+              <div class="card-header flex flex-row gap-2 justify-between">
+                <div class="">
+                  <h1 class="text-gray-600">Absent</h1>
+                </div>
+                <div class="">
+                  <EllipsisVertical class="w-4 h-4" />
+                </div>
               </div>
-              <div class="">
-                <EllipsisVertical class="w-4 h-4" />
+              <div class="card-content mt-4 flex flex-row gap-2 justify-between">
+                <div class="">
+                  <h1 class="text-4xl font-bold">{{ filteredStats.absent }}</h1>
+                </div>
+                <div class="">
+                  <CircleX class="w-9 h-9 text-white rounded-full p-2 bg-[#ef4444]" />
+                </div>
               </div>
+              <div
+                class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
+              ></div>
             </div>
-            <div class="card-content mt-4 flex flex-row gap-2 justify-between">
-              <div class="">
-                <h1 class="text-4xl font-bold">{{ filteredStats.absent }}</h1>
-              </div>
-              <div class="">
-                <CircleX class="w-9 h-9 text-white rounded-full p-2 bg-[#ef4444]" />
-              </div>
-            </div>
-            <div
-              class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
-            ></div>
           </div>
         </div>
-
-        <div class="card bg-white w-70 shadow-md">
-          <div class="card-body">
-            <!--Card Content-->
-            <div class="card-header flex flex-row gap-2 justify-between">
-              <div class="">
-                <h1 class="text-gray-600">Late</h1>
+        <div>
+          <div class="card bg-white w-65 shadow-md">
+            <div class="card-body">
+              <!--Card Content-->
+              <div class="card-header flex flex-row gap-2 justify-between">
+                <div class="">
+                  <h1 class="text-gray-600">Late</h1>
+                </div>
+                <div class="">
+                  <EllipsisVertical class="w-4 h-4" />
+                </div>
               </div>
-              <div class="">
-                <EllipsisVertical class="w-4 h-4" />
+              <div class="card-content mt-4 flex flex-row gap-2 justify-between">
+                <div class="">
+                  <h1 class="text-4xl font-bold">{{ filteredStats.late }}</h1>
+                </div>
+                <div class="">
+                  <Timer class="w-9 h-9 text-white rounded-full p-2 bg-[#F87A14]" />
+                </div>
               </div>
+              <div
+                class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
+              ></div>
             </div>
-            <div class="card-content mt-4 flex flex-row gap-2 justify-between">
-              <div class="">
-                <h1 class="text-4xl font-bold">{{ filteredStats.late }}</h1>
-              </div>
-              <div class="">
-                <Timer class="w-9 h-9 text-white rounded-full p-2 bg-[#F87A14]" />
-              </div>
-            </div>
-            <div
-              class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
-            ></div>
-          </div>
-        </div>
-
-        <div class="card bg-white w-70 shadow-md">
-          <div class="card-body">
-            <!--Card Content-->
-            <div class="card-header flex flex-row gap-2 justify-between">
-              <div class="">
-                <h1 class="text-gray-600">On Leave</h1>
-              </div>
-              <div class="">
-                <EllipsisVertical class="w-4 h-4" />
-              </div>
-            </div>
-            <div class="card-content mt-4 flex flex-row gap-2 justify-between">
-              <div class="">
-                <h1 class="text-4xl font-bold">{{ filteredStats.onLeave }}</h1>
-              </div>
-              <div class="">
-                <Footprints class="w-9 h-9 text-white rounded-full p-2 bg-[#866135]" />
-              </div>
-            </div>
-            <div
-              class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
-            ></div>
           </div>
         </div>
       </div>
 
-      <div class="chart-todo-container flex w-full justify-between min-h-[500px]">
-        <div class="chart w-[70%] bg-white shadow-md rounded-md p-6">
+      <!--Todo Grid-->
+      <div class="row-span-2 col-start-4">
+        <div class="chart-todo-container flex w-full justify-between h-full">
+          <!--todo list container-->
+          <div class="todo glass flex flex-col rounded-md shadow-md border border-black bg-white">
+            <div
+              class="todo-content flex flex-col justify-center items-center max-h-[600px] overflow-y-auto mt-5 text-sm"
+            >
+              <div class="todo-input w-[80%]">
+                <input
+                  v-model="newTask"
+                  @keyup.enter="addTask"
+                  type="text"
+                  placeholder="Add a new todo"
+                  class="w-full border-1 rounded-md text-black border-gray-300 focus:outline-none p-2 placeholder:text-gray-500"
+                />
+              </div>
+              <div class="todo-list w-[80%] flex flex-col overflow-y-auto">
+                <ul class="mt-5">
+                  <li
+                    v-for="(task, index) in todoList"
+                    :key="task.id"
+                    class="flex flex-row gap-2 items-center justify-between mb-2 border-b border-gray-300 pb-2"
+                  >
+                    <div class="flex flex-row gap-2 items-center">
+                      <input
+                        type="checkbox"
+                        :checked="task.completed"
+                        @change="toggleTask(index)"
+                        class="checkbox checkbox-xs checkbox-neutral"
+                      />
+                      <span :class="{ 'line-through': task.completed }" class="text-black">
+                        {{ task.text }}
+                      </span>
+                    </div>
+                    <div class="">
+                      <X class="w-4 h-4 text-black cursor-pointer" @click="removeTask(index)" />
+                    </div>
+                  </li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <!--Chart Grid-->
+      <div class="col-span-3 row-start-2">
+        <div class="chart bg-white shadow-md rounded-md p-6">
           <div class="flex justify-between items-center mb-4">
             <h2 class="text-lg font-semibold text-gray-700">
               Attendance Statistics for {{ formattedDate }}
@@ -335,49 +355,6 @@ onMounted(() => {
           </div>
           <div class="h-[400px]">
             <Pie :data="filteredChartData" :options="chartOptions" />
-          </div>
-        </div>
-
-        <!--todo list container-->
-        <div
-          class="todo w-[28%] glass flex flex-col rounded-md shadow-md border border-black bg-white"
-        >
-          <div
-            class="todo-content flex flex-col justify-center items-center max-h-[400px] overflow-y-auto mt-5 text-sm"
-          >
-            <div class="todo-input w-[80%]">
-              <input
-                v-model="newTask"
-                @keyup.enter="addTask"
-                type="text"
-                placeholder="Add a new todo"
-                class="w-full border-1 rounded-md text-black border-gray-300 focus:outline-none p-2 placeholder:text-gray-500"
-              />
-            </div>
-            <div class="todo-list w-[80%] flex flex-col overflow-y-auto">
-              <ul class="mt-5">
-                <li
-                  v-for="(task, index) in todoList"
-                  :key="task.id"
-                  class="flex flex-row gap-2 items-center justify-between mb-2 border-b border-gray-300 pb-2"
-                >
-                  <div class="flex flex-row gap-2 items-center">
-                    <input
-                      type="checkbox"
-                      :checked="task.completed"
-                      @change="toggleTask(index)"
-                      class="checkbox checkbox-xs checkbox-neutral"
-                    />
-                    <span :class="{ 'line-through': task.completed }" class="text-black">
-                      {{ task.text }}
-                    </span>
-                  </div>
-                  <div class="">
-                    <X class="w-4 h-4 text-black cursor-pointer" @click="removeTask(index)" />
-                  </div>
-                </li>
-              </ul>
-            </div>
           </div>
         </div>
       </div>

@@ -77,7 +77,7 @@ defineExpose({
 </script>
 
 <template>
-  <div class="w-full bg-white shadow-md rounded-md">
+  <div class="w-full bg-white shadow-md">
     <!-- Table Header -->
     <div v-if="title || showExport" class="flex justify-between items-center p-4 border-b">
       <h2 v-if="title" class="text-xl font-semibold text-black">{{ title }}</h2>
