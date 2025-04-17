@@ -129,7 +129,9 @@ const { calculateHours } = useAttendanceLogic() // Import if you need to calcula
         <fieldset class="fieldset">
           <!-- Department -->
           <div class="form-control">
-            <legend class="fieldset-legend text-black !m-0 !text-xs">Department</legend>
+            <legend class="fieldset-legend text-black !m-0 !text-xs justify-start">
+              Department <span class="text-red-500">*</span>
+            </legend>
             <select
               v-model="newAttendance.department"
               class="select focus:outline-none bg-white border text-black input-sm"
@@ -151,7 +153,9 @@ const { calculateHours } = useAttendanceLogic() // Import if you need to calcula
           </div>
           <!-- Employee name -->
           <div class="form-control">
-            <legend class="fieldset-legend text-black !m-0 !text-xs">Employee</legend>
+            <legend class="fieldset-legend text-black !m-0 !text-xs justify-start">
+              Employee <span class="text-red-500">*</span>
+            </legend>
             <select
               v-model="newAttendance.employeeName"
               class="select focus:outline-none bg-white border text-black input-sm"
@@ -185,7 +189,9 @@ const { calculateHours } = useAttendanceLogic() // Import if you need to calcula
 
           <!-- Sign In -->
           <div class="form-control">
-            <legend class="fieldset-legend text-black !m-0 !text-xs">Time In</legend>
+            <legend class="fieldset-legend text-black !m-0 !text-xs justify-start">
+              Time In <span class="text-red-500">*</span>
+            </legend>
             <input
               v-model="newAttendance.signIn"
               type="time"
@@ -202,7 +208,9 @@ const { calculateHours } = useAttendanceLogic() // Import if you need to calcula
 
           <!-- Sign Out -->
           <div class="form-control">
-            <legend class="fieldset-legend text-black !m-0 !text-xs">Time Out</legend>
+            <legend class="fieldset-legend text-black !m-0 !text-xs justify-start">
+              Time Out <span class="text-red-500">*</span>
+            </legend>
             <input
               v-model="newAttendance.signOut"
               type="time"
@@ -219,7 +227,9 @@ const { calculateHours } = useAttendanceLogic() // Import if you need to calcula
 
           <!-- Date -->
           <div class="form-control">
-            <legend class="fieldset-legend text-black !m-0 !text-xs">Date</legend>
+            <legend class="fieldset-legend text-black !m-0 !text-xs justify-start">
+              Date <span class="text-red-500">*</span>
+            </legend>
             <input
               v-model="newAttendance.date"
               type="date"

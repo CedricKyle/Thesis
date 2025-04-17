@@ -279,7 +279,9 @@ onMounted(async () => {
 
         <div class="form-control flex flex-col gap-5">
           <div class="">
-            <legend class="fieldset-legend text-black text-xs justify-start">Department</legend>
+            <legend class="fieldset-legend text-black text-xs justify-start">
+              Department <span class="text-red-500">*</span>
+            </legend>
             <select
               v-model="newEmployee.department"
               class="select focus:outline-none bg-white border-black text-black"
@@ -298,7 +300,9 @@ onMounted(async () => {
           </div>
 
           <div class="">
-            <legend class="fieldset-legend text-black text-xs">Job Title</legend>
+            <legend class="fieldset-legend text-black text-xs justify-start">
+              Job Title <span class="text-red-500">*</span>
+            </legend>
             <select
               v-model="newEmployee.jobTitle"
               class="select focus:outline-none bg-white border-black text-black"
@@ -316,7 +320,9 @@ onMounted(async () => {
           </div>
 
           <div class="">
-            <legend class="fieldset-legend text-black text-xs">Role</legend>
+            <legend class="fieldset-legend text-black text-xs justify-start">
+              Role <span class="text-red-500">*</span>
+            </legend>
             <select
               v-model="newEmployee.role"
               class="select focus:outline-none bg-white border-black text-black"
@@ -333,7 +339,7 @@ onMounted(async () => {
           </div>
 
           <div class="overflow-hidden">
-            <legend class="fieldset-legend text-black text-xs">Upload Resume</legend>
+            <legend class="fieldset-legend text-black text-xs justify-start">Upload Resume</legend>
             <div class="flex flex-col gap-2">
               <div class="flex items-center gap-2">
                 <label
@@ -368,7 +374,9 @@ onMounted(async () => {
           </div>
 
           <div class="">
-            <legend class="fieldset-legend text-black text-xs">Date of Hire</legend>
+            <legend class="fieldset-legend text-black text-xs justify-start">
+              Date of Hire <span class="text-red-500">*</span>
+            </legend>
             <input
               v-model="newEmployee.dateOfHire"
               type="date"
@@ -395,7 +403,9 @@ onMounted(async () => {
 
         <div class="form-control grid grid-cols-2 gap-5">
           <div class="">
-            <legend class="fieldset-legend text-black text-xs">First Name</legend>
+            <legend class="fieldset-legend text-black text-xs justify-start">
+              First Name <span class="text-red-500">*</span>
+            </legend>
             <input
               v-model="newEmployee.firstName"
               type="text"
@@ -422,7 +432,9 @@ onMounted(async () => {
           </div>
 
           <div class="col-span-2">
-            <legend class="fieldset-legend text-black text-xs">Last Name</legend>
+            <legend class="fieldset-legend text-black text-xs justify-start">
+              Last Name <span class="text-red-500">*</span>
+            </legend>
             <input
               v-model="newEmployee.lastName"
               type="text"
@@ -435,7 +447,9 @@ onMounted(async () => {
           </div>
 
           <div class="">
-            <legend class="fieldset-legend text-black text-xs">Date of Birth</legend>
+            <legend class="fieldset-legend text-black text-xs justify-start">
+              Date of Birth <span class="text-red-500">*</span>
+            </legend>
             <input
               v-model="newEmployee.dateOfBirth"
               type="date"
@@ -448,7 +462,9 @@ onMounted(async () => {
           </div>
 
           <div class="">
-            <legend class="fieldset-legend text-black text-xs">Gender</legend>
+            <legend class="fieldset-legend text-black text-xs justify-start">
+              Gender <span class="text-red-500">*</span>
+            </legend>
             <select
               v-model="newEmployee.gender"
               class="select focus:outline-none bg-white border-black text-black"
@@ -464,7 +480,9 @@ onMounted(async () => {
           </div>
 
           <div class="">
-            <legend class="fieldset-legend text-black text-xs">Contact Number</legend>
+            <legend class="fieldset-legend text-black text-xs justify-start">
+              Contact Number <span class="text-red-500">*</span>
+            </legend>
             <input
               v-model="newEmployee.contactNumber"
               type="text"
@@ -479,7 +497,9 @@ onMounted(async () => {
           </div>
 
           <div class="">
-            <legend class="fieldset-legend text-black text-xs">Email Address</legend>
+            <legend class="fieldset-legend text-black text-xs justify-start">
+              Email Address <span class="text-red-500">*</span>
+            </legend>
             <input
               v-model="newEmployee.email"
               type="email"
@@ -493,7 +513,9 @@ onMounted(async () => {
           </div>
 
           <div class="col-span-2">
-            <legend class="fieldset-legend text-black text-xs">Address</legend>
+            <legend class="fieldset-legend text-black text-xs justify-start">
+              Address <span class="text-red-500">*</span>
+            </legend>
             <input
               v-model="newEmployee.address"
               type="text"
@@ -509,7 +531,9 @@ onMounted(async () => {
         <div class="title font-bold mt-4 text-red-500">Emergency Contact</div>
         <div class="form-control grid grid-cols-2 gap-5">
           <div class="">
-            <legend class="fieldset-legend text-black text-xs">First Name</legend>
+            <legend class="fieldset-legend text-black text-xs justify-start">
+              First Name <span class="text-red-500">*</span>
+            </legend>
             <input
               v-model="newEmployee.emergencyContact.firstName"
               type="text"
@@ -536,7 +560,9 @@ onMounted(async () => {
           </div>
 
           <div class="col-span-2">
-            <legend class="fieldset-legend text-black text-xs">Last Name</legend>
+            <legend class="fieldset-legend text-black text-xs justify-start">
+              Last Name <span class="text-red-500">*</span>
+            </legend>
             <input
               v-model="newEmployee.emergencyContact.lastName"
               type="text"
@@ -549,7 +575,9 @@ onMounted(async () => {
           </div>
 
           <div class="">
-            <legend class="fieldset-legend text-black text-xs">Relationship</legend>
+            <legend class="fieldset-legend text-black text-xs justify-start">
+              Relationship <span class="text-red-500">*</span>
+            </legend>
             <input
               v-model="newEmployee.emergencyContact.relationship"
               type="text"
@@ -562,7 +590,9 @@ onMounted(async () => {
           </div>
 
           <div class="">
-            <legend class="fieldset-legend text-black text-xs">Contact Number</legend>
+            <legend class="fieldset-legend text-black text-xs justify-start">
+              Contact Number <span class="text-red-500">*</span>
+            </legend>
             <input
               v-model="newEmployee.emergencyContact.contactNumber"
               type="text"

@@ -421,7 +421,7 @@ onBeforeUnmount(() => {
 
         <div v-if="roleToView" class="py-4">
           <div class="flex flex-col gap-4">
-            <div class="flex flex-col gap-2">
+            <div class="flex flex-col">
               <div class="flex items-center justify-between">
                 <span class="font-semibold text-lg">{{ roleToView.role_name }}</span>
                 <span class="text-xs text-gray-500">
@@ -438,7 +438,7 @@ onBeforeUnmount(() => {
                   }}
                 </span>
               </div>
-              <p class="text-gray-600">{{ roleToView.description }}</p>
+              <p class="text-gray-600 text-sm">{{ roleToView.description }}</p>
             </div>
 
             <div class="bg-gray-50 p-4 rounded-md">
@@ -452,7 +452,7 @@ onBeforeUnmount(() => {
                 >
                   <div class="border-b border-gray-200 pb-4 last:border-b-0">
                     <h5 class="font-medium text-primaryColor mb-2 flex items-center gap-2">
-                      <span class="w-1 h-4 bg-primaryColor rounded-full"></span>
+                      <span class="w-[3px] h-4 bg-primaryColor rounded-full"></span>
                       {{ category }}
                     </h5>
                     <div class="grid grid-cols-2 gap-2 pl-4 text-sm">

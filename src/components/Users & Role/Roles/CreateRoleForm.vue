@@ -202,7 +202,9 @@ watch(roleName, (newValue) => {
     <!-- role name -->
     <div class="role-name p-5 bg-white rounded-md flex gap-5 mt-5 border border-gray-200 shadow-sm">
       <div class="input-container flex-1">
-        <legend class="fieldset-legend text-black !m-0 !text-xs">Role Name</legend>
+        <legend class="fieldset-legend text-black !m-0 !text-xs justify-start">
+          Role Name <span class="text-red-500">*</span>
+        </legend>
         <input
           v-model="roleName"
           type="text"
@@ -216,7 +218,9 @@ watch(roleName, (newValue) => {
         </p>
       </div>
       <div class="description-container flex-1">
-        <legend class="fieldset-legend text-black !m-0 !text-xs">Description</legend>
+        <legend class="fieldset-legend text-black !m-0 !text-xs justify-start">
+          Description <span class="text-red-500">*</span>
+        </legend>
         <input
           v-model="description"
           class="input bg-white border-b border-gray-400 w-full"
@@ -234,7 +238,9 @@ watch(roleName, (newValue) => {
       class="permissions p-5 bg-white rounded-md flex flex-col gap-5 mt-5 border border-gray-200 shadow-sm"
     >
       <div class="permissions-container flex-1">
-        <p class="text-black text-sm font-semibold">Select permissions to enable access control</p>
+        <p class="text-black text-sm font-semibold">
+          Select permissions to enable access control <span class="text-red-500">*</span>
+        </p>
         <p v-if="errors.permissions" class="text-red-500 text-xs mt-1">{{ errors.permissions }}</p>
       </div>
 

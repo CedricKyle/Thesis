@@ -1,5 +1,5 @@
 <script setup>
-import { ChevronLeft, ChevronRight, Check } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, Check, Dot } from 'lucide-vue-next'
 import { useRouter, useRoute } from 'vue-router'
 import { ref, onMounted, onUnmounted, watch } from 'vue'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
@@ -358,18 +358,32 @@ watch(
             <h4 class="font-semibold mb-2">General Information</h4>
             <div class="grid gap-2">
               <div class="flex">
-                <span class="w-32 text-gray-500">Role Name:</span>
-                <span>{{ formData.roleName }}</span>
+                <span class="w-32 text-gray-500 text-sm">Role Name:</span>
+                <span class="text-sm">{{ formData.roleName }}</span>
               </div>
               <div class="flex">
-                <span class="w-32 text-gray-500">Description:</span>
-                <span>{{ formData.description }}</span>
+                <span class="w-32 text-gray-500 text-sm">Description:</span>
+                <span class="text-sm">{{ formData.description }}</span>
               </div>
             </div>
           </div>
 
           <div class="mb-4">
-            <h4 class="font-semibold mb-2">Selected Permissions</h4>
+            <div class="flex justify-between items-center">
+              <div class="">
+                <h4 class="font-semibold mb-2">Selected Permissions</h4>
+              </div>
+              <div class="flex gap-2">
+                <div class="flex items-center">
+                  <Dot class="w-10 h-10 text-primary" />
+                  <p class="text-primary text-sm">active permissions</p>
+                </div>
+                <div class="flex items-center">
+                  <Dot class="w-10 h-10 text-gray-500" />
+                  <p class="text-gray-500 text-sm">inactive permissions</p>
+                </div>
+              </div>
+            </div>
             <div class="bg-gray-50 p-4 rounded-md">
               <div v-for="group in permissionGroupsRef" :key="group.name" class="mb-3">
                 <h5 class="font-medium text-sm mb-2">{{ group.name }}</h5>
