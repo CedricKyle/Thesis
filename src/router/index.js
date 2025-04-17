@@ -1,8 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import AdminSidebar from '@/views/Admin/AdminSidebar.vue'
-import UserRolesManagement from '@/views/Users Management/UserRolesManagement.vue'
+import UserRolesManagement from '@/views/Human Resource/UserRolesManagement.vue'
 import CreateRoleForm from '@/components/Users & Role/Roles/CreateRoleForm.vue'
-import UserManagement from '@/views/Users Management/UserManagement.vue'
 import FinancialManagement from '@/views/Admin/FinancialManagement.vue'
 import SalesManagement from '@/views/Admin/SalesManagement.vue'
 import InventoryManagement from '@/views/Admin/InventoryManagement.vue'
@@ -11,10 +10,11 @@ import HRDashboard from '@/views/Human Resource/HRDashboard.vue'
 import Employees from '@/views/Human Resource/Employees.vue'
 import Attendance from '@/views/Human Resource/Attendance.vue'
 import AttendanceReport from '@/views/Human Resource/AttendanceReport.vue'
-import CreateUserForm from '@/components/Users & Role/Users/CreateUserForm.vue'
-import EditUserForm from '@/components/Users & Role/Users/editUserForm.vue'
 import EditRoleForm from '@/components/Users & Role/Roles/EditRoleForm.vue'
 import LoginPage from '@/views/LoginPage.vue'
+import FinanceDashboard from '@/views/Finance/FinanceDashboard.vue'
+import FinancePayroll from '@/views/Finance/FinancePayroll.vue'
+import FinanceReport from '@/views/Finance/FinanceReport.vue'
 const routes = [
   {
     path: '/',
@@ -39,25 +39,26 @@ const routes = [
         name: 'EditRole',
         component: EditRoleForm,
       },
-      {
-        path: 'users',
-        name: 'Users',
-        component: UserManagement,
-      },
-      {
-        path: 'users/create',
-        name: 'CreateUser',
-        component: CreateUserForm,
-      },
-      {
-        path: 'users/:id/edit',
-        name: 'EditUser',
-        component: EditUserForm,
-      },
+
       {
         path: 'finance',
         name: 'Finance',
         component: FinancialManagement,
+      },
+      {
+        path: 'finance/dashboard',
+        name: 'FinanceDashboard',
+        component: FinanceDashboard,
+      },
+      {
+        path: 'finance/payroll',
+        name: 'FinancePayroll',
+        component: FinancePayroll,
+      },
+      {
+        path: 'finance/report',
+        name: 'FinanceReport',
+        component: FinanceReport,
       },
       {
         path: 'sales',

@@ -304,7 +304,9 @@ onMounted(() => {
       <div class="row-span-2 col-start-4">
         <div class="chart-todo-container flex w-full justify-between h-full">
           <!--todo list container-->
-          <div class="todo glass flex flex-col rounded-md shadow-md border border-black bg-white">
+          <div
+            class="todo glass flex flex-col rounded-md shadow-md border border-black bg-white w-full h-full"
+          >
             <div
               class="todo-content flex flex-col justify-center items-center max-h-[600px] overflow-y-auto mt-5 text-sm"
             >

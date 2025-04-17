@@ -8,6 +8,7 @@ import AttendanceReportSummary from '@/components/Admin Components/HR/Attendance
 import AttendanceReportTable from '@/components/Admin Components/HR/Attendance Report/AttendanceReportTable.vue'
 import { usePDFGenerator } from '@/composables/Admin Composables/Human Resource/usePDFGenerator'
 
+
 // Store setup
 const attendanceStore = useAttendanceStore()
 const employeeStore = useEmployeeStore()

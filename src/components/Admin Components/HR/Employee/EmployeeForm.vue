@@ -279,7 +279,7 @@ onMounted(async () => {
 
         <div class="form-control flex flex-col gap-5">
           <div class="">
-            <legend class="fieldset-legend text-black text-xs">Department</legend>
+            <legend class="fieldset-legend text-black text-xs justify-start">Department</legend>
             <select
               v-model="newEmployee.department"
               class="select focus:outline-none bg-white border-black text-black"

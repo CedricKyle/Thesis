@@ -12,6 +12,7 @@
   --color-highlightColor: oklch(100% 0 0);
   --color-neutralColor: oklch(0% 0 0);
   --color-bgColor: oklch(93.78% 0.0174 286.06);
+  --color-brownColor: oklch(52.13% 0.077 69.51);
 
   --font-Poppins: Poppins, sans-serif;
 }

@@ -9,16 +9,7 @@ import SalesManagement from './SalesManagement.vue'
 import { ref, defineAsyncComponent, onMounted } from 'vue'
 
 //this is import icons
-import {
-  Building2,
-  Landmark,
-  ChartNoAxesColumnIncreasing,
-  Archive,
-  Mail,
-  Users,
-  LockKeyhole,
-  ChevronDown,
-} from 'lucide-vue-next'
+import { Building2, Landmark, ChartNoAxesColumnIncreasing, Archive, Mail } from 'lucide-vue-next'
 
 import { useRouter } from 'vue-router'
 const router = useRouter()
@@ -55,14 +46,30 @@ const AsyncHRDashboard = defineAsyncComponent({
 })
 
 const tabs = {
-  Finance: { component: FinancialManagement, icon: Landmark },
   Sales: { component: SalesManagement, icon: ChartNoAxesColumnIncreasing },
   Inventory: { component: InventoryManagement, icon: Archive },
   CRM: { component: CRMManagement, icon: Mail },
-  // Users: {
-  //   component: UserManagement,
-  //   icon: Users,
-  // },
+  Finance: {
+    component: FinancialManagement,
+    icon: Landmark,
+    submenu: {
+      Dashboard: defineAsyncComponent({
+        loader: () => import('../Finance/FinanceDashboard.vue'),
+        loadingComponent: LoadingSpinner,
+        delay: 1000,
+      }),
+      Payroll: defineAsyncComponent({
+        loader: () => import('../Finance/FinancePayroll.vue'),
+        loadingComponent: LoadingSpinner,
+        delay: 1000,
+      }),
+      'Finance Report': defineAsyncComponent({
+        loader: () => import('../Finance/FinanceReport.vue'),
+        loadingComponent: LoadingSpinner,
+        delay: 1000,
+      }),
+    },
+  },
   'Human Resource': {
     component: HumanResourceManagement,
     icon: Building2,
@@ -84,7 +91,7 @@ const tabs = {
         delay: 1000,
       }),
       Roles: defineAsyncComponent({
-        loader: () => import('../Users Management/UserRolesManagement.vue'),
+        loader: () => import('../Human Resource/UserRolesManagement.vue'),
         loadingComponent: LoadingSpinner,
         delay: 1000,
       }),
@@ -104,12 +111,6 @@ const setTab = (tabName, parentTab = null) => {
     case 'Roles':
       router.push({ name: 'Roles' })
       break
-    case 'Users':
-      router.push({ name: 'Users' })
-      break
-    case 'Finance':
-      router.push({ name: 'Finance' })
-      break
     case 'Sales':
       router.push({ name: 'Sales' })
       break
@@ -120,8 +121,20 @@ const setTab = (tabName, parentTab = null) => {
       router.push({ name: 'CRM' })
       break
     case 'Dashboard':
-      router.push({ name: 'HRDashboard' })
+      if (openParentMenu.value === 'Finance') {
+        router.push({ name: 'FinanceDashboard' })
+      } else {
+        router.push({ name: 'HRDashboard' })
+      }
       break
+    //this is for finance management
+    case 'Payroll':
+      router.push({ name: 'FinancePayroll' })
+      break
+    case 'Finance Report':
+      router.push({ name: 'FinanceReport' })
+      break
+    //this is for hr management
     case 'Employees':
       router.push({ name: 'Employees' })
       break
@@ -144,9 +157,10 @@ onMounted(() => {
   const routeToTab = {
     Roles: 'Roles',
     CreateRole: 'Roles',
-    Users: 'Users',
-    CreateUser: 'Users',
     Finance: 'Finance',
+    FinanceDashboard: 'Dashboard',
+    Payroll: 'Payroll',
+    'Finance Report': 'Finance Report',
     Sales: 'Sales',
     Inventory: 'Inventory',
     CRM: 'CRM',
@@ -163,6 +177,9 @@ onMounted(() => {
       ['HRDashboard', 'Employees', 'Attendance', 'AttendanceReport', 'Roles'].includes(route.name)
     ) {
       openParentMenu.value = 'Human Resource'
+    }
+    if (['FinanceDashboard', 'Payroll', 'Finance Report'].includes(route.name)) {
+      openParentMenu.value = 'Finance'
     }
   }
 })
@@ -199,34 +216,34 @@ onMounted(() => {
               </summary>
               <ul class="pl-10">
                 <li v-for="(subComp, subTab) in tab.submenu" :key="subTab">
-                  <a
+                  <button
                     :class="[
-                      'flex items-center px-4 py-2 transition',
+                      'flex items-center px-4 py-2 transition duration-100 ease-in-out',
                       currentTab === subTab
-                        ? 'bg-[rgba(217,217,217,0.15)] text-white' /* Active state with 30% opacity */
-                        : 'hover: text-gray-300' /* Default & hover */,
+                        ? 'bg-[rgba(217,217,217,0.15)] text-secondaryColor rounded-r-sm !rounded-l-none !border-l-2'
+                        : 'hover: text-gray-300',
                     ]"
                     @click="setTab(subTab, tabName)"
                   >
                     {{ subTab }}
-                  </a>
+                  </button>
                 </li>
               </ul>
             </details>
           </template>
           <template v-else>
-            <a
+            <button
               :class="[
-                'flex items-center px-4 py-2 transition',
+                'flex items-center px-4 py-2 transition duration-100 ease-in-out',
                 currentTab === tabName
-                  ? 'bg-[rgba(217,217,217,0.15)] text-white' /* Active state with 30% opacity */
-                  : 'hover: text-gray-300' /* Default & hover */,
+                  ? 'bg-[rgba(217,217,217,0.15)] text-secondaryColor rounded-r-sm !rounded-l-none !border-l-2'
+                  : 'hover: text-gray-300',
               ]"
               @click="setTab(tabName)"
             >
               <component :is="tab.icon" class="w-6 h-6 mr-3" />
               {{ tabName }}
-            </a>
+            </button>
           </template>
         </li>
       </ul>

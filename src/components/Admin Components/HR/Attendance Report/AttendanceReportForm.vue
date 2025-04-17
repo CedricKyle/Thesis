@@ -3,6 +3,9 @@ import { ref, computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
 
+//icons
+import { MoveRight } from 'lucide-vue-next'
+
 const props = defineProps({
   formData: {
     type: Object,
@@ -95,24 +98,29 @@ const handleSubmit = () => {
         </div>
 
         <div class="flex gap-4">
-          <!-- From date -->
-          <div class="">
-            <legend class="text-black text-xs font-semibold">From</legend>
-            <input
-              v-model="formData.startDate"
-              type="date"
-              class="input input-sm input-bordered border-black focus:outline-none bg-white text-black"
-            />
-          </div>
+          <div class="flex flex-col">
+            <div class="">
+              <legend class="text-black text-xs font-semibold flex items-center">
+                Start Date <span class="mx-2"><MoveRight class="w-4 h-4" /></span> End Date
+              </legend>
+            </div>
+            <div
+              class="flex items-center bg-white border border-black rounded-sm shadow-sm space-x-2"
+            >
+              <input
+                v-model="formData.startDate"
+                type="date"
+                class="input input-sm focus:outline-none text-black bg-transparent"
+              />
 
-          <!-- To date -->
-          <div class="">
-            <legend class="text-black text-xs font-semibold">To</legend>
-            <input
-              v-model="formData.endDate"
-              type="date"
-              class="w-full input input-sm input-bordered border-black focus:outline-none bg-white text-black"
-            />
+              <MoveRight class="w-10 h-6" />
+
+              <input
+                v-model="formData.endDate"
+                type="date"
+                class="w-full input input-sm focus:outline-none text-black bg-transparent"
+              />
+            </div>
           </div>
 
           <div class="flex items-end ml-auto">
