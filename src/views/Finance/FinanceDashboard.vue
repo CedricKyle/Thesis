@@ -5,4 +5,3 @@
     <h1 class="text-2xl font-bold text-brownColor">This is Dashboard</h1>
   </div>
 </template>
-  

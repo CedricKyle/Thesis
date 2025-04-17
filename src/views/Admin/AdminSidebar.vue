@@ -14,11 +14,9 @@ import { Building2, Landmark, ChartNoAxesColumnIncreasing, Archive, Mail } from 
 import { useRouter } from 'vue-router'
 const router = useRouter()
 
-// Set initial tab to HRDashboard
-const currentTab = ref('Dashboard')
-
-// Add a ref to track which parent menu should be open
-const openParentMenu = ref('Human Resource')
+// Change the initial states to be null instead of having default values
+const currentTab = ref(null) // Changed from 'Dashboard'
+const openParentMenu = ref(null) // Changed from 'Human Resource'
 
 //this is loading state
 const isLoading = ref(false)
@@ -26,8 +24,11 @@ const isLoading = ref(false)
 // Define a simple loading spinner component
 const LoadingSpinner = {
   template: `
-    <div class="flex items-center justify-center h-full">
-      <span class="loading loading-spinner loading-lg text-secondaryColor"></span>
+    <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center animate-fade-in">
+      <div class="bg-white p-6 rounded-lg shadow-lg flex flex-col items-center animate-slide-up">
+        <span class="loading loading-dots loading-xl text-primaryColor"></span>
+        <p class="mt-2 text-gray-700">Loading...</p>
+      </div>
     </div>
   `,
 }
@@ -36,7 +37,7 @@ const LoadingSpinner = {
 const AsyncHRDashboard = defineAsyncComponent({
   loader: () => import('../Human Resource/HRDashboard.vue'),
   loadingComponent: LoadingSpinner,
-  delay: 1000, // delay in ms before showing loading state
+  delay: 5000, // delay in ms before showing loading state
   onLoadingStart: () => {
     isLoading.value = true
   },
@@ -150,37 +151,34 @@ const setTab = (tabName, parentTab = null) => {
   }
 }
 
-// Add a method to handle the current route
+// Modify the onMounted function to better handle the initial route
 onMounted(() => {
-  // Set initial tab based on route
   const route = router.currentRoute.value
   const routeToTab = {
-    Roles: 'Roles',
-    CreateRole: 'Roles',
-    Finance: 'Finance',
-    FinanceDashboard: 'Dashboard',
-    Payroll: 'Payroll',
-    'Finance Report': 'Finance Report',
-    Sales: 'Sales',
-    Inventory: 'Inventory',
-    CRM: 'CRM',
-    HRDashboard: 'Dashboard',
-    Employees: 'Employees',
-    Attendance: 'Attendance',
-    AttendanceReport: 'Attendance Report',
+    Roles: { tab: 'Roles', parent: 'Human Resource' },
+    CreateRole: { tab: 'Roles', parent: 'Human Resource' },
+    Finance: { tab: 'Dashboard', parent: 'Finance' },
+    FinanceDashboard: { tab: 'Dashboard', parent: 'Finance' },
+    Payroll: { tab: 'Payroll', parent: 'Finance' },
+    'Finance Report': { tab: 'Finance Report', parent: 'Finance' },
+    Sales: { tab: 'Sales', parent: null },
+    Inventory: { tab: 'Inventory', parent: null },
+    CRM: { tab: 'CRM', parent: null },
+    HRDashboard: { tab: 'Dashboard', parent: 'Human Resource' },
+    Employees: { tab: 'Employees', parent: 'Human Resource' },
+    Attendance: { tab: 'Attendance', parent: 'Human Resource' },
+    AttendanceReport: { tab: 'Attendance Report', parent: 'Human Resource' },
   }
 
   if (routeToTab[route.name]) {
-    currentTab.value = routeToTab[route.name]
-    // If it's an HR route, open the HR submenu
-    if (
-      ['HRDashboard', 'Employees', 'Attendance', 'AttendanceReport', 'Roles'].includes(route.name)
-    ) {
-      openParentMenu.value = 'Human Resource'
-    }
-    if (['FinanceDashboard', 'Payroll', 'Finance Report'].includes(route.name)) {
-      openParentMenu.value = 'Finance'
-    }
+    const { tab, parent } = routeToTab[route.name]
+    currentTab.value = tab
+    openParentMenu.value = parent
+  } else {
+    // Default to HR Dashboard if no matching route is found
+    currentTab.value = 'Dashboard'
+    openParentMenu.value = 'Human Resource'
+    router.push({ name: 'HRDashboard' })
   }
 })
 </script>
@@ -218,10 +216,10 @@ onMounted(() => {
                 <li v-for="(subComp, subTab) in tab.submenu" :key="subTab">
                   <button
                     :class="[
-                      'flex items-center px-4 py-2 transition duration-100 ease-in-out',
-                      currentTab === subTab
-                        ? 'bg-[rgba(217,217,217,0.15)] text-secondaryColor rounded-r-sm !rounded-l-none !border-l-2'
-                        : 'hover: text-gray-300',
+                      'flex items-center px-4 py-2 submenu-button',
+                      currentTab === subTab && openParentMenu === tabName
+                        ? 'active-submenu'
+                        : 'text-white hover:text-gray-300',
                     ]"
                     @click="setTab(subTab, tabName)"
                   >
@@ -234,10 +232,8 @@ onMounted(() => {
           <template v-else>
             <button
               :class="[
-                'flex items-center px-4 py-2 transition duration-100 ease-in-out',
-                currentTab === tabName
-                  ? 'bg-[rgba(217,217,217,0.15)] text-secondaryColor rounded-r-sm !rounded-l-none !border-l-2'
-                  : 'hover: text-gray-300',
+                'flex items-center px-4 py-2 submenu-button',
+                currentTab === tabName ? 'active-submenu' : 'text-white hover:text-gray-300',
               ]"
               @click="setTab(tabName)"
             >
@@ -255,3 +251,21 @@ onMounted(() => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.submenu-button {
+  transition: color 0.2s ease;
+  transition-property: color;
+  background-color: transparent;
+}
+
+.active-submenu {
+  background-color: rgba(217, 217, 217, 0.15);
+  color: var(--color-secondaryColor);
+  border-left: 2px solid;
+  border-top-right-radius: 0.125rem;
+  border-bottom-right-radius: 0.125rem;
+  border-top-left-radius: 0px;
+  border-bottom-left-radius: 0px;
+}
+</style>
