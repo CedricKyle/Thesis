@@ -1,5 +1,5 @@
 <script setup>
-import BaseProductTable from './BaseProductTable.vue'
+import BaseProductTable from '../../../../views/Suppy Chain Management Department/BaseProductTable.vue'
 defineProps({
   products: {
     type: Array,

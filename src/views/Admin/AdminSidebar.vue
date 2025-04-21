@@ -48,8 +48,23 @@ const AsyncHRDashboard = defineAsyncComponent({
 
 const tabs = {
   Sales: { component: SalesManagement, icon: ChartNoAxesColumnIncreasing },
-  Inventory: { component: InventoryManagement, icon: Archive },
   CRM: { component: CRMManagement, icon: Mail },
+  Inventory: {
+    component: InventoryManagement,
+    icon: Archive,
+    submenu: {
+      Dashboard: defineAsyncComponent({
+        loader: () => import('../Suppy Chain Management Department/SCMDashboard.vue'),
+        loadingComponent: LoadingSpinner,
+        delay: 1000,
+      }),
+      Stocks: defineAsyncComponent({
+        loader: () => import('../Suppy Chain Management Department/BaseProductTable.vue'),
+        loadingComponent: LoadingSpinner,
+        delay: 1000,
+      }),
+    },
+  },
   Finance: {
     component: FinancialManagement,
     icon: Landmark,
@@ -115,8 +130,9 @@ const setTab = (tabName, parentTab = null) => {
     case 'Sales':
       router.push({ name: 'Sales' })
       break
-    case 'Inventory':
-      router.push({ name: 'Inventory' })
+    //This is for Supply Chain Management
+    case 'Stocks':
+      router.push({ name: 'Stocks' })
       break
     case 'CRM':
       router.push({ name: 'CRM' })
@@ -124,8 +140,10 @@ const setTab = (tabName, parentTab = null) => {
     case 'Dashboard':
       if (openParentMenu.value === 'Finance') {
         router.push({ name: 'FinanceDashboard' })
-      } else {
+      } else if (openParentMenu.value === 'Human Resource') {
         router.push({ name: 'HRDashboard' })
+      } else if (openParentMenu.value === 'Inventory') {
+        router.push({ name: 'SCMDashboard' })
       }
       break
     //this is for finance management
@@ -162,7 +180,8 @@ onMounted(() => {
     Payroll: { tab: 'Payroll', parent: 'Finance' },
     'Finance Report': { tab: 'Finance Report', parent: 'Finance' },
     Sales: { tab: 'Sales', parent: null },
-    Inventory: { tab: 'Inventory', parent: null },
+    Inventory: { tab: 'Inventory', parent: 'Inventory' },
+    SCMDashboard: { tab: 'Stocks', parent: 'Inventory' },
     CRM: { tab: 'CRM', parent: null },
     HRDashboard: { tab: 'Dashboard', parent: 'Human Resource' },
     Employees: { tab: 'Employees', parent: 'Human Resource' },

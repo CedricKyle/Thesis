@@ -15,6 +15,9 @@ import LoginPage from '@/views/LoginPage.vue'
 import FinanceDashboard from '@/views/Finance/FinanceDashboard.vue'
 import FinancePayroll from '@/views/Finance/FinancePayroll.vue'
 import FinanceReport from '@/views/Finance/FinanceReport.vue'
+import BaseProductTable from '@/views/Suppy Chain Management Department/BaseProductTable.vue'
+import SCMDashboard from '@/views/Suppy Chain Management Department/SCMDashboard.vue'
+import StockView from '@/views/Suppy Chain Management Department/StockView.vue'
 const routes = [
   {
     path: '/',
@@ -69,6 +72,21 @@ const routes = [
         path: 'inventory',
         name: 'Inventory',
         component: InventoryManagement,
+      },
+      {
+        path: 'inventory/dashboard',
+        name: 'SCMDashboard',
+        component: SCMDashboard,
+      },
+      {
+        path: 'inventory/stocks',
+        name: 'Stocks',
+        component: BaseProductTable,
+      },
+      {
+        path: 'inventory/stocks',
+        name: 'Stocks',
+        component: StockView,
       },
       {
         path: 'crm',
