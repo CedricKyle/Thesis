@@ -274,39 +274,133 @@ exports.updateEmployee = async (req, res) => {
     await connection.beginTransaction()
 
     const { id } = req.params
-    const { emergencyContact } = req.body
 
-    if (emergencyContact) {
-      // Update emergency contact
-      await connection.query('UPDATE emergency_contacts SET ? WHERE employee_id = ?', [
-        {
-          first_name: emergencyContact.firstName,
-          middle_name: emergencyContact.middleName || null,
-          last_name: emergencyContact.lastName,
-          full_name: [
-            emergencyContact.firstName,
-            emergencyContact.middleName,
-            emergencyContact.lastName,
+    // Debug log to see what's being received
+    console.log('Request body:', req.body)
+    console.log('Request files:', req.files)
+
+    // Parse the employeeData from the FormData
+    const employeeData = JSON.parse(req.body.employeeData)
+
+    // Handle profile image file
+    let profileImagePath = null
+    if (req.files && req.files.profileImage) {
+      const profileFile = req.files.profileImage[0]
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9)
+      profileImagePath = `uploads/main branch/profiles/profile-${uniqueSuffix}${path.extname(profileFile.originalname)}`
+      await fs.mkdir(path.dirname(path.join(__dirname, '../../../', profileImagePath)), {
+        recursive: true,
+      })
+      await fs.writeFile(path.join(__dirname, '../../../', profileImagePath), profileFile.buffer)
+    }
+
+    // Handle resume file
+    let resumePath = null
+    if (req.files && req.files.resume) {
+      const resumeFile = req.files.resume[0]
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9)
+      resumePath = `uploads/main branch/resumes/resume-${uniqueSuffix}${path.extname(resumeFile.originalname)}`
+      await fs.mkdir(path.dirname(path.join(__dirname, '../../../', resumePath)), {
+        recursive: true,
+      })
+      await fs.writeFile(path.join(__dirname, '../../../', resumePath), resumeFile.buffer)
+    }
+
+    // Update main employee data
+    await connection.query(
+      `UPDATE employees SET 
+        first_name = ?,
+        middle_name = ?,
+        last_name = ?,
+        full_name = ?,
+        department = ?,
+        job_title = ?,
+        role = ?,
+        date_of_hire = ?,
+        date_of_birth = ?,
+        gender = ?,
+        contact_number = ?,
+        email = ?,
+        address = ?,
+        profile_image_path = COALESCE(?, profile_image_path),
+        resume_path = COALESCE(?, resume_path)
+      WHERE employee_id = ?`,
+      [
+        employeeData.first_name,
+        employeeData.middle_name || null,
+        employeeData.last_name,
+        [employeeData.first_name, employeeData.middle_name, employeeData.last_name]
+          .filter(Boolean)
+          .join(' '),
+        employeeData.department,
+        employeeData.job_title,
+        employeeData.role,
+        employeeData.date_of_hire,
+        employeeData.date_of_birth,
+        employeeData.gender,
+        employeeData.contact_number,
+        employeeData.email,
+        employeeData.address,
+        profileImagePath,
+        resumePath,
+        id,
+      ],
+    )
+
+    // Update emergency contact
+    if (employeeData.emergency_contact) {
+      await connection.query(
+        `UPDATE emergency_contacts SET
+          first_name = ?,
+          middle_name = ?,
+          last_name = ?,
+          full_name = ?,
+          relationship = ?,
+          contact_number = ?
+        WHERE employee_id = ?`,
+        [
+          employeeData.emergency_contact.first_name,
+          employeeData.emergency_contact.middle_name || null,
+          employeeData.emergency_contact.last_name,
+          [
+            employeeData.emergency_contact.first_name,
+            employeeData.emergency_contact.middle_name,
+            employeeData.emergency_contact.last_name,
           ]
             .filter(Boolean)
             .join(' '),
-          relationship: emergencyContact.relationship,
-          contact_number: emergencyContact.contactNumber,
-        },
-        id,
-      ])
+          employeeData.emergency_contact.relationship,
+          employeeData.emergency_contact.contact_number,
+          id,
+        ],
+      )
     }
 
     await connection.commit()
+
+    // Fetch updated employee data
+    const [updatedEmployee] = await connection.query(
+      `SELECT e.*, 
+        ec.first_name as emergency_contact_first_name,
+        ec.middle_name as emergency_contact_middle_name,
+        ec.last_name as emergency_contact_last_name,
+        ec.relationship as emergency_contact_relationship,
+        ec.contact_number as emergency_contact_number
+      FROM employees e
+      LEFT JOIN emergency_contacts ec ON e.employee_id = ec.employee_id
+      WHERE e.employee_id = ?`,
+      [id],
+    )
+
     res.json({
-      message: 'Emergency contact updated successfully',
-      employeeId: id,
+      message: 'Employee updated successfully',
+      data: updatedEmployee[0],
     })
   } catch (error) {
     await connection.rollback()
-    console.error('Error updating emergency contact:', error)
+    console.error('Error updating employee:', error)
     res.status(500).json({
-      message: 'Error updating emergency contact',
+      message: 'Error updating employee',
       error: error.message,
     })
   } finally {

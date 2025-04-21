@@ -52,19 +52,19 @@ const columns = [
     formatter: function (cell) {
       return `
         <div class="flex gap-2">
-          <button class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost view-button">
+          <button class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost view-button" title='View Employee'>
             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
               <circle cx="12" cy="12" r="3"/>
             </svg>
           </button>
-          <button class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost edit-button">
+          <button class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost edit-button" title='Edit Employee'>
             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
           </button>
-          <button class="btn btn-sm btn-circle hover:bg-red-400 border-none btn-ghost delete-button">
+          <button class="btn btn-sm btn-circle hover:bg-red-400 border-none btn-ghost delete-button" title='Delete Employee'>
             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 6 6 18M6 6l12 12" />
             </svg>
@@ -136,8 +136,9 @@ const handleView = (employee) => {
 }
 
 const handleEdit = (employee) => {
+  const isAdmin = router.currentRoute.value.path.startsWith('/admin')
   router.push({
-    name: 'EditEmployee',
+    name: isAdmin ? 'AdminEditEmployee' : 'EditEmployee',
     params: { id: employee.employee_id },
   })
 }

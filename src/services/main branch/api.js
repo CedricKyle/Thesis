@@ -19,7 +19,13 @@ export const employeeAPI = {
   createEmployee: (formData) => api.post('/employees', formData),
 
   // Update employee
-  updateEmployee: (id, data) => api.put(`/employees/${id}`, data),
+  updateEmployee: (id, formData) => {
+    return api.put(`/employees/${id}`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+  },
 
   // Delete employee
   deleteEmployee: (id) => api.delete(`/employees/${id}`),

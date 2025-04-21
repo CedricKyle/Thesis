@@ -93,16 +93,26 @@ export const useEmployeeStore = defineStore('employee', () => {
   }
 
   // Update employee
-  async function updateEmployee(id, updates) {
+  async function updateEmployee(id, formData) {
     try {
-      const response = await employeeAPI.updateEmployee(id, updates)
+      // Debug log to verify data
+      console.log('FormData in store:')
+      for (let [key, value] of formData.entries()) {
+        console.log(key, value instanceof File ? value.name : value)
+      }
+
+      const response = await employeeAPI.updateEmployee(id, formData)
+
+      // Update local state
       const index = employees.value.findIndex((emp) => emp.employee_id === id)
       if (index !== -1) {
         employees.value[index] = response.data
       }
+
       return response.data
     } catch (error) {
       console.error('Error updating employee:', error)
+      console.error('Error response:', error.response?.data)
       throw error
     }
   }
@@ -182,6 +192,17 @@ export const useEmployeeStore = defineStore('employee', () => {
     }
   }
 
+  // Add this function if not already present
+  const getEmployee = async (id) => {
+    try {
+      const response = await employeeAPI.getEmployee(id)
+      return response.data
+    } catch (error) {
+      console.error('Error fetching employee:', error)
+      throw error
+    }
+  }
+
   return {
     // State
     employees,
@@ -209,5 +230,6 @@ export const useEmployeeStore = defineStore('employee', () => {
     searchEmployees,
     resetFilters,
     downloadResume,
+    getEmployee,
   }
 })

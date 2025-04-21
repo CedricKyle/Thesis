@@ -59,18 +59,27 @@ const departmentJobs = {
   'Sales Department': ['Sales Manager'],
   'Customer Service Department': ['Customer Service Representative'],
   'Supply Chain Department': ['Supply Chain Manager'],
+  // Add any other department-job combinations that might exist in your data
 }
 
 const availableJobs = computed(() => {
   if (!newEmployee.value.department) return []
-  return departmentJobs[newEmployee.value.department] || []
+  const jobs = departmentJobs[newEmployee.value.department] || []
+  // Include current job title if it exists and isn't in the list
+  if (newEmployee.value.jobTitle && !jobs.includes(newEmployee.value.jobTitle)) {
+    jobs.push(newEmployee.value.jobTitle)
+  }
+  return jobs
 })
 
 // Watchers
 watch(
   () => newEmployee.value.department,
-  () => {
-    newEmployee.value.jobTitle = ''
+  (newDepartment, oldDepartment) => {
+    // Only clear job title if this is a user change, not initial data load
+    if (oldDepartment !== undefined) {
+      newEmployee.value.jobTitle = ''
+    }
   },
 )
 
@@ -83,6 +92,28 @@ watch(resumeFile, (newValue) => {
   newEmployee.value.resume = newValue
 })
 
+// Add these props
+const props = defineProps({
+  initialData: {
+    type: Object,
+    default: null,
+  },
+  isEditing: {
+    type: Boolean,
+    default: false,
+  },
+})
+
+// Add this emit definition
+const emit = defineEmits(['submit'])
+
+// Add this helper function at the top of the script section
+const formatDateForInput = (dateString) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  return date.toISOString().split('T')[0] // This will return 'YYYY-MM-DD'
+}
+
 // Form submission handlers
 const handleFormSubmit = () => {
   const isProfessionalValid = validateProfessionalInfo(newEmployee.value)
@@ -94,8 +125,20 @@ const handleFormSubmit = () => {
     return
   }
 
-  employeeToAdd.value = { ...newEmployee.value }
-  confirmModal.value?.showModal()
+  if (props.isEditing) {
+    const formData = createEmployeeUpdateData(newEmployee.value)
+
+    // Debug log to verify data before emitting
+    console.log('FormData before emit:')
+    for (let [key, value] of formData.entries()) {
+      console.log(key, value instanceof File ? value.name : value)
+    }
+
+    emit('submit', formData)
+  } else {
+    employeeToAdd.value = { ...newEmployee.value }
+    confirmModal.value?.showModal()
+  }
 }
 
 const confirmAdd = async () => {
@@ -175,6 +218,79 @@ const createEmployeeData = (employee) => {
   return formData
 }
 
+const createEmployeeUpdateData = (employee) => {
+  const formData = new FormData()
+
+  // Get existing data from props.initialData
+  const existingData = props.initialData
+
+  // For emergency contact, start with existing data and only override fields that have new values
+  const emergencyContact = {
+    first_name: existingData.emergency_contact?.first_name || '',
+    middle_name: existingData.emergency_contact?.middle_name || '',
+    last_name: existingData.emergency_contact?.last_name || '',
+    relationship: existingData.emergency_contact?.relationship || '',
+    contact_number: existingData.emergency_contact?.contact_number || '',
+  }
+
+  // Only update emergency contact fields that have been changed
+  if (employee.emergencyContact.firstName.trim()) {
+    emergencyContact.first_name = employee.emergencyContact.firstName
+  }
+  if (employee.emergencyContact.middleName.trim()) {
+    emergencyContact.middle_name = employee.emergencyContact.middleName
+  }
+  if (employee.emergencyContact.lastName.trim()) {
+    emergencyContact.last_name = employee.emergencyContact.lastName
+  }
+  if (employee.emergencyContact.relationship.trim()) {
+    emergencyContact.relationship = employee.emergencyContact.relationship
+  }
+  if (employee.emergencyContact.contactNumber.trim()) {
+    emergencyContact.contact_number = employee.emergencyContact.contactNumber
+  }
+
+  const employeeData = {
+    // Keep existing data for fields that haven't been modified
+    first_name: employee.firstName.trim() ? employee.firstName : existingData.first_name,
+    middle_name: employee.middleName.trim() ? employee.middleName : existingData.middle_name || '',
+    last_name: employee.lastName.trim() ? employee.lastName : existingData.last_name,
+    department: employee.department || existingData.department,
+    job_title: employee.jobTitle || existingData.job_title,
+    role: employee.role || existingData.role,
+    date_of_hire: employee.dateOfHire || existingData.date_of_hire,
+    date_of_birth: employee.dateOfBirth || existingData.date_of_birth,
+    gender: employee.gender || existingData.gender,
+    contact_number: employee.contactNumber.trim()
+      ? employee.contactNumber
+      : existingData.contact_number,
+    email: employee.email.trim() ? employee.email : existingData.email,
+    address: employee.address.trim() ? employee.address : existingData.address,
+    emergency_contact: emergencyContact,
+  }
+
+  // Convert employeeData to string before appending
+  formData.append('employeeData', JSON.stringify(employeeData))
+
+  // Only append files if new ones are selected
+  if (profileImageFile.value) {
+    formData.append('profileImage', profileImageFile.value)
+  }
+  if (resumeFile.value) {
+    formData.append('resume', resumeFile.value)
+  }
+
+  // Debug logs
+  console.log('Existing Data:', existingData)
+  console.log('Updated Data:', employeeData)
+  console.log('FormData contents:')
+  for (let [key, value] of formData.entries()) {
+    console.log(key, value instanceof File ? value.name : value)
+  }
+
+  return formData
+}
+
 const cancelAdd = () => {
   confirmModal.value?.close()
   employeeToAdd.value = null
@@ -213,6 +329,50 @@ const resetForm = () => {
 onMounted(async () => {
   try {
     await rolesStore.fetchRoles()
+
+    // If editing and initial data is provided, populate the form
+    if (props.isEditing && props.initialData) {
+      // Set department first
+      newEmployee.value = {
+        ...newEmployee.value,
+        department: props.initialData.department || '',
+      }
+
+      // Then set the rest of the data including job title
+      newEmployee.value = {
+        id: props.initialData.employee_id,
+        firstName: props.initialData.first_name || '',
+        middleName: props.initialData.middle_name || '',
+        lastName: props.initialData.last_name || '',
+        department: props.initialData.department || '',
+        jobTitle: props.initialData.job_title || '', // This should now persist
+        role: props.initialData.role || '',
+        dateOfHire: formatDateForInput(props.initialData.date_of_hire),
+        dateOfBirth: formatDateForInput(props.initialData.date_of_birth),
+        gender: props.initialData.gender || '',
+        contactNumber: props.initialData.contact_number || '',
+        email: props.initialData.email || '',
+        address: props.initialData.address || '',
+        emergencyContact: {
+          firstName: props.initialData.emergency_contact?.first_name || '',
+          middleName: props.initialData.emergency_contact?.middle_name || '',
+          lastName: props.initialData.emergency_contact?.last_name || '',
+          relationship: props.initialData.emergency_contact?.relationship || '',
+          contactNumber: props.initialData.emergency_contact?.contact_number || '',
+        },
+      }
+
+      // Set profile image if exists
+      if (props.initialData.profile_image_path) {
+        profileImage.value = `http://localhost:3000/${props.initialData.profile_image_path}`
+      }
+
+      // Set resume filename if exists
+      if (props.initialData.resume_path) {
+        const filename = props.initialData.resume_path.split('/').pop()
+        resumeFileName.value = filename
+      }
+    }
   } catch {
     showToastMessage('Failed to load roles', 'error')
   }
@@ -223,7 +383,7 @@ onMounted(async () => {
   <div class="flex gap-4 container h-[600px] text-black">
     <!-- Professional Information -->
     <div
-      class="professional-container w-[30%] border border-gray-200 p-5 rounded-md shadow-md overflow-y-auto"
+      class="professional-container w-[30%] border border-gray-200 p-5 rounded-md shadow-md overflow-y-auto bg-white"
     >
       <div class="flex flex-col gap-4 m-5">
         <!-- Profile Selection -->
@@ -311,7 +471,12 @@ onMounted(async () => {
               :disabled="!newEmployee.department"
             >
               <option disabled value="">Select Job Title</option>
-              <option v-for="job in availableJobs" :key="job" :value="job">
+              <option
+                v-for="job in availableJobs"
+                :key="job"
+                :value="job"
+                :selected="job === props.initialData?.job_title"
+              >
                 {{ job }}
               </option>
             </select>
@@ -390,11 +555,11 @@ onMounted(async () => {
           </div>
         </div>
       </div>
-    </div>
+    </div>  
 
     <!-- Personal Information -->
     <div
-      class="personal-container w-[70%] border border-gray-200 p-5 rounded-md shadow-md overflow-y-auto"
+      class="personal-container w-[70%] border border-gray-200 p-5 rounded-md shadow-md overflow-y-auto bg-white"
     >
       <div class="container flex flex-col gap-2">
         <div class="title font-bold text-md">Personal Information</div>
@@ -617,9 +782,10 @@ onMounted(async () => {
             @click="handleFormSubmit"
             class="btn-primaryStyle btn-sm bg-primaryColor border-none text-white shadow-none"
           >
-            + Add
+            {{ isEditing ? 'Update' : '+ Add' }}
           </button>
           <button
+            v-if="!isEditing"
             @click="resetForm"
             class="btn-secondaryStyle btn-sm bg-gray-400 border-none text-white shadow-none"
           >
@@ -632,14 +798,16 @@ onMounted(async () => {
     <!-- Confirmation Modal -->
     <dialog ref="confirmModal" class="modal">
       <div class="modal-box bg-white w-96">
-        <h3 class="font-bold text-lg text-black">Confirm Add Employee</h3>
+        <h3 class="font-bold text-lg text-black">
+          {{ isEditing ? 'Confirm Update Employee' : 'Confirm Add Employee' }}
+        </h3>
         <div
           class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
         ></div>
 
         <div v-if="employeeToAdd" class="py-4">
           <p class="text-center text-black mb-4">
-            Are you sure you want to add employee
+            Are you sure you want to {{ isEditing ? 'update' : 'add' }} employee
             <span class="font-bold">{{
               [employeeToAdd.firstName, employeeToAdd.middleName, employeeToAdd.lastName]
                 .filter(Boolean)
@@ -665,7 +833,9 @@ onMounted(async () => {
         </div>
 
         <div class="modal-action justify-center gap-4">
-          <button class="btn-primaryStyle" @click="confirmAdd">Add Employee</button>
+          <button class="btn-primaryStyle" @click="confirmAdd">
+            {{ isEditing ? 'Update Employee' : 'Add Employee' }}
+          </button>
           <button class="btn-secondaryStyle" @click="cancelAdd">Cancel</button>
         </div>
       </div>

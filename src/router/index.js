@@ -123,6 +123,12 @@ const routes = [
         component: EditRoleForm,
         props: true,
       },
+      {
+        path: 'hr/employees/edit/:id',
+        name: 'AdminEditEmployee',
+        component: () => import('@/components/Admin Components/HR/Employee/EditEmployeeForm.vue'),
+        props: true,
+      },
     ],
   },
 
@@ -169,6 +175,12 @@ const routes = [
         path: 'roles/edit/:id',
         name: 'EditRole',
         component: EditRoleForm,
+        props: true,
+      },
+      {
+        path: 'employees/edit/:id',
+        name: 'EditEmployee',
+        component: () => import('@/components/Admin Components/HR/Employee/EditEmployeeForm.vue'),
         props: true,
       },
     ],

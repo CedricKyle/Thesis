@@ -19,7 +19,18 @@ router.post(
 
 router.get('/', employeeController.getAllEmployees)
 router.get('/:id', employeeController.getAllEmployeeById)
-router.put('/:id', employeeController.updateEmployee)
+
+// Add multer middleware to the update route
+router.put(
+  '/:id',
+  upload.fields([
+    { name: 'employeeData', maxCount: 1 },
+    { name: 'profileImage', maxCount: 1 },
+    { name: 'resume', maxCount: 1 },
+  ]),
+  employeeController.updateEmployee,
+)
+
 router.delete('/:id', employeeController.deleteEmployee)
 
 // Add route for serving files
