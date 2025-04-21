@@ -3,6 +3,7 @@ const pool = require('../../config/database')
 const { deleteFile } = require('../../utils/main branch/fileHandler')
 const path = require('path')
 const fs = require('fs').promises
+const bcrypt = require('bcrypt')
 
 exports.createEmployee = async (req, res) => {
   const connection = await pool.getConnection()
@@ -84,7 +85,7 @@ exports.createEmployee = async (req, res) => {
     const employeeId = `${hireYear}-${nextNumber.toString().padStart(5, '0')}`
     const fullName = [firstName, middleName, lastName].filter(Boolean).join(' ')
 
-    // Insert employee with both profile and resume paths
+    // Insert employee first
     await connection.query(`INSERT INTO employees SET ?`, {
       employee_id: employeeId,
       first_name: firstName,
@@ -103,6 +104,17 @@ exports.createEmployee = async (req, res) => {
       profile_image_path: profileImagePath,
       resume_path: resumePath,
     })
+
+    // Hash the default password
+    const defaultPassword = 'countryside123'
+    const hashedPassword = await bcrypt.hash(defaultPassword, 10)
+
+    // Create user account with employee_id
+    await connection.query(`INSERT INTO users (employee_id, email, password) VALUES (?, ?, ?)`, [
+      employeeId,
+      email,
+      hashedPassword,
+    ])
 
     // Insert emergency contact
     if (emergencyContact) {
@@ -126,10 +138,14 @@ exports.createEmployee = async (req, res) => {
     await connection.commit()
 
     res.status(201).json({
-      message: 'Employee created successfully',
+      message: 'Employee and user account created successfully',
       employeeId,
       profileImagePath,
       resumePath,
+      userCredentials: {
+        username: employeeId,
+        defaultPassword: 'countryside123',
+      },
     })
   } catch (error) {
     await connection.rollback()

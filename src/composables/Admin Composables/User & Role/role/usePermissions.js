@@ -1,0 +1,271 @@
+import { computed } from 'vue'
+import {
+  PERMISSION_IDS,
+  DEPARTMENTS,
+} from '@/composables/Admin Composables/User & Role/role/permissionsId'
+import { useRolesStore } from '@/stores/Users & Role/roleStore'
+import {
+  LayoutDashboard,
+  Users,
+  CalendarCheck,
+  FileText,
+  Shield,
+  Wallet,
+  ShoppingCart,
+  Package,
+  Truck,
+  UserCheck,
+  Mail,
+  BarChart,
+  Building2,
+  Landmark,
+  ChartNoAxesColumnIncreasing,
+  Archive,
+} from 'lucide-vue-next'
+
+export function usePermissions(employeeRole) {
+  const rolesStore = useRolesStore()
+
+  const isSuperAdmin = computed(() => {
+    if (!employeeRole.value) return false
+    return employeeRole.value.permissions?.includes(PERMISSION_IDS.ADMIN_FULL_ACCESS)
+  })
+
+  const isDepartmentManager = computed(() => {
+    if (!employeeRole?.department) return false
+
+    const fullAccessPermissions = {
+      [DEPARTMENTS.HR]: PERMISSION_IDS.HR_FULL_ACCESS,
+      [DEPARTMENTS.FINANCE]: PERMISSION_IDS.FINANCE_FULL_ACCESS,
+      [DEPARTMENTS.SALES]: PERMISSION_IDS.SALES_FULL_ACCESS,
+      [DEPARTMENTS.SCM]: PERMISSION_IDS.SCM_FULL_ACCESS,
+      [DEPARTMENTS.CRM]: PERMISSION_IDS.CRM_FULL_ACCESS,
+    }
+
+    return employeeRole.value.permissions.includes(
+      fullAccessPermissions[employeeRole.value.department],
+    )
+  })
+
+  const hasPermission = (permissionId) => {
+    if (!employeeRole.value?.permissions) return false
+    return isSuperAdmin.value || employeeRole.value.permissions.includes(permissionId)
+  }
+
+  const canAccessDepartment = (department) => {
+    if (!employeeRole.value?.permissions || !employeeRole.value?.department) return false
+    if (isSuperAdmin.value) return true
+    return employeeRole.value.department === department
+  }
+
+  // Complete menu configuration for all departments
+  const menuConfig = {
+    [DEPARTMENTS.HR]: [
+      {
+        name: 'Dashboard',
+        route: '/hr/dashboard',
+        icon: LayoutDashboard,
+        permission: PERMISSION_IDS.HR_VIEW_DASHBOARD,
+      },
+      {
+        name: 'Employees',
+        route: '/hr/employees',
+        icon: Users,
+        permission: PERMISSION_IDS.HR_MANAGE_EMPLOYEES,
+      },
+      {
+        name: 'Attendance',
+        route: '/hr/attendance',
+        icon: CalendarCheck,
+        permission: PERMISSION_IDS.HR_MANAGE_ATTENDANCE,
+      },
+      {
+        name: 'Attendance Report',
+        route: '/hr/attendance-report',
+        icon: FileText,
+        permission: PERMISSION_IDS.HR_VIEW_ATTENDANCE_REPORT,
+      },
+      {
+        name: 'Roles',
+        route: '/hr/roles',
+        icon: Shield,
+        permission: PERMISSION_IDS.HR_MANAGE_ROLES,
+      },
+    ],
+    [DEPARTMENTS.FINANCE]: [
+      {
+        name: 'Dashboard',
+        route: '/finance/dashboard',
+        icon: LayoutDashboard,
+        permission: PERMISSION_IDS.FINANCE_VIEW_DASHBOARD,
+      },
+      {
+        name: 'Payroll',
+        route: '/finance/payroll',
+        icon: Wallet,
+        permission: PERMISSION_IDS.FINANCE_MANAGE_PAYROLL,
+      },
+      {
+        name: 'Reports',
+        route: '/finance/report',
+        icon: FileText,
+        permission: PERMISSION_IDS.FINANCE_VIEW_REPORTS,
+      },
+    ],
+    [DEPARTMENTS.SALES]: [
+      {
+        name: 'Dashboard',
+        route: '/sales/dashboard',
+        icon: LayoutDashboard,
+        permission: PERMISSION_IDS.SALES_VIEW_DASHBOARD,
+      },
+      {
+        name: 'Orders',
+        route: '/sales/orders',
+        icon: ShoppingCart,
+        permission: PERMISSION_IDS.SALES_FULL_ACCESS,
+      },
+    ],
+    [DEPARTMENTS.SCM]: [
+      {
+        name: 'Dashboard',
+        route: '/scm/dashboard',
+        icon: LayoutDashboard,
+        permission: PERMISSION_IDS.SCM_VIEW_DASHBOARD,
+      },
+      {
+        name: 'Stocks',
+        route: '/scm/stocks',
+        icon: Package,
+        permission: PERMISSION_IDS.SCM_VIEW_STOCKS,
+      },
+      {
+        name: 'Inventory',
+        route: '/scm/inventory',
+        icon: Truck,
+        permission: PERMISSION_IDS.SCM_FULL_ACCESS,
+      },
+    ],
+    [DEPARTMENTS.CRM]: [
+      {
+        name: 'Dashboard',
+        route: '/crm/dashboard',
+        icon: LayoutDashboard,
+        permission: PERMISSION_IDS.CRM_VIEW_DASHBOARD,
+      },
+      {
+        name: 'Customers',
+        route: '/crm/customers',
+        icon: UserCheck,
+        permission: PERMISSION_IDS.CRM_FULL_ACCESS,
+      },
+      {
+        name: 'Email Campaigns',
+        route: '/crm/campaigns',
+        icon: Mail,
+        permission: PERMISSION_IDS.CRM_FULL_ACCESS,
+      },
+      {
+        name: 'Analytics',
+        route: '/crm/analytics',
+        icon: BarChart,
+        permission: PERMISSION_IDS.CRM_FULL_ACCESS,
+      },
+    ],
+  }
+
+  const getVisibleMenuItems = (department) => {
+    const departmentMenu = menuConfig[department]
+    if (!departmentMenu) return []
+    return departmentMenu.filter((item) => hasPermission(item.permission))
+  }
+
+  const getAdminMenuItems = () => {
+    if (!isSuperAdmin.value) return {}
+
+    return {
+      'Human Resource': {
+        icon: Building2,
+        submenu: {
+          Dashboard: {
+            route: '/admin/hr/dashboard',
+            permission: PERMISSION_IDS.HR_VIEW_DASHBOARD,
+          },
+          Employees: {
+            route: '/admin/hr/employees',
+            permission: PERMISSION_IDS.HR_MANAGE_EMPLOYEES,
+          },
+          Attendance: {
+            route: '/admin/hr/attendance',
+            permission: PERMISSION_IDS.HR_MANAGE_ATTENDANCE,
+          },
+          'Attendance Report': {
+            route: '/admin/hr/attendance-report',
+            permission: PERMISSION_IDS.HR_VIEW_ATTENDANCE_REPORT,
+          },
+          Roles: {
+            route: '/admin/hr/roles',
+            permission: PERMISSION_IDS.HR_MANAGE_ROLES,
+          },
+        },
+      },
+      Finance: {
+        icon: Landmark,
+        submenu: {
+          Dashboard: {
+            route: '/admin/finance/dashboard',
+            permission: PERMISSION_IDS.FINANCE_VIEW_DASHBOARD,
+          },
+          Payroll: {
+            route: '/admin/finance/payroll',
+            permission: PERMISSION_IDS.FINANCE_MANAGE_PAYROLL,
+          },
+          'Finance Report': {
+            route: '/admin/finance/report',
+            permission: PERMISSION_IDS.FINANCE_VIEW_REPORTS,
+          },
+        },
+      },
+      Sales: {
+        icon: ChartNoAxesColumnIncreasing,
+        submenu: {
+          Dashboard: {
+            route: '/admin/sales/dashboard',
+            permission: PERMISSION_IDS.SALES_VIEW_DASHBOARD,
+          },
+        },
+      },
+      Inventory: {
+        icon: Archive,
+        submenu: {
+          Dashboard: {
+            route: '/admin/inventory/dashboard',
+            permission: PERMISSION_IDS.SCM_VIEW_DASHBOARD,
+          },
+          Stocks: {
+            route: '/admin/inventory/stocks',
+            permission: PERMISSION_IDS.SCM_VIEW_STOCKS,
+          },
+        },
+      },
+      CRM: {
+        icon: Mail,
+        submenu: {
+          Dashboard: {
+            route: '/admin/crm/dashboard',
+            permission: PERMISSION_IDS.CRM_VIEW_DASHBOARD,
+          },
+        },
+      },
+    }
+  }
+
+  return {
+    isSuperAdmin,
+    isDepartmentManager,
+    hasPermission,
+    canAccessDepartment,
+    getVisibleMenuItems,
+    getAdminMenuItems,
+  }
+}

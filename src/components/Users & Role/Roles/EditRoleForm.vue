@@ -1,12 +1,13 @@
 <script setup>
 import { ChevronLeft, ChevronRight, Check, Dot } from 'lucide-vue-next'
 import { useRouter, useRoute } from 'vue-router'
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import Toast from '@/components/Admin Components/HR/Toast.vue'
 import {
   PERMISSION_IDS,
   permissionGroups,
+  DEPARTMENTS,
 } from '@/composables/Admin Composables/User & Role/role/permissionsId'
 
 // Define props
@@ -50,6 +51,10 @@ const permissionGroupsRef = ref(permissionGroups)
 // Add these after your existing refs
 const groupSelectState = ref({})
 
+// Add department selection
+const selectedDepartment = ref('')
+const departments = Object.values(DEPARTMENTS)
+
 // Initialize group select state
 onMounted(() => {
   permissionGroupsRef.value.forEach((group) => {
@@ -70,6 +75,7 @@ onMounted(async () => {
       roleName: roleData.role_name,
       description: roleData.description || '',
     }
+    selectedDepartment.value = roleData.department
     selectedPermissions.value = roleData.permissions || []
 
     // Update group select states based on loaded permissions
@@ -86,6 +92,12 @@ onMounted(async () => {
       router.push('/hr/roles')
     }, 3000)
   }
+})
+
+// Add computed for filtered permissions
+const filteredPermissionGroups = computed(() => {
+  if (!selectedDepartment.value) return []
+  return permissionGroupsRef.value.filter((group) => group.department === selectedDepartment.value)
 })
 
 // Validation functions
@@ -150,6 +162,7 @@ const confirmSave = async () => {
     const response = await rolesStore.updateRole(roleId, {
       'role name': formData.value.roleName,
       description: formData.value.description,
+      department: selectedDepartment.value,
       permissions: selectedPermissions.value,
     })
 
@@ -309,6 +322,26 @@ watch(
               </label>
             </div>
           </div>
+
+          <div class="form-control flex gap-2 items-center">
+            <div class="w-30">
+              <label class="label">
+                <span class="label-text text-gray-500 text-sm">Department</span>
+              </label>
+            </div>
+            <div class="w-full">
+              <select
+                v-model="selectedDepartment"
+                class="select select-bordered w-full"
+                :disabled="formData.roleName === 'Super Admin'"
+              >
+                <option value="">Select a department</option>
+                <option v-for="dept in departments" :key="dept" :value="dept">
+                  {{ dept }}
+                </option>
+              </select>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -316,7 +349,7 @@ watch(
       <div v-if="step === 2" class="mt-5 border border-gray-200 rounded-md p-5 bg-white shadow-sm">
         <div class="font-semibold mb-4">Permissions</div>
         <div class="grid gap-6">
-          <div v-for="group in permissionGroupsRef" :key="group.name" class="">
+          <div v-for="group in filteredPermissionGroups" :key="group.name" class="">
             <div class="flex items-center gap-2 mb-3">
               <label
                 class="label cursor-pointer border border-gray-200 rounded-md p-2 bg-gray-50 justify-between w-full items-center mb-3"

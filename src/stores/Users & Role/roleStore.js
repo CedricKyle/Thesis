@@ -1,12 +1,16 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import { PERMISSION_IDS } from '@/composables/Admin Composables/User & Role/role/permissionsId'
+import {
+  PERMISSION_IDS,
+  DEPARTMENTS,
+} from '@/composables/Admin Composables/User & Role/role/permissionsId'
 
 export const useRolesStore = defineStore('roles', {
   state: () => ({
     roles: ref([]),
     loading: false,
     error: null,
+    currentEmployeeRole: ref(null),
   }),
 
   actions: {
@@ -25,6 +29,7 @@ export const useRolesStore = defineStore('roles', {
               id: 1,
               role_name: 'Super Admin',
               description: 'Full system administrator access',
+              department: DEPARTMENTS.ADMIN,
               permissions: allPermissionIds,
               last_modified: new Date().toISOString(),
             },
@@ -56,6 +61,7 @@ export const useRolesStore = defineStore('roles', {
           id: Date.now(),
           role_name: roleData.role_name, // Using role_name consistently
           description: roleData.description || '',
+          department: roleData.department,
           permissions: roleData.permissions || [],
           last_modified: new Date().toISOString(),
         }
@@ -131,6 +137,76 @@ export const useRolesStore = defineStore('roles', {
         throw error
       } finally {
         this.loading = false
+      }
+    },
+
+    getCurrentEmployeeRole() {
+      if (!this.currentEmployeeRole) {
+        return {
+          id: 1,
+          role_name: 'Super Admin',
+          description: 'Full system administrator access',
+          department: DEPARTMENTS.ADMIN,
+          permissions: [PERMISSION_IDS.ADMIN_FULL_ACCESS],
+          last_modified: new Date().toISOString(),
+        }
+      }
+      return this.currentEmployeeRole
+    },
+
+    setCurrentEmployeeRole(role) {
+      this.currentEmployeeRole = role
+    },
+
+    initializeStore() {
+      try {
+        const savedRoles = localStorage.getItem('roles')
+        if (savedRoles) {
+          this.roles = JSON.parse(savedRoles)
+        } else {
+          // Initialize with Super Admin and HR roles
+          const defaultRoles = [
+            {
+              id: 1,
+              role_name: 'Super Admin',
+              description: 'Full system administrator access',
+              department: DEPARTMENTS.ADMIN,
+              permissions: Object.values(PERMISSION_IDS),
+              last_modified: new Date().toISOString(),
+            },
+            {
+              id: 2,
+              role_name: 'HR Manager',
+              description: 'Full access to HR department functions and management',
+              department: DEPARTMENTS.HR,
+              permissions: [
+                PERMISSION_IDS.HR_FULL_ACCESS,
+                PERMISSION_IDS.HR_VIEW_DASHBOARD,
+                PERMISSION_IDS.HR_MANAGE_EMPLOYEES,
+                PERMISSION_IDS.HR_MANAGE_ATTENDANCE,
+                PERMISSION_IDS.HR_VIEW_ATTENDANCE_REPORT,
+                PERMISSION_IDS.HR_MANAGE_ROLES,
+              ],
+              last_modified: new Date().toISOString(),
+            },
+            {
+              id: 3,
+              role_name: 'HR Staff',
+              description: 'Basic HR staff with dashboard access',
+              department: DEPARTMENTS.HR,
+              permissions: [PERMISSION_IDS.HR_VIEW_DASHBOARD],
+              last_modified: new Date().toISOString(),
+            },
+          ]
+          localStorage.setItem('roles', JSON.stringify(defaultRoles))
+          this.roles = defaultRoles
+        }
+
+        // Set default Super Admin role for testing
+        this.setCurrentEmployeeRole(this.roles[0])
+      } catch (error) {
+        console.error('Error initializing roles store:', error)
+        this.error = error.message
       }
     },
   },

@@ -6,7 +6,10 @@ import Toast from '@/components/Admin Components/HR/Toast.vue'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import { storeToRefs } from 'pinia'
 import { useFormValidation } from '@/composables/Admin Composables/User & Role/role/useRoleFormValidation'
-import { permissionGroups } from '@/composables/Admin Composables/User & Role/role/permissionsId'
+import {
+  permissionGroups,
+  DEPARTMENTS,
+} from '@/composables/Admin Composables/User & Role/role/permissionsId'
 
 const router = useRouter()
 const route = useRoute()
@@ -29,6 +32,15 @@ const roleToAdd = ref(null)
 const showToast = ref(false)
 const toastMessage = ref('')
 const toastType = ref('success')
+
+// Add department selection
+const selectedDepartment = ref('')
+const filteredPermissionGroups = computed(() => {
+  if (!selectedDepartment.value) return []
+  return permissionGroups.filter((group) => group.department === selectedDepartment.value)
+})
+
+const departments = Object.values(DEPARTMENTS)
 
 onMounted(() => {
   initializeGroupState()
@@ -62,19 +74,25 @@ const togglePermission = (permissionId) => {
 }
 
 const handleSubmit = async () => {
-  clearErrors()
-
   if (!validateForm()) return
 
   roleToAdd.value = {
     role_name: roleName.value.trim(),
     description: description.value.trim(),
+    department: selectedDepartment.value,
     permissions: selectedPermissions.value,
   }
   confirmModal.value?.showModal()
 }
 
 const validateForm = () => {
+  clearErrors()
+
+  if (!selectedDepartment.value) {
+    errors.department = 'Please select a department'
+    return false
+  }
+
   if (!roleName.value?.trim()) {
     showError('Please enter a role name')
     return false
@@ -233,6 +251,31 @@ watch(roleName, (newValue) => {
       </div>
     </div>
 
+    <!-- Add department selection before permissions -->
+    <div class="mt-5 border border-gray-200 rounded-md p-5 bg-white shadow-sm">
+      <div class="font-semibold mb-4">Department Selection</div>
+      <div class="form-control">
+        <label class="label">
+          <span class="label-text text-gray-500 text-sm"
+            >Select Department<span class="text-red-500">*</span></span
+          >
+        </label>
+        <select
+          v-model="selectedDepartment"
+          class="select border-gray-300 bg-white w-full"
+          :class="{ 'select-error': errors.department }"
+        >
+          <option value="">Select a department</option>
+          <option v-for="dept in departments" :key="dept" :value="dept">
+            {{ dept }}
+          </option>
+        </select>
+        <label class="label" v-if="errors.department">
+          <span class="label-text-alt text-error">{{ errors.department }}</span>
+        </label>
+      </div>
+    </div>
+
     <!-- permissions -->
     <div
       class="permissions p-5 bg-white rounded-md flex flex-col gap-5 mt-5 border border-gray-200 shadow-sm"
@@ -246,13 +289,8 @@ watch(roleName, (newValue) => {
 
       <div class="flex flex-col gap-5">
         <!-- permissions list -->
-        <div class="permissions-list grid grid-cols-2 gap-5 border border-gray-200 rounded-md p-2">
-          <div
-            v-for="group in permissionGroupsRef"
-            :key="group.name"
-            :class="group.name.toLowerCase().replace(' ', '-')"
-            :data-section="group.name"
-          >
+        <div class="permissions-list" v-if="selectedDepartment">
+          <div v-for="group in filteredPermissionGroups" :key="group.name">
             <div
               class="flex items-center justify-between border border-gray-200 rounded-md p-2 bg-gray-50"
             >

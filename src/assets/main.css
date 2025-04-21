@@ -19,16 +19,16 @@
 
 @layer components {
   /* Fix for the modal itself */
-  .modal {
+  /* .modal {
     background: rgba(0, 0, 0, 0.3);
     backdrop-filter: blur(2px);
-  }
+  } */
 
   /* Ensure modal content doesn't cause unwanted scrollbars */
-  .modal-box {
+  /* .modal-box {
     max-height: calc(100vh - 5em);
     overflow-y: auto;
-  }
+  } */
 
   .bg-auth {
     @apply h-screen flex items-center justify-center bg-gradient-to-t from-[#466114] via-[#dae0d0] to-white;

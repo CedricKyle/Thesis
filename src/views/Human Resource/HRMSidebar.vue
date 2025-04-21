@@ -1,10 +1,19 @@
 <script setup>
-import { ref, defineAsyncComponent } from 'vue'
+import { ref, defineAsyncComponent, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { Building2, Users, Clock, FileSpreadsheet, Settings } from 'lucide-vue-next'
+import {
+  DEPARTMENTS,
+  PERMISSION_IDS,
+} from '@/composables/Admin Composables/User & Role/role/permissionsId'
+import { usePermissions } from '@/composables/Admin Composables/User & Role/role/usePermissions'
+import { useRolesStore } from '@/stores/Users & Role/roleStore'
 
 const router = useRouter()
 const currentTab = ref('Dashboard')
+const rolesStore = useRolesStore()
+const employeeRole = computed(() => rolesStore.getCurrentEmployeeRole())
+const { hasPermission } = usePermissions(employeeRole)
 
 // Define a simple loading spinner component
 const LoadingSpinner = {
@@ -18,58 +27,58 @@ const LoadingSpinner = {
   `,
 }
 
-// Define menu items with their components and icons
-const menuItems = {
-  Dashboard: {
-    component: defineAsyncComponent({
-      loader: () => import('./HRDashboard.vue'),
-      loadingComponent: LoadingSpinner,
-      delay: 1000,
-    }),
-    icon: Building2,
-    route: 'HRDashboard',
-  },
-  Employees: {
-    component: defineAsyncComponent({
-      loader: () => import('./Employees.vue'),
-      loadingComponent: LoadingSpinner,
-      delay: 1000,
-    }),
-    icon: Users,
-    route: 'Employees',
-  },
-  Attendance: {
-    component: defineAsyncComponent({
-      loader: () => import('./Attendance.vue'),
-      loadingComponent: LoadingSpinner,
-      delay: 1000,
-    }),
-    icon: Clock,
-    route: 'Attendance',
-  },
-  'Attendance Report': {
-    component: defineAsyncComponent({
-      loader: () => import('./AttendanceReport.vue'),
-      loadingComponent: LoadingSpinner,
-      delay: 1000,
-    }),
-    icon: FileSpreadsheet,
-    route: 'AttendanceReport',
-  },
-  Roles: {
-    component: defineAsyncComponent({
-      loader: () => import('./UserRolesManagement.vue'),
-      loadingComponent: LoadingSpinner,
-      delay: 1000,
-    }),
-    icon: Settings,
-    route: 'Roles',
-  },
-}
+// Compute visible menu items based on permissions
+const visibleMenuItems = computed(() => {
+  const items = []
+
+  // Dashboard is always visible for HR staff
+  if (hasPermission(PERMISSION_IDS.HR_VIEW_DASHBOARD)) {
+    items.push({
+      name: 'Dashboard',
+      route: '/hr/dashboard',
+      icon: Building2,
+    })
+  }
+
+  // Only add other items if user has permission
+  if (hasPermission(PERMISSION_IDS.HR_MANAGE_EMPLOYEES)) {
+    items.push({
+      name: 'Employees',
+      route: '/hr/employees',
+      icon: Users,
+    })
+  }
+
+  if (hasPermission(PERMISSION_IDS.HR_MANAGE_ATTENDANCE)) {
+    items.push({
+      name: 'Attendance',
+      route: '/hr/attendance',
+      icon: Clock,
+    })
+  }
+
+  if (hasPermission(PERMISSION_IDS.HR_VIEW_ATTENDANCE_REPORT)) {
+    items.push({
+      name: 'Attendance Report',
+      route: '/hr/attendance-report',
+      icon: FileSpreadsheet,
+    })
+  }
+
+  if (hasPermission(PERMISSION_IDS.HR_MANAGE_ROLES)) {
+    items.push({
+      name: 'Roles',
+      route: '/hr/roles',
+      icon: Settings,
+    })
+  }
+
+  return items
+})
 
 const setTab = (tabName) => {
   currentTab.value = tabName
-  router.push({ name: menuItems[tabName].route })
+  router.push({ name: tabName })
 }
 </script>
 
@@ -77,6 +86,7 @@ const setTab = (tabName) => {
   <div class="flex">
     <!-- Sidebar -->
     <div class="w-80 min-h-screen p-4 bg-primaryColor">
+      <!-- Logo Section -->
       <div class="logo-section flex items-center mb-5 gap-4">
         <div class="logo-content">
           <img
@@ -87,22 +97,22 @@ const setTab = (tabName) => {
         </div>
         <div class="text-log">
           <h1 class="text-[25px] text-secondaryColor">Countryside</h1>
-          <p class="text-[12px] text-gray-300">Human Resource Management</p>
+          <p class="text-[12px] text-gray-300">Serving sizzling steaks since 1984!</p>
         </div>
       </div>
 
+      <!-- Menu Items -->
       <ul class="menu w-full text-base-content">
-        <li v-for="(item, name) in menuItems" :key="name" class="m-2">
-          <button
-            :class="[
-              'flex items-center w-full px-4 py-2 transition',
-              currentTab === name ? 'active-menu' : 'text-white hover:text-gray-300',
-            ]"
-            @click="setTab(name)"
+        <li v-for="item in visibleMenuItems" :key="item.name">
+          <router-link
+            :to="item.route"
+            class="flex items-center gap-3 p-3 hover:bg-primaryColor/20 rounded-md"
+            :class="{ 'active-menu': currentTab === item.name }"
+            @click="currentTab = item.name"
           >
-            <component :is="item.icon" class="w-6 h-6 mr-3" />
-            {{ name }}
-          </button>
+            <component :is="item.icon" class="w-5 h-5" />
+            {{ item.name }}
+          </router-link>
         </li>
       </ul>
     </div>
@@ -120,5 +130,17 @@ const setTab = (tabName) => {
   color: var(--color-secondaryColor);
   border-left: 2px solid;
   border-radius: 0.125rem;
+}
+
+.menu li a {
+  color: white;
+}
+
+.menu li a:hover {
+  color: var(--color-secondaryColor);
+}
+
+.menu li a.active-menu {
+  color: var(--color-secondaryColor);
 }
 </style>

@@ -70,13 +70,24 @@ export const useEmployeeStore = defineStore('employee', () => {
   // Add employee
   const createEmployee = async (employeeData) => {
     try {
-      const response = await axios.post('/api/employees', employeeData)
+      // Log the request URL and data for debugging
+      console.log('Sending request to:', `${employeeAPI.defaults?.baseURL}/employees`)
+      console.log('Employee data:', employeeData)
+
+      const response = await employeeAPI.createEmployee(employeeData)
 
       // After successful creation, immediately load the updated list
-      await loadEmployees() // This will refresh the list automatically
+      await loadEmployees()
 
       return response.data
     } catch (error) {
+      // Enhanced error logging
+      console.error('Error creating employee:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        config: error.config,
+      })
       throw error
     }
   }

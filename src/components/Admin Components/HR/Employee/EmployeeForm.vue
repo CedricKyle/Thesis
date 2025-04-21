@@ -101,12 +101,13 @@ const handleFormSubmit = () => {
 const confirmAdd = async () => {
   try {
     const employeeData = createEmployeeData(employeeToAdd.value)
-    await store.addEmployee(employeeData)
+    await store.createEmployee(employeeData)
     confirmModal.value?.close()
     employeeToAdd.value = null
     showToastMessage('Employee added successfully!', 'success')
     resetForm()
   } catch (error) {
+    console.error('Error adding employee:', error)
     showToastMessage(error.message || 'Error adding employee', 'error')
   }
 }

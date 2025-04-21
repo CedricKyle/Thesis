@@ -2,6 +2,8 @@
 import { ref, defineAsyncComponent, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { LayoutDashboard, Users, MessageSquare, Calendar, BarChart3, Mail } from 'lucide-vue-next'
+import BaseDepartmentSidebar from '@/components/common/BaseDepartmentSidebar.vue'
+import { DEPARTMENTS } from '@/composables/Admin Composables/User & Role/role/permissionsId'
 
 const router = useRouter()
 const currentTab = ref('Dashboard')
@@ -59,44 +61,9 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="flex">
-    <!-- Sidebar -->
-    <div class="w-80 min-h-screen p-4 bg-primaryColor">
-      <div class="logo-section flex items-center mb-5 gap-4">
-        <div class="logo-content">
-          <img
-            src="../../assets/Images/countryside-logo.png"
-            alt="this is logo"
-            class="w-15 h-15"
-          />
-        </div>
-        <div class="text-log">
-          <h1 class="text-[25px] text-secondaryColor">Countryside</h1>
-          <p class="text-[12px] text-gray-300">Customer Relationship Management</p>
-        </div>
-      </div>
-
-      <ul class="menu w-full text-base-content">
-        <li v-for="(item, name) in menuItems" :key="name" class="m-2">
-          <button
-            :class="[
-              'flex items-center w-full px-4 py-2 transition',
-              currentTab === name ? 'active-menu' : 'text-white hover:text-gray-300',
-            ]"
-            @click="setTab(name)"
-          >
-            <component :is="item.icon" class="w-6 h-6 mr-3" />
-            {{ name }}
-          </button>
-        </li>
-      </ul>
-    </div>
-
-    <!-- Main Content -->
-    <div class="flex-1 p-6 bg-bgColor overflow-y-auto max-h-screen">
-      <router-view></router-view>
-    </div>
-  </div>
+  <BaseDepartmentSidebar :department="DEPARTMENTS.CRM">
+    <router-view></router-view>
+  </BaseDepartmentSidebar>
 </template>
 
 <style scoped>

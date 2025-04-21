@@ -5,6 +5,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'multipart/form-data', // This is important for file uploads
   },
+  withCredentials: false,
 })
 
 export const employeeAPI = {
@@ -15,12 +16,7 @@ export const employeeAPI = {
   getEmployee: (id) => api.get(`/employees/${id}`),
 
   // Create employee
-  createEmployee: (formData) =>
-    api.post('/employees', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    }),
+  createEmployee: (formData) => api.post('/employees', formData),
 
   // Update employee
   updateEmployee: (id, data) => api.put(`/employees/${id}`, data),

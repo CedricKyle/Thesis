@@ -1,27 +1,45 @@
 <script setup>
-import HumanResourceManagement from './HumanResourceManagement.vue'
-import CRMManagement from './CRMManagement.vue'
-import FinancialManagement from './FinancialManagement.vue'
-import InventoryManagement from './InventoryManagement.vue'
-import SalesManagement from './SalesManagement.vue'
-
-//this is sub menu for hr management
-import { ref, defineAsyncComponent, onMounted } from 'vue'
-
-//this is import icons
-import { Building2, Landmark, ChartNoAxesColumnIncreasing, Archive, Mail } from 'lucide-vue-next'
-
+import { ref, defineAsyncComponent, onMounted, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { usePermissions } from '@/composables/Admin Composables/User & Role/role/usePermissions'
+import { useRolesStore } from '@/stores/Users & Role/roleStore'
+import { useAuthStore } from '@/stores/Authentication/authStore'
+
 const router = useRouter()
+const rolesStore = useRolesStore()
+const authStore = useAuthStore()
 
-// Change the initial states to be null instead of having default values
-const currentTab = ref(null) // Changed from 'Dashboard'
-const openParentMenu = ref(null) // Changed from 'Human Resource'
+// Check if user is authenticated
+if (!authStore.isAuthenticated) {
+  router.push('/login')
+}
 
-//this is loading state
+const employeeRole = computed(() => rolesStore.getCurrentEmployeeRole())
+const { isSuperAdmin, getAdminMenuItems } = usePermissions(employeeRole)
+
+// Current state
+const currentTab = ref(null)
+const openParentMenu = ref(null)
 const isLoading = ref(false)
 
-// Define a simple loading spinner component
+// Watch for authentication state changes
+watch(
+  () => authStore.isAuthenticated,
+  (isAuthenticated) => {
+    if (!isAuthenticated) {
+      router.push('/login')
+    }
+  },
+)
+
+// Watch for super admin status changes
+watch(isSuperAdmin, (isAdmin) => {
+  if (!isAdmin && router.currentRoute.value.path.startsWith('/admin')) {
+    router.push('/access-denied')
+  }
+})
+
+// Loading spinner component
 const LoadingSpinner = {
   template: `
     <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center animate-fade-in">
@@ -33,189 +51,86 @@ const LoadingSpinner = {
   `,
 }
 
-// Create async components with loading state
-const AsyncHRDashboard = defineAsyncComponent({
-  loader: () => import('../Human Resource/HRDashboard.vue'),
-  loadingComponent: LoadingSpinner,
-  delay: 5000, // delay in ms before showing loading state
-  onLoadingStart: () => {
-    isLoading.value = true
-  },
-  onLoadingComplete: () => {
-    isLoading.value = false
-  },
+// Get admin menu configuration
+const tabs = computed(() => {
+  const menuItems = getAdminMenuItems()
+
+  // Add async components to each submenu
+  Object.keys(menuItems).forEach((parentKey) => {
+    const parent = menuItems[parentKey]
+    if (parent.submenu) {
+      Object.keys(parent.submenu).forEach((subKey) => {
+        const route = parent.submenu[subKey].route
+        parent.submenu[subKey].component = defineAsyncComponent({
+          loader: () => import(`../${route.split('/').slice(2).join('/')}.vue`),
+          loadingComponent: LoadingSpinner,
+          delay: 1000,
+          onLoadingStart: () => {
+            isLoading.value = true
+          },
+          onLoadingComplete: () => {
+            isLoading.value = false
+          },
+        })
+      })
+    }
+  })
+
+  return menuItems
 })
 
-const tabs = {
-  Sales: {
-    component: SalesManagement,
-    icon: ChartNoAxesColumnIncreasing,
-    submenu: {
-      Dashboard: defineAsyncComponent({
-        loader: () => import('../Sales Department/SalesDashboard.vue'),
-        loadingComponent: LoadingSpinner,
-        delay: 1000,
-      }),
-    },
-  },
-  CRM: {
-    component: CRMManagement,
-    icon: Mail,
-    submenu: {
-      Dashboard: defineAsyncComponent({
-        loader: () => import('../CRM Department/CRMDashboard.vue'),
-        loadingComponent: LoadingSpinner,
-        delay: 1000,
-      }),
-    },
-  },
-  Inventory: {
-    component: InventoryManagement,
-    icon: Archive,
-    submenu: {
-      Dashboard: defineAsyncComponent({
-        loader: () => import('../Suppy Chain Management Department/SCMDashboard.vue'),
-        loadingComponent: LoadingSpinner,
-        delay: 1000,
-      }),
-      Stocks: defineAsyncComponent({
-        loader: () => import('../Suppy Chain Management Department/BaseProductTable.vue'),
-        loadingComponent: LoadingSpinner,
-        delay: 1000,
-      }),
-    },
-  },
-  Finance: {
-    component: FinancialManagement,
-    icon: Landmark,
-    submenu: {
-      Dashboard: defineAsyncComponent({
-        loader: () => import('../Finance/FinanceDashboard.vue'),
-        loadingComponent: LoadingSpinner,
-        delay: 1000,
-      }),
-      Payroll: defineAsyncComponent({
-        loader: () => import('../Finance/FinancePayroll.vue'),
-        loadingComponent: LoadingSpinner,
-        delay: 1000,
-      }),
-      'Finance Report': defineAsyncComponent({
-        loader: () => import('../Finance/FinanceReport.vue'),
-        loadingComponent: LoadingSpinner,
-        delay: 1000,
-      }),
-    },
-  },
-  'Human Resource': {
-    component: HumanResourceManagement,
-    icon: Building2,
-    submenu: {
-      Dashboard: AsyncHRDashboard,
-      Employees: defineAsyncComponent({
-        loader: () => import('../Human Resource/Employees.vue'),
-        loadingComponent: LoadingSpinner,
-        delay: 1000,
-      }),
-      Attendance: defineAsyncComponent({
-        loader: () => import('../Human Resource/Attendance.vue'),
-        loadingComponent: LoadingSpinner,
-        delay: 1000,
-      }),
-      'Attendance Report': defineAsyncComponent({
-        loader: () => import('../Human Resource/AttendanceReport.vue'),
-        loadingComponent: LoadingSpinner,
-        delay: 1000,
-      }),
-      Roles: defineAsyncComponent({
-        loader: () => import('../Human Resource/UserRolesManagement.vue'),
-        loadingComponent: LoadingSpinner,
-        delay: 1000,
-      }),
-    },
-  },
-}
-
-// Modify the setTab function to handle both component switching and routing
+// Handle tab switching
 const setTab = (tabName, parentTab = null) => {
   currentTab.value = tabName
   if (parentTab) {
     openParentMenu.value = parentTab
   }
 
-  // Handle routing based on tab name
-  switch (tabName) {
-    case 'Roles':
-      router.push({ name: 'AdminRoles' })
-      break
-    case 'Dashboard':
-      if (openParentMenu.value === 'Finance') {
-        router.push({ name: 'AdminFinanceDashboard' })
-      } else if (openParentMenu.value === 'Human Resource') {
-        router.push({ name: 'AdminHRDashboard' })
-      } else if (openParentMenu.value === 'Inventory') {
-        router.push({ name: 'AdminSCMDashboard' })
-      } else if (openParentMenu.value === 'Sales') {
-        router.push({ name: 'AdminSalesDashboard' })
-      } else if (openParentMenu.value === 'CRM') {
-        router.push({ name: 'AdminCRMDashboard' })
-      }
-      break
-    case 'Payroll':
-      router.push({ name: 'AdminFinancePayroll' })
-      break
-    case 'Finance Report':
-      router.push({ name: 'AdminFinanceReport' })
-      break
-    case 'Employees':
-      router.push({ name: 'AdminEmployees' })
-      break
-    case 'Attendance':
-      router.push({ name: 'AdminAttendance' })
-      break
-    case 'Attendance Report':
-      router.push({ name: 'AdminAttendanceReport' })
-      break
-    case 'Stocks':
-      router.push({ name: 'AdminStocks' })
-      break
-    default:
-      break
+  const parentMenu = tabs.value[parentTab]
+  if (parentMenu?.submenu?.[tabName]) {
+    router.push(parentMenu.submenu[tabName].route)
   }
 }
 
-// Modify the onMounted function to better handle the initial route
+// Initialize based on current route
 onMounted(() => {
-  const route = router.currentRoute.value
-  const routeToTab = {
-    AdminRoles: { tab: 'Roles', parent: 'Human Resource' },
-    AdminHRDashboard: { tab: 'Dashboard', parent: 'Human Resource' },
-    AdminFinanceDashboard: { tab: 'Dashboard', parent: 'Finance' },
-    AdminFinancePayroll: { tab: 'Payroll', parent: 'Finance' },
-    AdminFinanceReport: { tab: 'Finance Report', parent: 'Finance' },
-    AdminSalesDashboard: { tab: 'Dashboard', parent: 'Sales' },
-    AdminSCMDashboard: { tab: 'Dashboard', parent: 'Inventory' },
-    AdminStocks: { tab: 'Stocks', parent: 'Inventory' },
-    AdminCRMDashboard: { tab: 'Dashboard', parent: 'CRM' },
-    AdminEmployees: { tab: 'Employees', parent: 'Human Resource' },
-    AdminAttendance: { tab: 'Attendance', parent: 'Human Resource' },
-    AdminAttendanceReport: { tab: 'Attendance Report', parent: 'Human Resource' },
+  // Check authentication and super admin status
+  if (!authStore.isAuthenticated) {
+    router.push('/login')
+    return
   }
 
-  if (routeToTab[route.name]) {
-    const { tab, parent } = routeToTab[route.name]
-    currentTab.value = tab
-    openParentMenu.value = parent
-  } else {
-    // Default to HR Dashboard if no matching route is found
+  if (!isSuperAdmin.value) {
+    router.push('/access-denied')
+    return
+  }
+
+  const route = router.currentRoute.value
+  const path = route.path.split('/')
+
+  // Find matching menu item
+  Object.entries(tabs.value).forEach(([parentKey, parent]) => {
+    if (parent.submenu) {
+      Object.entries(parent.submenu).forEach(([subKey, sub]) => {
+        if (sub.route === route.path) {
+          currentTab.value = subKey
+          openParentMenu.value = parentKey
+        }
+      })
+    }
+  })
+
+  // Default to HR Dashboard if no match found
+  if (!currentTab.value) {
     currentTab.value = 'Dashboard'
     openParentMenu.value = 'Human Resource'
-    router.push({ name: 'AdminHRDashboard', replace: true })
+    router.push('/admin/hr/dashboard')
   }
 })
 </script>
 
 <template>
-  <div class="flex">
+  <div v-if="authStore.isAuthenticated && isSuperAdmin" class="flex">
     <!-- Sidebar -->
     <div class="w-80 min-h-screen p-4 bg-primaryColor">
       <div class="logo-section flex items-center mb-5 gap-4">
@@ -231,6 +146,7 @@ onMounted(() => {
           <p class="text-[12px] text-gray-300">Serving sizzling steaks since 1984!</p>
         </div>
       </div>
+
       <ul class="menu w-full text-base-content">
         <li v-for="(tab, tabName) in tabs" :key="tabName" class="m-2">
           <template v-if="tab.submenu">
@@ -244,7 +160,7 @@ onMounted(() => {
                 </div>
               </summary>
               <ul class="pl-10">
-                <li v-for="(subComp, subTab) in tab.submenu" :key="subTab">
+                <li v-for="(subItem, subTab) in tab.submenu" :key="subTab">
                   <button
                     :class="[
                       'flex items-center px-4 py-2 submenu-button',
@@ -260,18 +176,6 @@ onMounted(() => {
               </ul>
             </details>
           </template>
-          <template v-else>
-            <button
-              :class="[
-                'flex items-center px-4 py-2 submenu-button',
-                currentTab === tabName ? 'active-submenu' : 'text-white hover:text-gray-300',
-              ]"
-              @click="setTab(tabName)"
-            >
-              <component :is="tab.icon" class="w-6 h-6 mr-3" />
-              {{ tabName }}
-            </button>
-          </template>
         </li>
       </ul>
     </div>
@@ -279,6 +183,15 @@ onMounted(() => {
     <!-- Main Content -->
     <div class="flex-1 p-6 bg-bgColor overflow-y-auto max-h-screen">
       <router-view></router-view>
+    </div>
+  </div>
+  <div v-else>
+    <!-- Access denied message -->
+    <div class="flex items-center justify-center h-screen">
+      <div class="text-center">
+        <h1 class="text-2xl font-bold text-red-500">Access Denied</h1>
+        <p class="mt-2 text-gray-600">You need Super Admin privileges to access this area.</p>
+      </div>
     </div>
   </div>
 </template>

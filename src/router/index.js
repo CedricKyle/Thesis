@@ -25,6 +25,14 @@ import FinanceSideBar from '@/views/Finance/FinanceSideBar.vue'
 import SalesSidebar from '@/views/Sales Department/SalesSidebar.vue'
 import SCMSidebar from '@/views/Suppy Chain Management Department/SCMSidebar.vue'
 import CRMSidebar from '@/views/CRM Department/CRMASidebar.vue'
+import { useRolesStore } from '@/stores/Users & Role/roleStore'
+import { usePermissions } from '@/composables/Admin Composables/User & Role/role/usePermissions'
+import {
+  PERMISSION_IDS,
+  DEPARTMENTS,
+} from '@/composables/Admin Composables/User & Role/role/permissionsId'
+import { useAuthStore } from '@/stores/Authentication/authStore'
+import { computed } from 'vue'
 
 const routes = [
   {
@@ -250,6 +258,11 @@ const routes = [
       },
     ],
   },
+  {
+    path: '/access-denied',
+    name: 'AccessDenied',
+    component: () => import('@/components/common/AccessDenied.vue'),
+  },
 ]
 
 const router = createRouter({
@@ -257,14 +270,135 @@ const router = createRouter({
   routes,
 })
 
-// Add navigation guards for debugging
-// router.beforeEach((to, from, next) => {
-//   console.log('Navigation started:', { from: from.path, to: to.path })
-//   next()
-// })
+router.beforeEach(async (to, from, next) => {
+  const authStore = useAuthStore()
+  const rolesStore = useRolesStore()
 
-// router.afterEach((to, from) => {
-//   console.log('Navigation completed:', { from: from.path, to: to.path })
-// })
+  // Check authentication state
+  if (!authStore.isAuthenticated) {
+    authStore.checkAuth()
+  }
+
+  // Allow login page access
+  if (to.path === '/login') {
+    authStore.logout()
+    next()
+    return
+  }
+
+  // Require authentication for all other routes
+  if (!authStore.isAuthenticated) {
+    next('/login')
+    return
+  }
+
+  const employeeRole = rolesStore.getCurrentEmployeeRole()
+  const { isSuperAdmin, canAccessDepartment, hasPermission } = usePermissions(
+    computed(() => employeeRole),
+  )
+
+  // Handle admin routes
+  if (to.path.startsWith('/admin')) {
+    if (!isSuperAdmin.value) {
+      // Redirect non-admin users to their department dashboard
+      const userDepartment = employeeRole.department
+      switch (userDepartment) {
+        case DEPARTMENTS.HR:
+          next('/hr/dashboard')
+          break
+        case DEPARTMENTS.FINANCE:
+          next('/finance/dashboard')
+          break
+        case DEPARTMENTS.SALES:
+          next('/sales/dashboard')
+          break
+        case DEPARTMENTS.SCM:
+          next('/scm/dashboard')
+          break
+        case DEPARTMENTS.CRM:
+          next('/crm/dashboard')
+          break
+        default:
+          next('/login')
+      }
+      return
+    }
+    next()
+    return
+  }
+
+  // Get department from route path
+  const pathSegments = to.path.split('/')
+  const pathDepartment = pathSegments[1].toUpperCase()
+  const currentDepartment = employeeRole.department
+
+  // Check if user is trying to access their own department
+  if (!canAccessDepartment(DEPARTMENTS[pathDepartment])) {
+    // Redirect to their own department dashboard
+    switch (currentDepartment) {
+      case DEPARTMENTS.HR:
+        next('/hr/dashboard')
+        break
+      case DEPARTMENTS.FINANCE:
+        next('/finance/dashboard')
+        break
+      case DEPARTMENTS.SALES:
+        next('/sales/dashboard')
+        break
+      case DEPARTMENTS.SCM:
+        next('/scm/dashboard')
+        break
+      case DEPARTMENTS.CRM:
+        next('/crm/dashboard')
+        break
+      default:
+        next('/login')
+    }
+    return
+  }
+
+  // Check specific route permissions
+  const routePermissions = {
+    '/hr/dashboard': PERMISSION_IDS.HR_VIEW_DASHBOARD,
+    '/hr/employees': PERMISSION_IDS.HR_MANAGE_EMPLOYEES,
+    '/hr/attendance': PERMISSION_IDS.HR_MANAGE_ATTENDANCE,
+    '/hr/attendance-report': PERMISSION_IDS.HR_VIEW_ATTENDANCE_REPORT,
+    '/hr/roles': PERMISSION_IDS.HR_MANAGE_ROLES,
+    '/finance/dashboard': PERMISSION_IDS.FINANCE_VIEW_DASHBOARD,
+    '/finance/payroll': PERMISSION_IDS.FINANCE_MANAGE_PAYROLL,
+    '/finance/report': PERMISSION_IDS.FINANCE_VIEW_REPORTS,
+    '/sales/dashboard': PERMISSION_IDS.SALES_VIEW_DASHBOARD,
+    '/scm/dashboard': PERMISSION_IDS.SCM_VIEW_DASHBOARD,
+    '/scm/stocks': PERMISSION_IDS.SCM_VIEW_STOCKS,
+    '/crm/dashboard': PERMISSION_IDS.CRM_VIEW_DASHBOARD,
+  }
+
+  const requiredPermission = routePermissions[to.path]
+  if (requiredPermission && !hasPermission(requiredPermission)) {
+    // Redirect to department dashboard instead of access denied
+    switch (currentDepartment) {
+      case DEPARTMENTS.HR:
+        next('/hr/dashboard')
+        break
+      case DEPARTMENTS.FINANCE:
+        next('/finance/dashboard')
+        break
+      case DEPARTMENTS.SALES:
+        next('/sales/dashboard')
+        break
+      case DEPARTMENTS.SCM:
+        next('/scm/dashboard')
+        break
+      case DEPARTMENTS.CRM:
+        next('/crm/dashboard')
+        break
+      default:
+        next('/login')
+    }
+    return
+  }
+
+  next()
+})
 
 export default router
