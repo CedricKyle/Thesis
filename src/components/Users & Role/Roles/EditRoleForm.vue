@@ -9,6 +9,14 @@ import {
   permissionGroups,
 } from '@/composables/Admin Composables/User & Role/role/permissionsId'
 
+// Define props
+const props = defineProps({
+  id: {
+    type: [String, Number],
+    required: false,
+  },
+})
+
 const router = useRouter()
 const route = useRoute()
 const step = ref(1)
@@ -52,7 +60,7 @@ onMounted(() => {
 // Update the fetch role data function
 onMounted(async () => {
   try {
-    const roleId = route.params.id
+    const roleId = props.id || route.params.id
     console.log('Fetching role with ID:', roleId)
 
     const roleData = await rolesStore.getRoleById(roleId)
@@ -138,7 +146,8 @@ const handleSubmit = () => {
 
 const confirmSave = async () => {
   try {
-    const response = await rolesStore.updateRole(route.params.id, {
+    const roleId = props.id || route.params.id
+    const response = await rolesStore.updateRole(roleId, {
       'role name': formData.value.roleName,
       description: formData.value.description,
       permissions: selectedPermissions.value,

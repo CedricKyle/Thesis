@@ -1,7 +1,7 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { Plus, RefreshCw } from 'lucide-vue-next'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import { storeToRefs } from 'pinia'
 import { useNotification } from '@/composables/Admin Composables/User & Role/role/useNotification'
@@ -10,6 +10,7 @@ import Toast from '@/components/Admin Components/HR/Toast.vue'
 import { getPermissionCategories } from '@/composables/Admin Composables/User & Role/role/permissions'
 
 const router = useRouter()
+const route = useRoute()
 const rolesStore = useRolesStore()
 const { roles } = storeToRefs(rolesStore)
 const { showNotification } = useNotification()
@@ -34,6 +35,9 @@ const duplicateConfirmModal = ref(null)
 const roleToView = ref(null)
 const roleToDelete = ref(null)
 const roleToDuplicate = ref(null)
+
+// Determine if we're in admin mode
+const isAdminMode = computed(() => route.path.startsWith('/admin'))
 
 // Table configuration
 const columns = [
@@ -180,7 +184,8 @@ const handleView = (rowData) => {
 }
 
 const handleEdit = (rowData) => {
-  router.push({ name: 'EditRole', params: { id: rowData.id } })
+  const routeName = isAdminMode.value ? 'AdminEditRole' : 'EditRole'
+  router.push({ name: routeName, params: { id: rowData.id } })
 }
 
 const handleDelete = (rowData) => {
@@ -251,11 +256,8 @@ const confirmDuplicate = async () => {
 
 // Navigation
 const navigateToCreateRole = () => {
-  router.push({ name: 'CreateRole' }).catch((err) => {
-    if (err.name !== 'NavigationDuplicated') {
-      console.error(err)
-    }
-  })
+  const routeName = isAdminMode.value ? 'AdminCreateRole' : 'CreateRole'
+  router.push({ name: routeName })
 }
 
 // Add this function after the other function definitions but before the lifecycle hooks

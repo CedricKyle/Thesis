@@ -145,50 +145,40 @@ const setTab = (tabName, parentTab = null) => {
   // Handle routing based on tab name
   switch (tabName) {
     case 'Roles':
-      router.push({ name: 'Roles' })
-      break
-    case 'Sales':
-      router.push({ name: 'Sales' })
-      break
-    //This is for Supply Chain Management
-    case 'Stocks':
-      router.push({ name: 'Stocks' })
-      break
-    case 'CRM':
-      router.push({ name: 'CRM' })
+      router.push({ name: 'AdminRoles' })
       break
     case 'Dashboard':
       if (openParentMenu.value === 'Finance') {
-        router.push({ name: 'FinanceDashboard' })
+        router.push({ name: 'AdminFinanceDashboard' })
       } else if (openParentMenu.value === 'Human Resource') {
-        router.push({ name: 'HRDashboard' })
+        router.push({ name: 'AdminHRDashboard' })
       } else if (openParentMenu.value === 'Inventory') {
-        router.push({ name: 'SCMDashboard' })
+        router.push({ name: 'AdminSCMDashboard' })
       } else if (openParentMenu.value === 'Sales') {
-        router.push({ name: 'SalesDashboard' })
+        router.push({ name: 'AdminSalesDashboard' })
       } else if (openParentMenu.value === 'CRM') {
-        router.push({ name: 'CRMDashboard' })
+        router.push({ name: 'AdminCRMDashboard' })
       }
       break
-    //this is for finance management
     case 'Payroll':
-      router.push({ name: 'FinancePayroll' })
+      router.push({ name: 'AdminFinancePayroll' })
       break
     case 'Finance Report':
-      router.push({ name: 'FinanceReport' })
+      router.push({ name: 'AdminFinanceReport' })
       break
-    //this is for hr management
     case 'Employees':
-      router.push({ name: 'Employees' })
+      router.push({ name: 'AdminEmployees' })
       break
     case 'Attendance':
-      router.push({ name: 'Attendance' })
+      router.push({ name: 'AdminAttendance' })
       break
     case 'Attendance Report':
-      router.push({ name: 'AttendanceReport' })
+      router.push({ name: 'AdminAttendanceReport' })
+      break
+    case 'Stocks':
+      router.push({ name: 'AdminStocks' })
       break
     default:
-      // If no specific route, just update the component
       break
   }
 }
@@ -197,22 +187,18 @@ const setTab = (tabName, parentTab = null) => {
 onMounted(() => {
   const route = router.currentRoute.value
   const routeToTab = {
-    Roles: { tab: 'Roles', parent: 'Human Resource' },
-    CreateRole: { tab: 'Roles', parent: 'Human Resource' },
-    Finance: { tab: 'Dashboard', parent: 'Finance' },
-    FinanceDashboard: { tab: 'Dashboard', parent: 'Finance' },
-    Payroll: { tab: 'Payroll', parent: 'Finance' },
-    'Finance Report': { tab: 'Finance Report', parent: 'Finance' },
-    Sales: { tab: 'Sales', parent: 'Sales' },
-    SalesDashboard: { tab: 'Dashboard', parent: 'Sales' },
-    Inventory: { tab: 'Inventory', parent: 'Inventory' },
-    SCMDashboard: { tab: 'Stocks', parent: 'Inventory' },
-    CRM: { tab: 'CRM', parent: 'CRM' },
-    CRMDashboard: { tab: 'Dashboard', parent: 'CRM' },
-    HRDashboard: { tab: 'Dashboard', parent: 'Human Resource' },
-    Employees: { tab: 'Employees', parent: 'Human Resource' },
-    Attendance: { tab: 'Attendance', parent: 'Human Resource' },
-    AttendanceReport: { tab: 'Attendance Report', parent: 'Human Resource' },
+    AdminRoles: { tab: 'Roles', parent: 'Human Resource' },
+    AdminHRDashboard: { tab: 'Dashboard', parent: 'Human Resource' },
+    AdminFinanceDashboard: { tab: 'Dashboard', parent: 'Finance' },
+    AdminFinancePayroll: { tab: 'Payroll', parent: 'Finance' },
+    AdminFinanceReport: { tab: 'Finance Report', parent: 'Finance' },
+    AdminSalesDashboard: { tab: 'Dashboard', parent: 'Sales' },
+    AdminSCMDashboard: { tab: 'Dashboard', parent: 'Inventory' },
+    AdminStocks: { tab: 'Stocks', parent: 'Inventory' },
+    AdminCRMDashboard: { tab: 'Dashboard', parent: 'CRM' },
+    AdminEmployees: { tab: 'Employees', parent: 'Human Resource' },
+    AdminAttendance: { tab: 'Attendance', parent: 'Human Resource' },
+    AdminAttendanceReport: { tab: 'Attendance Report', parent: 'Human Resource' },
   }
 
   if (routeToTab[route.name]) {
@@ -223,7 +209,7 @@ onMounted(() => {
     // Default to HR Dashboard if no matching route is found
     currentTab.value = 'Dashboard'
     openParentMenu.value = 'Human Resource'
-    router.push({ name: 'HRDashboard' })
+    router.push({ name: 'AdminHRDashboard', replace: true })
   }
 })
 </script>
