@@ -64,6 +64,83 @@ export const useAuthStore = defineStore('auth', {
             last_modified: new Date().toISOString(),
           },
         },
+        hrRestricted: {
+          userId: 'hrrestricted',
+          password: 'countryside123',
+          role: {
+            id: 4,
+            role_name: 'HR Restricted',
+            description: 'Limited HR access - only roles and reports',
+            department: DEPARTMENTS.HR,
+            permissions: [PERMISSION_IDS.HR_VIEW_ATTENDANCE_REPORT, PERMISSION_IDS.HR_MANAGE_ROLES],
+            last_modified: new Date().toISOString(),
+          },
+        },
+        financeManager: {
+          userId: 'financemanager',
+          password: 'countryside123',
+          role: {
+            id: 5,
+            role_name: 'Finance Manager',
+            description: 'Full access to Finance department functions and management',
+            department: DEPARTMENTS.FINANCE,
+            permissions: [
+              PERMISSION_IDS.FINANCE_FULL_ACCESS,
+              PERMISSION_IDS.FINANCE_VIEW_DASHBOARD,
+              PERMISSION_IDS.FINANCE_MANAGE_PAYROLL,
+              PERMISSION_IDS.FINANCE_VIEW_REPORTS,
+            ],
+            last_modified: new Date().toISOString(),
+          },
+        },
+        salesManager: {
+          userId: 'salesmanager',
+          password: 'countryside123',
+          role: {
+            id: 6,
+            role_name: 'Sales Manager',
+            description: 'Full access to Sales department functions and management',
+            department: DEPARTMENTS.SALES,
+            permissions: [PERMISSION_IDS.SALES_FULL_ACCESS, PERMISSION_IDS.SALES_VIEW_DASHBOARD],
+            last_modified: new Date().toISOString(),
+          },
+        },
+        scmManager: {
+          userId: 'scmmanager',
+          password: 'countryside123',
+          role: {
+            id: 7,
+            role_name: 'SCM Manager',
+            description: 'Full access to Supply Chain Management functions',
+            department: DEPARTMENTS.SCM,
+            permissions: [
+              PERMISSION_IDS.SCM_FULL_ACCESS,
+              PERMISSION_IDS.SCM_VIEW_DASHBOARD,
+              PERMISSION_IDS.SCM_VIEW_STOCKS,
+            ],
+            last_modified: new Date().toISOString(),
+          },
+        },
+        crmManager: {
+          userId: 'crmmanager',
+          password: 'countryside123',
+          role: {
+            id: 8,
+            role_name: 'CRM Manager',
+            description: 'Full access to Customer Relationship Management functions',
+            department: DEPARTMENTS.CRM,
+            permissions: [
+              PERMISSION_IDS.CRM_FULL_ACCESS,
+              PERMISSION_IDS.CRM_VIEW_DASHBOARD,
+              PERMISSION_IDS.CRM_MANAGE_CUSTOMERS,
+              PERMISSION_IDS.CRM_MANAGE_COMMUNICATIONS,
+              PERMISSION_IDS.CRM_MANAGE_APPOINTMENTS,
+              PERMISSION_IDS.CRM_MANAGE_CAMPAIGNS,
+              PERMISSION_IDS.CRM_VIEW_ANALYTICS,
+            ],
+            last_modified: new Date().toISOString(),
+          },
+        },
       }
 
       try {

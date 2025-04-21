@@ -174,8 +174,12 @@ const confirmSave = async () => {
     showToast.value = true
 
     confirmModal.value?.close()
+
+    // Add check for Super Admin
+    const isAdmin = route.path.startsWith('/admin')
+
     setTimeout(() => {
-      router.push('/hr/roles')
+      router.push(isAdmin ? '/admin/hr/roles' : '/hr/roles')
     }, 500)
     setTimeout(() => {
       showToast.value = false

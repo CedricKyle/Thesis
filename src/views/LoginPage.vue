@@ -25,34 +25,23 @@ const handleSubmit = async (e) => {
   try {
     const success = await authStore.login(userId.value, password.value)
     if (success) {
-      // Get the user's role and redirect accordingly
-      const currentRole = authStore.currentUser?.role
-      if (currentRole?.role_name === 'Super Admin') {
+      // Let the router handle the redirection based on role
+      // Don't redirect here, just let the navigation guard handle it
+      if (authStore.currentUser?.role?.role_name === 'Super Admin') {
         router.push('/admin/hr/dashboard')
       } else {
-        // For other roles, redirect based on department
-        // Map the department name to the correct route path
-        let routePath
-        switch (currentRole?.department) {
-          case 'Human Resource':
-            routePath = '/hr/dashboard'
-            break
-          case 'Finance':
-            routePath = '/finance/dashboard'
-            break
-          case 'Sales':
-            routePath = '/sales/dashboard'
-            break
-          case 'Supply Chain Management':
-            routePath = '/scm/dashboard'
-            break
-          case 'Customer Relationship Management':
-            routePath = '/crm/dashboard'
-            break
-          default:
-            routePath = '/login'
+        // Get department from the role
+        const department = authStore.currentUser?.role?.department?.toLowerCase()
+        if (department) {
+          // Convert department name to route path
+          const routePath =
+            department === 'human resource'
+              ? '/hr/dashboard'
+              : department === 'supply chain management'
+                ? '/scm/dashboard'
+                : `/${department.split(' ')[0].toLowerCase()}/dashboard`
+          router.push(routePath)
         }
-        router.push(routePath)
       }
     } else {
       error.value = 'Invalid credentials'

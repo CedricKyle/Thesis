@@ -1,14 +1,21 @@
 <script setup>
-import { ref, defineAsyncComponent, onMounted } from 'vue'
+import { ref, defineAsyncComponent, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { LayoutDashboard, Users, MessageSquare, Calendar, BarChart3, Mail } from 'lucide-vue-next'
-import BaseDepartmentSidebar from '@/components/common/BaseDepartmentSidebar.vue'
-import { DEPARTMENTS } from '@/composables/Admin Composables/User & Role/role/permissionsId'
+import {
+  DEPARTMENTS,
+  PERMISSION_IDS,
+} from '@/composables/Admin Composables/User & Role/role/permissionsId'
+import { usePermissions } from '@/composables/Admin Composables/User & Role/role/usePermissions'
+import { useRolesStore } from '@/stores/Users & Role/roleStore'
 
 const router = useRouter()
 const currentTab = ref('Dashboard')
+const rolesStore = useRolesStore()
+const employeeRole = computed(() => rolesStore.getCurrentEmployeeRole())
+const { hasPermission } = usePermissions(employeeRole)
 
-// Define loading spinner component
+// Define a simple loading spinner component
 const LoadingSpinner = {
   template: `
     <div class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center animate-fade-in">
@@ -20,50 +27,90 @@ const LoadingSpinner = {
   `,
 }
 
-// Define menu items with their components and icons
-const menuItems = {
-  Dashboard: {
-    component: defineAsyncComponent({
-      loader: () => import('./CRMDashboard.vue'),
-      loadingComponent: LoadingSpinner,
-      delay: 1000,
-    }),
-    icon: LayoutDashboard,
-    route: 'CRMDashboard',
-  },
-}
+// Compute visible menu items based on permissions
+const visibleMenuItems = computed(() => {
+  const items = []
 
-const setTab = (tabName) => {
-  currentTab.value = tabName
-  router.push({ name: menuItems[tabName].route })
-}
-
-// Set initial active tab based on current route
-onMounted(() => {
-  const route = router.currentRoute.value
-  const routeNames = {
-    CRMDashboard: 'Dashboard',
-    CRMCustomers: 'Customer Management',
-    CRMCommunications: 'Communications',
-    CRMAppointments: 'Appointments',
-    CRMEmailCampaigns: 'Email Campaigns',
-    CRMAnalytics: 'Analytics',
+  // If user has CRM_FULL_ACCESS, show all menu items
+  if (hasPermission(PERMISSION_IDS.CRM_FULL_ACCESS)) {
+    return [
+      {
+        name: 'Dashboard',
+        route: '/crm/dashboard',
+        icon: LayoutDashboard,
+      },
+    ]
   }
 
-  if (routeNames[route.name]) {
-    currentTab.value = routeNames[route.name]
-  } else {
-    // Default to Dashboard if no matching route is found
-    currentTab.value = 'Dashboard'
-    router.push({ name: 'CRMDashboard' })
+  // Otherwise, check individual permissions
+  if (hasPermission(PERMISSION_IDS.CRM_VIEW_DASHBOARD)) {
+    items.push({
+      name: 'Dashboard',
+      route: '/crm/dashboard',
+      icon: LayoutDashboard,
+    })
+  }
+
+  return items
+})
+
+onMounted(() => {
+  // Set initial tab based on current route
+  const currentRoute = router.currentRoute.value
+  const matchingItem = visibleMenuItems.value.find((item) => item.route === currentRoute.path)
+  if (matchingItem) {
+    currentTab.value = matchingItem.name
   }
 })
 </script>
 
 <template>
-  <BaseDepartmentSidebar :department="DEPARTMENTS.CRM">
-    <router-view></router-view>
-  </BaseDepartmentSidebar>
+  <div class="flex">
+    <!-- Sidebar -->
+    <div class="w-80 min-h-screen p-4 bg-primaryColor">
+      <!-- Logo Section -->
+      <div class="logo-section flex items-center mb-5 gap-4">
+        <div class="logo-content">
+          <img
+            src="../../assets/Images/countryside-logo.png"
+            alt="this is logo"
+            class="w-15 h-15"
+          />
+        </div>
+        <div class="text-log">
+          <h1 class="text-[25px] text-secondaryColor">Countryside</h1>
+          <p class="text-[12px] text-gray-300">Serving sizzling steaks since 1984!</p>
+        </div>
+      </div>
+
+      <!-- Debug info -->
+      <div class="text-white text-sm mb-4">
+        <p>Role: {{ employeeRole?.role_name }}</p>
+        <p>Department: {{ employeeRole?.department }}</p>
+        <p>Menu Items: {{ visibleMenuItems.length }}</p>
+      </div>
+
+      <!-- Menu Items -->
+      <ul class="menu w-full text-base-content">
+        <li v-for="item in visibleMenuItems" :key="item.name">
+          <router-link
+            :to="item.route"
+            class="flex items-center gap-3 p-3 hover:bg-primaryColor/20 rounded-md text-white"
+            :class="{ 'active-menu': currentTab === item.name }"
+            @click="currentTab = item.name"
+          >
+            <component :is="item.icon" class="w-5 h-5" />
+            {{ item.name }}
+          </router-link>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-1 p-6 bg-bgColor overflow-y-auto max-h-screen">
+      <router-view></router-view>
+    </div>
+  </div>
 </template>
 
 <style scoped>
@@ -72,5 +119,17 @@ onMounted(() => {
   color: var(--color-secondaryColor);
   border-left: 2px solid;
   border-radius: 0.125rem;
+}
+
+.menu li a {
+  color: white;
+}
+
+.menu li a:hover {
+  color: var(--color-secondaryColor);
+}
+
+.menu li a.active-menu {
+  color: var(--color-secondaryColor);
 }
 </style>

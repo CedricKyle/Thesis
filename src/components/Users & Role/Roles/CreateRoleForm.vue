@@ -156,9 +156,13 @@ const showSuccessAndRedirect = () => {
   confirmModal.value?.close()
   roleToAdd.value = null
 
+  // Add check for Super Admin
+  const isAdmin = route.path.startsWith('/admin')
+
   setTimeout(() => {
     showToast.value = false
-    router.push('/hr/roles')
+    // Redirect based on user role
+    router.push(isAdmin ? '/admin/hr/roles' : '/hr/roles')
   }, 3000)
 }
 

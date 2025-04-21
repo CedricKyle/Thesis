@@ -49,7 +49,20 @@ export function usePermissions(employeeRole) {
 
   const hasPermission = (permissionId) => {
     if (!employeeRole.value?.permissions) return false
-    return isSuperAdmin.value || employeeRole.value.permissions.includes(permissionId)
+
+    // Check for full access first
+    if (employeeRole.value.permissions.includes(PERMISSION_IDS.HR_FULL_ACCESS)) {
+      // If checking for an HR permission and user has HR_FULL_ACCESS, grant it
+      if (
+        Object.keys(PERMISSION_IDS).some(
+          (key) => key.startsWith('HR_') && PERMISSION_IDS[key] === permissionId,
+        )
+      ) {
+        return true
+      }
+    }
+
+    return employeeRole.value.permissions.includes(permissionId)
   }
 
   const canAccessDepartment = (department) => {
@@ -119,12 +132,6 @@ export function usePermissions(employeeRole) {
         icon: LayoutDashboard,
         permission: PERMISSION_IDS.SALES_VIEW_DASHBOARD,
       },
-      {
-        name: 'Orders',
-        route: '/sales/orders',
-        icon: ShoppingCart,
-        permission: PERMISSION_IDS.SALES_FULL_ACCESS,
-      },
     ],
     [DEPARTMENTS.SCM]: [
       {
@@ -139,12 +146,6 @@ export function usePermissions(employeeRole) {
         icon: Package,
         permission: PERMISSION_IDS.SCM_VIEW_STOCKS,
       },
-      {
-        name: 'Inventory',
-        route: '/scm/inventory',
-        icon: Truck,
-        permission: PERMISSION_IDS.SCM_FULL_ACCESS,
-      },
     ],
     [DEPARTMENTS.CRM]: [
       {
@@ -152,24 +153,6 @@ export function usePermissions(employeeRole) {
         route: '/crm/dashboard',
         icon: LayoutDashboard,
         permission: PERMISSION_IDS.CRM_VIEW_DASHBOARD,
-      },
-      {
-        name: 'Customers',
-        route: '/crm/customers',
-        icon: UserCheck,
-        permission: PERMISSION_IDS.CRM_FULL_ACCESS,
-      },
-      {
-        name: 'Email Campaigns',
-        route: '/crm/campaigns',
-        icon: Mail,
-        permission: PERMISSION_IDS.CRM_FULL_ACCESS,
-      },
-      {
-        name: 'Analytics',
-        route: '/crm/analytics',
-        icon: BarChart,
-        permission: PERMISSION_IDS.CRM_FULL_ACCESS,
       },
     ],
   }
