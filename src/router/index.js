@@ -18,6 +18,8 @@ import FinanceReport from '@/views/Finance/FinanceReport.vue'
 import BaseProductTable from '@/views/Suppy Chain Management Department/BaseProductTable.vue'
 import SCMDashboard from '@/views/Suppy Chain Management Department/SCMDashboard.vue'
 import StockView from '@/views/Suppy Chain Management Department/StockView.vue'
+import CRMDashboard from '@/views/CRM Department/CRMDashboard.vue'
+import SalesDashboard from '@/views/Sales Department/SalesDashboard.vue'
 const routes = [
   {
     path: '/',
@@ -69,6 +71,11 @@ const routes = [
         component: SalesManagement,
       },
       {
+        path: 'sales/dashboard',
+        name: 'SalesDashboard',
+        component: SalesDashboard,
+      },
+      {
         path: 'inventory',
         name: 'Inventory',
         component: InventoryManagement,
@@ -92,6 +99,11 @@ const routes = [
         path: 'crm',
         name: 'CRM',
         component: CRMManagement,
+      },
+      {
+        path: 'crm/dashboard',
+        name: 'CRMDashboard',
+        component: CRMDashboard,
       },
       {
         path: 'hr/dashboard',

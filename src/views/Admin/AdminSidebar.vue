@@ -47,8 +47,28 @@ const AsyncHRDashboard = defineAsyncComponent({
 })
 
 const tabs = {
-  Sales: { component: SalesManagement, icon: ChartNoAxesColumnIncreasing },
-  CRM: { component: CRMManagement, icon: Mail },
+  Sales: {
+    component: SalesManagement,
+    icon: ChartNoAxesColumnIncreasing,
+    submenu: {
+      Dashboard: defineAsyncComponent({
+        loader: () => import('../Sales Department/SalesDashboard.vue'),
+        loadingComponent: LoadingSpinner,
+        delay: 1000,
+      }),
+    },
+  },
+  CRM: {
+    component: CRMManagement,
+    icon: Mail,
+    submenu: {
+      Dashboard: defineAsyncComponent({
+        loader: () => import('../CRM Department/CRMDashboard.vue'),
+        loadingComponent: LoadingSpinner,
+        delay: 1000,
+      }),
+    },
+  },
   Inventory: {
     component: InventoryManagement,
     icon: Archive,
@@ -144,6 +164,10 @@ const setTab = (tabName, parentTab = null) => {
         router.push({ name: 'HRDashboard' })
       } else if (openParentMenu.value === 'Inventory') {
         router.push({ name: 'SCMDashboard' })
+      } else if (openParentMenu.value === 'Sales') {
+        router.push({ name: 'SalesDashboard' })
+      } else if (openParentMenu.value === 'CRM') {
+        router.push({ name: 'CRMDashboard' })
       }
       break
     //this is for finance management
@@ -179,10 +203,12 @@ onMounted(() => {
     FinanceDashboard: { tab: 'Dashboard', parent: 'Finance' },
     Payroll: { tab: 'Payroll', parent: 'Finance' },
     'Finance Report': { tab: 'Finance Report', parent: 'Finance' },
-    Sales: { tab: 'Sales', parent: null },
+    Sales: { tab: 'Sales', parent: 'Sales' },
+    SalesDashboard: { tab: 'Dashboard', parent: 'Sales' },
     Inventory: { tab: 'Inventory', parent: 'Inventory' },
     SCMDashboard: { tab: 'Stocks', parent: 'Inventory' },
-    CRM: { tab: 'CRM', parent: null },
+    CRM: { tab: 'CRM', parent: 'CRM' },
+    CRMDashboard: { tab: 'Dashboard', parent: 'CRM' },
     HRDashboard: { tab: 'Dashboard', parent: 'Human Resource' },
     Employees: { tab: 'Employees', parent: 'Human Resource' },
     Attendance: { tab: 'Attendance', parent: 'Human Resource' },
@@ -211,11 +237,11 @@ onMounted(() => {
           <img
             src="../../assets/Images/countryside-logo.png"
             alt="this is logo"
-            class="w-20 h-20"
+            class="w-15 h-15"
           />
         </div>
         <div class="text-log">
-          <h1 class="text-[25px] text-secondaryColor font-bold">Countryside</h1>
+          <h1 class="text-[25px] text-secondaryColor">Countryside</h1>
           <p class="text-[12px] text-gray-300">Serving sizzling steaks since 1984!</p>
         </div>
       </div>
