@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { usePermissions } from '@/composables/Admin Composables/User & Role/role/usePermissions'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import { useAuthStore } from '@/stores/Authentication/authStore'
+import { LogOut } from 'lucide-vue-next'
 
 const router = useRouter()
 const rolesStore = useRolesStore()
@@ -115,6 +116,12 @@ onMounted(() => {
     router.push('/admin/hr/dashboard')
   }
 })
+
+const handleLogout = () => {
+  authStore.logout()
+  // Handle navigation in the component
+  router.push('/login')
+}
 </script>
 
 <template>
@@ -166,6 +173,13 @@ onMounted(() => {
           </template>
         </li>
       </ul>
+
+      <div class="logout-section" @click="handleLogout">
+        <button class="btn btn-ghost flex items-center gap-2">
+          <LogOut class="w-4 h-4" />
+          <span>Logout</span>
+        </button>
+      </div>
     </div>
 
     <!-- Main Content -->

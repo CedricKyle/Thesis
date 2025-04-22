@@ -71,32 +71,70 @@ onMounted(async () => {
     const roleData = await rolesStore.getRoleById(roleId)
     console.log('Fetched role data:', roleData)
 
-    formData.value = {
-      roleName: roleData.role_name,
-      description: roleData.description || '',
-    }
-    selectedDepartment.value = roleData.department
-    selectedPermissions.value = roleData.permissions || []
+    if (roleData) {
+      // Update form data
+      formData.value = {
+        roleName: roleData.role_name || '',
+        description: roleData.description || '',
+      }
 
-    // Update group select states based on loaded permissions
-    permissionGroupsRef.value.forEach((group) => {
-      groupSelectState.value[group.name] = isGroupFullySelected(group.name)
-    })
+      // Set department - make sure it matches exactly with DEPARTMENTS values
+      selectedDepartment.value =
+        roleData.department === 'Finance Department'
+          ? DEPARTMENTS.FINANCE
+          : roleData.department === 'HR Department'
+            ? DEPARTMENTS.HR
+            : roleData.department === 'Admin Department'
+              ? DEPARTMENTS.ADMIN
+              : ''
+
+      // Handle permissions
+      let permissions = roleData.permissions
+      if (typeof permissions === 'string') {
+        try {
+          permissions = JSON.parse(permissions)
+        } catch (e) {
+          permissions = []
+        }
+      }
+      selectedPermissions.value = Array.isArray(permissions) ? permissions : []
+
+      // Update group select states after permissions are set
+      permissionGroupsRef.value.forEach((group) => {
+        groupSelectState.value[group.name] = isGroupFullySelected(group.name)
+      })
+    }
   } catch (error) {
     console.error('Error loading role:', error)
     toastType.value = 'error'
     toastMessage.value = 'Error loading role data. Please try again.'
     showToast.value = true
 
+    // Redirect back to roles list after error
     setTimeout(() => {
-      router.push('/hr/roles')
-    }, 3000)
+      const isAdmin = route.path.startsWith('/admin')
+      router.push(isAdmin ? '/admin/hr/roles' : '/hr/roles')
+    }, 2000)
   }
 })
 
-// Add computed for filtered permissions
+// Update the filteredPermissionGroups computed property
 const filteredPermissionGroups = computed(() => {
   if (!selectedDepartment.value) return []
+
+  // For Super Admin, show all permissions
+  if (formData.value.roleName === 'Super Admin') {
+    return permissionGroupsRef.value
+  }
+
+  // For Finance Manager, show Finance permissions
+  if (formData.value.roleName === 'Finance Manager') {
+    return permissionGroupsRef.value.filter(
+      (group) => group.department === DEPARTMENTS.FINANCE || group.name === 'Finance Management',
+    )
+  }
+
+  // For other roles, filter by department
   return permissionGroupsRef.value.filter((group) => group.department === selectedDepartment.value)
 })
 
@@ -106,6 +144,7 @@ const validateGeneralInfo = () => {
   formErrors.value = {
     roleName: '',
     description: '',
+    department: '',
   }
 
   if (!formData.value.roleName) {
@@ -114,6 +153,10 @@ const validateGeneralInfo = () => {
   }
   if (!formData.value.description) {
     formErrors.value.description = 'Description is required'
+    isValid = false
+  }
+  if (!selectedDepartment.value && formData.value.roleName !== 'Super Admin') {
+    formErrors.value.department = 'Department is required'
     isValid = false
   }
 
@@ -159,18 +202,17 @@ const handleSubmit = () => {
 const confirmSave = async () => {
   try {
     const roleId = props.id || route.params.id
-    const response = await rolesStore.updateRole(roleId, {
-      'role name': formData.value.roleName,
+    const updatedRole = {
+      role_name: formData.value.roleName,
       description: formData.value.description,
       department: selectedDepartment.value,
       permissions: selectedPermissions.value,
-    })
+    }
 
-    toastType.value = response.status === 'unchanged' ? 'info' : 'success'
-    toastMessage.value =
-      response.status === 'unchanged'
-        ? 'No changes were made to the role'
-        : 'Role updated successfully'
+    await rolesStore.updateRole(roleId, updatedRole)
+
+    toastType.value = 'success'
+    toastMessage.value = 'Role updated successfully'
     showToast.value = true
 
     confirmModal.value?.close()
@@ -181,16 +223,10 @@ const confirmSave = async () => {
     setTimeout(() => {
       router.push(isAdmin ? '/admin/hr/roles' : '/hr/roles')
     }, 500)
-    setTimeout(() => {
-      showToast.value = false
-    }, 3000)
   } catch (error) {
     toastType.value = 'error'
-    toastMessage.value = error.response?.data?.message || 'Error updating role'
+    toastMessage.value = error.message || 'Error updating role'
     showToast.value = true
-    setTimeout(() => {
-      showToast.value = false
-    }, 3000)
   }
 }
 
@@ -336,10 +372,10 @@ watch(
             <div class="w-full">
               <select
                 v-model="selectedDepartment"
-                class="select w-full border !border-gray-200 !bg-white !text-gray-300"
+                class="select w-full border !border-gray-200 !bg-white !text-black"
                 :disabled="formData.roleName === 'Super Admin'"
               >
-                <option value="">Select a department</option>
+                <option value="" disabled>Select a department</option>
                 <option v-for="dept in departments" :key="dept" :value="dept">
                   {{ dept }}
                 </option>
@@ -411,6 +447,10 @@ watch(
                 <span class="w-32 text-gray-500 text-sm">Description:</span>
                 <span class="text-sm">{{ formData.description }}</span>
               </div>
+              <div class="flex">
+                <span class="w-32 text-gray-500 text-sm">Department:</span>
+                <span class="text-sm">{{ selectedDepartment }}</span>
+              </div>
             </div>
           </div>
 
@@ -431,7 +471,7 @@ watch(
               </div>
             </div>
             <div class="bg-gray-50 p-4 rounded-md">
-              <div v-for="group in permissionGroupsRef" :key="group.name" class="mb-3">
+              <div v-for="group in filteredPermissionGroups" :key="group.name" class="mb-3">
                 <h5 class="font-medium text-sm mb-2">{{ group.name }}</h5>
                 <div class="grid grid-cols-2 gap-2">
                   <div

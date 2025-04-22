@@ -4,6 +4,7 @@ const cors = require('cors')
 require('dotenv').config()
 const employeeRoutes = require('./routes/main branch/employee-routes')
 const path = require('path')
+const roleRoutes = require('./routes/main branch/role-routes')
 
 const app = express()
 
@@ -16,6 +17,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
 
 // Routes
 app.use('/api/employees', employeeRoutes)
+app.use('/api', roleRoutes)
 
 // Error handling middleware
 app.use((err, req, res, next) => {

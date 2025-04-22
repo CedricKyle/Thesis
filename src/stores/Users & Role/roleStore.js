@@ -4,6 +4,7 @@ import {
   PERMISSION_IDS,
   DEPARTMENTS,
 } from '@/composables/Admin Composables/User & Role/role/permissionsId'
+import axios from 'axios'
 
 export const useRolesStore = defineStore('roles', {
   state: () => ({
@@ -14,29 +15,12 @@ export const useRolesStore = defineStore('roles', {
   }),
 
   actions: {
-    // Load roles from localStorage
+    // Fetch roles from backend API
     async fetchRoles() {
       try {
         this.loading = true
-        const savedRoles = localStorage.getItem('roles')
-        if (savedRoles) {
-          this.roles = JSON.parse(savedRoles)
-        } else {
-          // Initialize with Super Admin role having all permissions
-          const allPermissionIds = Object.values(PERMISSION_IDS)
-          const defaultRoles = [
-            {
-              id: 1,
-              role_name: 'Super Admin',
-              description: 'Full system administrator access',
-              department: DEPARTMENTS.ADMIN,
-              permissions: allPermissionIds,
-              last_modified: new Date().toISOString(),
-            },
-          ]
-          localStorage.setItem('roles', JSON.stringify(defaultRoles))
-          this.roles = defaultRoles
-        }
+        const response = await axios.get('http://localhost:3000/api/roles')
+        this.roles = response.data
       } catch (error) {
         console.error('Error fetching roles:', error)
         this.error = error.message
@@ -45,37 +29,33 @@ export const useRolesStore = defineStore('roles', {
       }
     },
 
+    // Get role by name from backend
+    async getRoleByName(roleName) {
+      try {
+        if (!roleName) {
+          console.log('No role name provided')
+          return null
+        }
+        const response = await axios.get(`http://localhost:3000/api/roles/name/${roleName}`)
+        return response.data
+      } catch (error) {
+        console.error('Error getting role by name:', error)
+        return null // Return null instead of throwing error
+      }
+    },
+
     async addRole(roleData) {
       try {
-        // Check for duplicate using role_name
-        const roleName = roleData.role_name?.toLowerCase().trim()
-        const isDuplicate = this.roles.some(
-          (role) => role.role_name?.toLowerCase().trim() === roleName,
-        )
-
-        if (isDuplicate) {
-          throw new Error('A role with this name already exists')
-        }
-
         const newRole = {
-          id: Date.now(),
-          role_name: roleData.role_name, // Using role_name consistently
+          role_name: roleData.role_name,
           description: roleData.description || '',
           department: roleData.department,
           permissions: roleData.permissions || [],
-          last_modified: new Date().toISOString(),
         }
 
-        console.log('Adding new role:', newRole)
-
-        const currentRoles = localStorage.getItem('roles')
-        const roles = currentRoles ? JSON.parse(currentRoles) : []
-        roles.push(newRole)
-
-        this.roles = roles
-        localStorage.setItem('roles', JSON.stringify(roles))
-
-        return newRole
+        const response = await axios.post('http://localhost:3000/api/roles', newRole)
+        await this.fetchRoles()
+        return response.data
       } catch (error) {
         console.error('Error adding role:', error)
         throw error
@@ -84,32 +64,20 @@ export const useRolesStore = defineStore('roles', {
 
     async updateRole(roleId, updatedRole) {
       try {
-        const currentRoles = localStorage.getItem('roles')
-        let roles = currentRoles ? JSON.parse(currentRoles) : []
-
-        const index = roles.findIndex((role) => role.id === parseInt(roleId))
-        if (index !== -1) {
-          roles[index] = {
-            ...roles[index],
-            ...updatedRole,
-            last_modified: new Date().toISOString(),
-          }
-          localStorage.setItem('roles', JSON.stringify(roles))
-          await this.fetchRoles() // Refresh the roles list
-          return roles[index]
-        }
-        throw new Error('Role not found')
+        const response = await axios.put(`http://localhost:3000/api/roles/${roleId}`, updatedRole)
+        await this.fetchRoles()
+        return response.data
       } catch (error) {
-        this.error = error.message
+        console.error('Error updating role:', error)
         throw error
       }
     },
 
     async deleteRole(roleId) {
       try {
-        this.roles = this.roles.filter((role) => role.id !== roleId)
-        // Update localStorage
-        localStorage.setItem('roles', JSON.stringify(this.roles))
+        await axios.delete(`http://localhost:3000/api/roles/${roleId}`)
+        // Refresh the roles list after deleting
+        await this.fetchRoles()
       } catch (error) {
         console.error('Error deleting role:', error)
         throw error
@@ -118,64 +86,60 @@ export const useRolesStore = defineStore('roles', {
 
     async getRoleById(id) {
       try {
-        this.loading = true
-        const currentRoles = localStorage.getItem('roles')
-        const roles = currentRoles ? JSON.parse(currentRoles) : []
-
-        // Convert id to number since route params are strings
-        const numericId = parseInt(id)
-        const role = roles.find((role) => role.id === numericId)
-
-        if (!role) {
-          throw new Error(`Role with ID ${id} not found`)
+        if (!id) {
+          throw new Error('Role ID is required')
         }
+        const response = await axios.get(`http://localhost:3000/api/roles/${id}`)
 
-        console.log('Found role:', role) // Debug log
-        return role
+        // Ensure permissions is always an array
+        const roleData = response.data
+        if (typeof roleData.permissions === 'string') {
+          roleData.permissions = JSON.parse(roleData.permissions)
+        }
+        return roleData
       } catch (error) {
         console.error('Error in getRoleById:', error)
         throw error
-      } finally {
-        this.loading = false
       }
     },
 
     getCurrentEmployeeRole() {
-      if (!this.currentEmployeeRole) {
-        return {
-          id: 1,
-          role_name: 'Super Admin',
-          description: 'Full system administrator access',
-          department: DEPARTMENTS.ADMIN,
-          permissions: [PERMISSION_IDS.ADMIN_FULL_ACCESS],
-          last_modified: new Date().toISOString(),
-        }
-      }
       return this.currentEmployeeRole
     },
 
-    setCurrentEmployeeRole(role) {
-      this.currentEmployeeRole = role
+    async setCurrentEmployeeRole(employeeData) {
+      try {
+        // Check if employeeData and role exist
+        if (!employeeData || !employeeData.role) {
+          console.log('No employee data or role available yet')
+          this.currentEmployeeRole = null
+          return
+        }
+
+        // Fetch the complete role data from backend
+        const roleData = await this.getRoleByName(employeeData.role)
+        this.currentEmployeeRole = roleData
+      } catch (error) {
+        console.error('Error setting current employee role:', error)
+        this.currentEmployeeRole = null
+      }
     },
 
-    initializeStore() {
+    async initializeStore() {
       try {
-        const savedRoles = localStorage.getItem('roles')
-        if (savedRoles) {
-          this.roles = JSON.parse(savedRoles)
-        } else {
-          // Initialize with Super Admin and HR roles
+        // Fetch roles from backend instead of using localStorage
+        await this.fetchRoles()
+
+        // If no roles exist, create default roles
+        if (this.roles.length === 0) {
           const defaultRoles = [
             {
-              id: 1,
               role_name: 'Super Admin',
               description: 'Full system administrator access',
               department: DEPARTMENTS.ADMIN,
               permissions: Object.values(PERMISSION_IDS),
-              last_modified: new Date().toISOString(),
             },
             {
-              id: 2,
               role_name: 'HR Manager',
               description: 'Full access to HR department functions and management',
               department: DEPARTMENTS.HR,
@@ -187,23 +151,20 @@ export const useRolesStore = defineStore('roles', {
                 PERMISSION_IDS.HR_VIEW_ATTENDANCE_REPORT,
                 PERMISSION_IDS.HR_MANAGE_ROLES,
               ],
-              last_modified: new Date().toISOString(),
             },
             {
-              id: 3,
               role_name: 'HR Staff',
               description: 'Basic HR staff with dashboard access',
               department: DEPARTMENTS.HR,
               permissions: [PERMISSION_IDS.HR_VIEW_DASHBOARD],
-              last_modified: new Date().toISOString(),
             },
           ]
-          localStorage.setItem('roles', JSON.stringify(defaultRoles))
-          this.roles = defaultRoles
-        }
 
-        // Set default Super Admin role for testing
-        this.setCurrentEmployeeRole(this.roles[0])
+          // Add default roles to backend
+          for (const role of defaultRoles) {
+            await this.addRole(role)
+          }
+        }
       } catch (error) {
         console.error('Error initializing roles store:', error)
         this.error = error.message

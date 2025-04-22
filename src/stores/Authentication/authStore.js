@@ -12,6 +12,7 @@ export const useAuthStore = defineStore('auth', {
     currentUser: ref(null),
     isAuthenticated: ref(false),
     error: ref(null),
+    isFirstLogin: false,
   }),
 
   actions: {
@@ -174,25 +175,36 @@ export const useAuthStore = defineStore('auth', {
           const employee = response.data
 
           if (employee && password === 'countryside123') {
-            this.currentUser = {
-              id: employee.employee_id,
-              userId: employee.employee_id,
-              role: {
-                role_name: 'Super Admin',
-                department: 'Admin Department',
-              },
-              fullName: employee.full_name,
-              department: 'Admin Department',
+            try {
+              const rolesStore = useRolesStore()
+
+              // Get complete role data from backend
+              const roleData = await rolesStore.getRoleByName(employee.role)
+
+              this.currentUser = {
+                id: employee.employee_id,
+                userId: employee.employee_id,
+                role: employee.role,
+                fullName: employee.full_name,
+                department: employee.department,
+              }
+
+              this.isAuthenticated = true
+              await rolesStore.setCurrentEmployeeRole(employee)
+              this.saveToLocalStorage()
+
+              // Return the correct redirect path based on role and department
+              if (employee.role === 'Super Admin') {
+                return '/admin/hr/dashboard'
+              } else {
+                // Convert department name to route path
+                const deptPath = employee.department.toLowerCase().split(' ')[0] // Take first word of department
+                return `/${deptPath}/dashboard`
+              }
+            } catch (error) {
+              console.error('Error during login:', error)
+              throw new Error('Failed to set up user role')
             }
-            this.isAuthenticated = true
-            const rolesStore = useRolesStore()
-            rolesStore.setCurrentEmployeeRole({
-              role_name: 'Super Admin',
-              department: 'Admin Department',
-              permissions: [PERMISSION_IDS.ADMIN_FULL_ACCESS],
-            })
-            this.saveToLocalStorage()
-            return '/admin/hr/dashboard'
           }
 
           throw new Error('Invalid credentials')
@@ -217,13 +229,20 @@ export const useAuthStore = defineStore('auth', {
     },
 
     logout() {
-      this.currentUser = null
       this.isAuthenticated = false
+      this.currentUser = null
+      this.isFirstLogin = false
+      // Clear any stored tokens or session data
+      localStorage.removeItem('user')
+      localStorage.removeItem('token')
       localStorage.removeItem('auth')
 
       // Clear role from roles store
       const rolesStore = useRolesStore()
       rolesStore.setCurrentEmployeeRole(null)
+
+      // Return true to indicate successful logout
+      return true
     },
 
     // Check if there's a stored auth state

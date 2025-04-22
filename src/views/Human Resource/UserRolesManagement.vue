@@ -8,6 +8,10 @@ import { useNotification } from '@/composables/Admin Composables/User & Role/rol
 import { TabulatorFull as Tabulator } from 'tabulator-tables'
 import Toast from '@/components/Admin Components/HR/Toast.vue'
 import { getPermissionCategories } from '@/composables/Admin Composables/User & Role/role/permissions'
+import {
+  PERMISSION_IDS,
+  permissionGroups,
+} from '@/composables/Admin Composables/User & Role/role/permissionsId'
 
 const router = useRouter()
 const route = useRoute()
@@ -61,23 +65,26 @@ const columns = [
   },
   {
     title: 'Last Modified',
-    field: 'last_modified',
+    field: 'updated_at',
     sorter: 'date',
     headerSort: true,
     formatter: (cell) => {
-      const date = new Date(cell.getValue())
-      return date
-        .toLocaleString('en-PH', {
+      const value = cell.getValue()
+      if (!value) return 'Not Modified'
+      try {
+        const date = new Date(value)
+        return date.toLocaleString('en-PH', {
           year: 'numeric',
           month: '2-digit',
           day: '2-digit',
           hour: '2-digit',
           minute: '2-digit',
-          second: '2-digit',
           hour12: false,
           timeZone: 'Asia/Manila',
         })
-        .replace(',', '')
+      } catch (error) {
+        return 'Not Modified'
+      }
     },
   },
   {
@@ -179,7 +186,15 @@ const showToastMessage = (message, type = 'success') => {
 
 // Role actions
 const handleView = (rowData) => {
-  roleToView.value = rowData
+  // Ensure permissions is always an array
+  roleToView.value = {
+    ...rowData,
+    permissions: Array.isArray(rowData.permissions)
+      ? rowData.permissions
+      : typeof rowData.permissions === 'string'
+        ? JSON.parse(rowData.permissions)
+        : [],
+  }
   viewModal.value?.showModal()
 }
 
@@ -277,6 +292,52 @@ const formatPermissions = (permissions) => {
 
   return formattedText.trim()
 }
+
+// Add this computed property
+const formattedPermissions = computed(() => {
+  if (!roleToView.value?.permissions) return []
+  return roleToView.value.permissions.map((permId) => {
+    for (const [key, value] of Object.entries(PERMISSION_IDS)) {
+      if (value === permId) return key
+    }
+    return permId
+  })
+})
+
+// Add these computed properties
+const groupedPermissions = computed(() => {
+  if (!roleToView.value?.permissions) return {}
+
+  let permissions = roleToView.value.permissions
+  if (typeof permissions === 'string') {
+    try {
+      permissions = JSON.parse(permissions)
+    } catch (e) {
+      permissions = []
+    }
+  }
+
+  if (!Array.isArray(permissions)) {
+    permissions = []
+  }
+
+  const groups = {}
+
+  // Group permissions by their category
+  permissions.forEach((permId) => {
+    for (const [groupName, group] of Object.entries(permissionGroups)) {
+      const permission = group.permissions.find((p) => p.id === permId)
+      if (permission) {
+        if (!groups[groupName]) {
+          groups[groupName] = []
+        }
+        groups[groupName].push(permission)
+      }
+    }
+  })
+
+  return groups
+})
 
 // Lifecycle hooks
 onMounted(async () => {
@@ -429,14 +490,17 @@ onBeforeUnmount(() => {
                 <span class="text-xs text-gray-500">
                   Last Modified:
                   {{
-                    new Date(roleToView.last_modified).toLocaleString('en-US', {
-                      year: 'numeric',
-                      month: '2-digit',
-                      day: '2-digit',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                      hour12: false,
-                    })
+                    roleToView.updated_at
+                      ? new Date(roleToView.updated_at).toLocaleString('en-PH', {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                          hour12: false,
+                          timeZone: 'Asia/Manila',
+                        })
+                      : 'Not Modified'
                   }}
                 </span>
               </div>
@@ -445,29 +509,30 @@ onBeforeUnmount(() => {
 
             <div class="bg-gray-50 p-4 rounded-md">
               <h4 class="font-semibold mb-3 text-sm">Permissions</h4>
-              <div class="grid gap-4 text-sm">
-                <template
-                  v-for="(categoryPerms, category) in getPermissionCategories(
-                    roleToView.permissions,
-                  )"
-                  :key="category"
-                >
+              <div
+                v-if="roleToView.permissions && roleToView.permissions.length > 0"
+                class="grid gap-4 text-sm"
+              >
+                <template v-for="(group, groupName) in groupedPermissions" :key="groupName">
                   <div class="border-b border-gray-200 pb-4 last:border-b-0">
                     <h5 class="font-medium text-primaryColor mb-2 flex items-center gap-2">
                       <span class="w-[3px] h-4 bg-primaryColor rounded-full"></span>
-                      {{ category }}
+                      {{ groupName }}
                     </h5>
-                    <div class="grid grid-cols-2 gap-2 pl-4 text-sm">
-                      <template v-for="(permId, permName) in categoryPerms" :key="permId">
-                        <div class="flex items-center gap-2">
-                          <span class="w-2 h-2 rounded-full bg-secondaryColor"></span>
-                          <span class="text-black">{{ permName }}</span>
-                        </div>
-                      </template>
+                    <div class="grid grid-cols-2 gap-2 pl-4">
+                      <div
+                        v-for="permission in group"
+                        :key="permission.id"
+                        class="flex items-center gap-2"
+                      >
+                        <span class="w-2 h-2 rounded-full bg-secondaryColor"></span>
+                        <span class="text-black">{{ permission.name }}</span>
+                      </div>
                     </div>
                   </div>
                 </template>
               </div>
+              <div v-else class="text-gray-500 text-sm">No permissions assigned</div>
             </div>
           </div>
         </div>

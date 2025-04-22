@@ -29,52 +29,32 @@ const handleSubmit = async (e) => {
     if (response) {
       console.log('Current user:', authStore.currentUser)
 
-      // Check role using the correct structure
+      // Get user role and department
       const userRole = authStore.currentUser?.role?.role_name || authStore.currentUser?.role
+      const department = authStore.currentUser?.department
+
       console.log('User role:', userRole)
+      console.log('Department:', department)
+
+      // Determine redirect path
+      let redirectPath = ''
 
       if (userRole === 'Super Admin') {
-        console.log('Redirecting to admin dashboard')
-        try {
-          await router.push('/admin/hr/dashboard')
-        } catch (navError) {
-          console.error('Navigation error:', navError)
-          window.location.href = '/admin/hr/dashboard'
-        }
+        redirectPath = '/admin/hr/dashboard'
       } else {
-        const department = authStore.currentUser?.department?.toLowerCase()
-        if (department) {
-          let routePath = ''
-          switch (department) {
-            case 'admin department':
-              routePath = '/admin/hr/dashboard'
-              break
-            case 'human resource':
-              routePath = '/hr/dashboard'
-              break
-            case 'supply chain management':
-              routePath = '/scm/dashboard'
-              break
-            case 'finance':
-              routePath = '/finance/dashboard'
-              break
-            case 'sales':
-              routePath = '/sales/dashboard'
-              break
-            case 'crm':
-              routePath = '/crm/dashboard'
-              break
-            default:
-              routePath = '/login'
-          }
+        // Convert department name to route path (e.g., "HR Department" -> "/hr/dashboard")
+        const deptPath = department?.toLowerCase().split(' ')[0]
+        redirectPath = `/${deptPath}/dashboard`
+      }
 
-          try {
-            await router.push(routePath)
-          } catch (navError) {
-            console.error('Navigation error:', navError)
-            window.location.href = routePath
-          }
-        }
+      console.log('Redirecting to:', redirectPath)
+
+      try {
+        await router.push(redirectPath)
+      } catch (navError) {
+        console.error('Navigation error:', navError)
+        // Fallback to window.location if router.push fails
+        window.location.href = redirectPath
       }
     } else {
       error.value = 'Invalid credentials'
