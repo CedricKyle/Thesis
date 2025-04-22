@@ -23,18 +23,25 @@ const isEditMode = computed(() => route.query.edit === 'true')
 const roleName = ref('')
 const description = ref('')
 const selectedPermissions = ref([])
-const permissionGroupsRef = ref(permissionGroups)
-const groupSelectState = ref({})
-const confirmModal = ref(null)
-const roleToAdd = ref(null)
-
-// Toast state
-const showToast = ref(false)
-const toastMessage = ref('')
-const toastType = ref('success')
-
-// Add department selection
 const selectedDepartment = ref('')
+
+// Add state for full access toggles
+const departmentFullAccess = ref({})
+
+// Computed property for department-specific permissions
+const filteredPermissionGroups = computed(() => {
+  if (!selectedDepartment.value) return []
+
+  // If Super Admin is selected, show all permission groups
+  if (selectedDepartment.value === DEPARTMENTS.ADMIN) {
+    return permissionGroups
+  }
+
+  // Otherwise, filter by selected department
+  return permissionGroups.filter((group) => group.department === selectedDepartment.value)
+})
+
+// Add this computed property after your other computed properties
 const departments = computed(() => {
   // Check if we're on the admin route
   const isAdminRoute = route.path.startsWith('/admin')
@@ -48,61 +55,49 @@ const departments = computed(() => {
   return Object.values(DEPARTMENTS).filter((dept) => dept !== DEPARTMENTS.ADMIN)
 })
 
-const filteredPermissionGroups = computed(() => {
-  if (!selectedDepartment.value) return []
+// Function to handle full access toggle
+const toggleFullAccess = (department) => {
+  departmentFullAccess.value[department] = !departmentFullAccess.value[department]
 
-  // If Super Admin is selected, show all permission groups
-  if (selectedDepartment.value === DEPARTMENTS.ADMIN) {
-    return permissionGroups
-  }
+  // Find all permissions for this department
+  const departmentPermissions = permissionGroups
+    .filter((group) => group.department === department)
+    .flatMap((group) => group.permissions)
+    .map((perm) => perm.id)
 
-  // Otherwise, filter by selected department
-  return permissionGroups.filter((group) => group.department === selectedDepartment.value)
-})
-
-onMounted(() => {
-  initializeGroupState()
-  if (isEditMode.value && route.query.roleName) {
-    loadExistingRole()
-  }
-})
-
-const initializeGroupState = () => {
-  permissionGroupsRef.value.forEach((group) => {
-    groupSelectState.value[group.name] = false
-  })
-}
-
-const loadExistingRole = () => {
-  const role = roles.value.find((r) => r.role_name === route.query.roleName)
-  if (role) {
-    roleName.value = role.role_name
-    description.value = role.description
-    selectedPermissions.value = role.permissions || []
-  }
-}
-
-const togglePermission = (permissionId) => {
-  const index = selectedPermissions.value.indexOf(permissionId)
-  if (index === -1) {
-    selectedPermissions.value.push(permissionId)
+  if (departmentFullAccess.value[department]) {
+    // Add all department permissions
+    departmentPermissions.forEach((permId) => {
+      if (!selectedPermissions.value.includes(permId)) {
+        selectedPermissions.value.push(permId)
+      }
+    })
   } else {
-    selectedPermissions.value.splice(index, 1)
+    // Remove all department permissions except individually selected ones
+    selectedPermissions.value = selectedPermissions.value.filter(
+      (permId) => !departmentPermissions.includes(permId),
+    )
   }
 }
 
-const handleSubmit = async () => {
-  if (!validateForm()) return
+// Function to check if department has full access
+const hasDepartmentFullAccess = (department) => {
+  const departmentPermissions = permissionGroups
+    .filter((group) => group.department === department)
+    .flatMap((group) => group.permissions)
+    .map((perm) => perm.id)
 
-  roleToAdd.value = {
-    role_name: roleName.value.trim(),
-    description: description.value.trim(),
-    department: selectedDepartment.value,
-    permissions: selectedPermissions.value,
-  }
-  confirmModal.value?.showModal()
+  return departmentPermissions.every((permId) => selectedPermissions.value.includes(permId))
 }
 
+// Watch for department changes
+watch(selectedDepartment, (newDepartment) => {
+  // Reset permissions when department changes
+  selectedPermissions.value = []
+  departmentFullAccess.value = {}
+})
+
+// Modify the existing validateForm function
 const validateForm = () => {
   clearErrors()
 
@@ -134,16 +129,49 @@ const validateForm = () => {
     return false
   }
 
-  const isRoleNameValid = validateRoleName(roleName.value)
-  const isDescriptionValid = validateDescription(description.value)
-  const isPermissionsValid = validatePermissions(selectedPermissions.value)
-
-  if (!isRoleNameValid || !isDescriptionValid || !isPermissionsValid) {
-    showValidationErrors(isRoleNameValid, isDescriptionValid, isPermissionsValid)
+  if (selectedPermissions.value.length === 0) {
+    showError('Please select at least one permission')
     return false
   }
 
   return true
+}
+
+onMounted(() => {
+  if (isEditMode.value && route.query.roleName) {
+    loadExistingRole()
+  }
+})
+
+const loadExistingRole = () => {
+  const role = roles.value.find((r) => r.role_name === route.query.roleName)
+  if (role) {
+    roleName.value = role.role_name
+    description.value = role.description
+    selectedPermissions.value = role.permissions || []
+  }
+}
+
+const togglePermission = (permissionId) => {
+  const index = selectedPermissions.value.indexOf(permissionId)
+  if (index === -1) {
+    selectedPermissions.value.push(permissionId)
+  } else {
+    selectedPermissions.value.splice(index, 1)
+  }
+}
+
+const handleSubmit = async () => {
+  if (!validateForm()) return
+
+  const roleToAdd = {
+    role_name: roleName.value.trim(),
+    description: description.value.trim(),
+    department: selectedDepartment.value,
+    permissions: selectedPermissions.value,
+  }
+  await rolesStore.addRole(roleToAdd)
+  showSuccessAndRedirect()
 }
 
 const showError = (message) => {
@@ -153,34 +181,10 @@ const showError = (message) => {
   showToast.value = true
 }
 
-const showValidationErrors = (isRoleNameValid, isDescriptionValid, isPermissionsValid) => {
-  let errorMessage = 'Please correct the following errors:'
-  if (!isRoleNameValid) errorMessage += '\n- ' + (errors.roleName || 'Invalid role name')
-  if (!isDescriptionValid) errorMessage += '\n- ' + (errors.description || 'Invalid description')
-  if (!isPermissionsValid)
-    errorMessage += '\n- ' + (errors.permissions || 'Please select at least one permission')
-
-  toastMessage.value = errorMessage
-  toastType.value = 'error'
-  showToast.value = true
-}
-
-const confirmAdd = async () => {
-  try {
-    if (!roleToAdd.value) return
-
-    await rolesStore.addRole(roleToAdd.value)
-    showSuccessAndRedirect()
-  } catch (error) {
-    showError(error.message || 'An error occurred while saving the role')
-  }
-}
-
 const showSuccessAndRedirect = () => {
   toastMessage.value = 'Role added successfully'
   toastType.value = 'success'
   showToast.value = true
-  confirmModal.value?.close()
   roleToAdd.value = null
 
   // Add check for Super Admin
@@ -193,22 +197,10 @@ const showSuccessAndRedirect = () => {
   }, 3000)
 }
 
-const cancelAdd = () => {
-  confirmModal.value?.close()
-  roleToAdd.value = null
-}
-
-watch(roleName, (newValue) => {
-  if (!newValue?.trim()) {
-    errors.roleName = 'Role name is required'
-    return
-  }
-
-  const isDuplicate = roles.value.some(
-    (role) => role.role_name?.toLowerCase().trim() === newValue.toLowerCase().trim(),
-  )
-  errors.roleName = isDuplicate ? 'This role name already exists' : ''
-})
+// Toast state
+const showToast = ref(false)
+const toastMessage = ref('')
+const toastType = ref('success')
 </script>
 
 <template>
@@ -304,11 +296,24 @@ watch(roleName, (newValue) => {
               class="flex items-center justify-between border border-gray-200 rounded-md p-2 bg-gray-50"
             >
               <p class="text-black text-sm">{{ group.name }}</p>
+              <!-- Full Access toggle in header -->
+              <div class="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  :checked="hasDepartmentFullAccess(group.department)"
+                  @change="toggleFullAccess(group.department)"
+                  class="checkbox checkbox-neutral checkbox-xs"
+                />
+                <span class="label-text text-xs">Full Access</span>
+              </div>
             </div>
 
             <div class="p-5 flex flex-col gap-5">
+              <!-- Individual permissions without Full Access option -->
               <div
-                v-for="permission in group.permissions"
+                v-for="permission in group.permissions.filter(
+                  (p) => !p.name.includes('Full Access'),
+                )"
                 :key="permission.id"
                 class="flex items-center gap-2"
               >
@@ -316,6 +321,7 @@ watch(roleName, (newValue) => {
                   type="checkbox"
                   :checked="selectedPermissions.includes(permission.id)"
                   @change="togglePermission(permission.id)"
+                  :disabled="hasDepartmentFullAccess(group.department)"
                   class="checkbox checkbox-xs checkbox-neutral"
                 />
                 <p class="text-black text-sm">{{ permission.name }}</p>
@@ -332,44 +338,6 @@ watch(roleName, (newValue) => {
         </div>
       </div>
     </div>
-
-    <!-- Add Confirmation Modal -->
-    <dialog ref="confirmModal" class="modal">
-      <div class="modal-box bg-white w-96">
-        <h3 class="font-bold text-lg text-black">Confirm Add Role</h3>
-        <div
-          class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
-        ></div>
-
-        <div v-if="roleToAdd" class="py-4">
-          <p class="text-center text-black mb-4">
-            Are you sure you want to {{ isEditMode ? 'update' : 'add' }} the role
-            <span class="font-bold">{{ roleToAdd['role name'] }}</span
-            >?
-          </p>
-
-          <div class="mt-4 flex flex-col gap-2">
-            <div class="flex flex-row">
-              <div class="w-32 text-gray-500">Description:</div>
-              <div class="text-black">{{ roleToAdd.description }}</div>
-            </div>
-            <div class="flex flex-col">
-              <div class="text-gray-500 mb-2">Selected Permissions:</div>
-              <div class="text-black text-sm">
-                {{ selectedPermissions.length }} permissions selected
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="modal-action justify-center gap-4">
-          <button class="btn-primaryStyle" @click="confirmAdd">
-            {{ isEditMode ? 'Update Role' : 'Add Role' }}
-          </button>
-          <button class="btn-secondaryStyle" @click="cancelAdd">Cancel</button>
-        </div>
-      </div>
-    </dialog>
 
     <!-- Toast -->
     <Toast :show="showToast" :message="toastMessage" :type="toastType" />

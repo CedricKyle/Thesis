@@ -336,7 +336,7 @@ watch(
             <div class="w-full">
               <select
                 v-model="selectedDepartment"
-                class="select select-bordered w-full"
+                class="select w-full border !border-gray-200 !bg-white !text-gray-300"
                 :disabled="formData.roleName === 'Super Admin'"
               >
                 <option value="">Select a department</option>
