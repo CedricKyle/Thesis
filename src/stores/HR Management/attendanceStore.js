@@ -24,6 +24,9 @@ export const useAttendanceStore = defineStore('attendance', () => {
     employeeId: '',
   })
 
+  // Add a new state property for report data
+  const reportData = ref([])
+
   // Getters
   const filteredRecords = computed(() => {
     let records = [...attendanceRecords.value]
@@ -82,7 +85,7 @@ export const useAttendanceStore = defineStore('attendance', () => {
     ],
   }))
 
-  // Add new getters for reports
+  // Modify the getAttendanceReport computed property
   const getAttendanceReport = computed(() => {
     if (
       !reportFilters.value.startDate ||
@@ -336,6 +339,7 @@ export const useAttendanceStore = defineStore('attendance', () => {
     })
   }
 
+  // Modify the resetReportFilters function
   function resetReportFilters() {
     reportFilters.value = {
       startDate: '',
@@ -343,9 +347,6 @@ export const useAttendanceStore = defineStore('attendance', () => {
       department: '',
       employeeId: '',
     }
-    // Also clear the computed values by forcing them to recalculate
-    getAttendanceReport.value = []
-    reportSummary.value = null
   }
 
   return {

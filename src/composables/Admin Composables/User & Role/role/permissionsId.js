@@ -8,38 +8,34 @@ export const DEPARTMENTS = {
 }
 
 export const PERMISSION_IDS = {
-  // Admin Department Permissions (1-10)
+  // Admin Department Permissions
   ADMIN_FULL_ACCESS: 1,
-  ADMIN_VIEW_DASHBOARD: 2,
-  ADMIN_MANAGE_ROLES: 3,
-  ADMIN_MANAGE_DEPARTMENTS: 4,
-  ADMIN_VIEW_REPORTS: 5,
 
-  // HR Department Permissions (11-20)
-  HR_FULL_ACCESS: 11,
-  HR_VIEW_DASHBOARD: 12,
-  HR_MANAGE_EMPLOYEES: 13,
-  HR_MANAGE_ATTENDANCE: 14,
-  HR_VIEW_ATTENDANCE_REPORT: 15,
-  HR_MANAGE_ROLES: 16,
+  // HR Department Permissions
+  HR_FULL_ACCESS: 2,
+  HR_VIEW_DASHBOARD: 3,
+  HR_MANAGE_EMPLOYEES: 4,
+  HR_MANAGE_ATTENDANCE: 5,
+  HR_VIEW_ATTENDANCE_REPORT: 6,
+  HR_MANAGE_ROLES: 7,
 
-  // Finance Department Permissions (21-30)
-  FINANCE_FULL_ACCESS: 21,
-  FINANCE_VIEW_DASHBOARD: 22,
-  FINANCE_MANAGE_PAYROLL: 23,
-  FINANCE_VIEW_REPORTS: 24,
+  // Finance Department Permissions
+  FINANCE_FULL_ACCESS: 8,
+  FINANCE_VIEW_DASHBOARD: 9,
+  FINANCE_MANAGE_PAYROLL: 10,
+  FINANCE_VIEW_REPORTS: 11,
 
-  // Sales Department Permissions (31-40)
-  SALES_FULL_ACCESS: 25,
-  SALES_VIEW_DASHBOARD: 26,
+  // Sales Department Permissions
+  SALES_FULL_ACCESS: 12,
+  SALES_VIEW_DASHBOARD: 13,
 
-  // SCM Department Permissions (41-50)
-  SCM_FULL_ACCESS: 27,
-  SCM_VIEW_STOCKS: 28,
+  // SCM Department Permissions
+  SCM_FULL_ACCESS: 14,
+  SCM_VIEW_STOCKS: 15,
 
-  // CRM Department Permissions (51-60)
-  CRM_FULL_ACCESS: 29,
-  CRM_VIEW_DASHBOARD: 30,
+  // CRM Department Permissions
+  CRM_FULL_ACCESS: 16,
+  CRM_VIEW_DASHBOARD: 17,
 }
 
 export const permissionGroups = [

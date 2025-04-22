@@ -35,12 +35,30 @@ const toastType = ref('success')
 
 // Add department selection
 const selectedDepartment = ref('')
-const filteredPermissionGroups = computed(() => {
-  if (!selectedDepartment.value) return []
-  return permissionGroups.filter((group) => group.department === selectedDepartment.value)
+const departments = computed(() => {
+  // Check if we're on the admin route
+  const isAdminRoute = route.path.startsWith('/admin')
+
+  // If we're on the admin route, include ADMIN in departments
+  if (isAdminRoute) {
+    return Object.values(DEPARTMENTS)
+  }
+
+  // For non-admin routes, filter out the ADMIN department
+  return Object.values(DEPARTMENTS).filter((dept) => dept !== DEPARTMENTS.ADMIN)
 })
 
-const departments = Object.values(DEPARTMENTS)
+const filteredPermissionGroups = computed(() => {
+  if (!selectedDepartment.value) return []
+
+  // If Super Admin is selected, show all permission groups
+  if (selectedDepartment.value === DEPARTMENTS.ADMIN) {
+    return permissionGroups
+  }
+
+  // Otherwise, filter by selected department
+  return permissionGroups.filter((group) => group.department === selectedDepartment.value)
+})
 
 onMounted(() => {
   initializeGroupState()
@@ -95,6 +113,15 @@ const validateForm = () => {
 
   if (!roleName.value?.trim()) {
     showError('Please enter a role name')
+    return false
+  }
+
+  // Special handling for Super Admin role
+  if (
+    roleName.value.toLowerCase().trim() === 'super admin' &&
+    selectedDepartment.value !== DEPARTMENTS.ADMIN
+  ) {
+    showError('Super Admin role can only be created in Admin department')
     return false
   }
 
@@ -171,33 +198,6 @@ const cancelAdd = () => {
   roleToAdd.value = null
 }
 
-const toggleGroupPermissions = (groupName) => {
-  const group = permissionGroupsRef.value.find((g) => g.name === groupName)
-  if (!group) return
-
-  groupSelectState.value[groupName] = !groupSelectState.value[groupName]
-  const groupPermissionIds = group.permissions.map((p) => p.id)
-
-  if (groupSelectState.value[groupName]) {
-    groupPermissionIds.forEach((id) => {
-      if (!selectedPermissions.value.includes(id)) {
-        selectedPermissions.value.push(id)
-      }
-    })
-  } else {
-    selectedPermissions.value = selectedPermissions.value.filter(
-      (id) => !groupPermissionIds.includes(id),
-    )
-  }
-}
-
-const isGroupFullySelected = (groupName) => {
-  const group = permissionGroupsRef.value.find((g) => g.name === groupName)
-  return group
-    ? group.permissions.every((permission) => selectedPermissions.value.includes(permission.id))
-    : false
-}
-
 watch(roleName, (newValue) => {
   if (!newValue?.trim()) {
     errors.roleName = 'Role name is required'
@@ -255,14 +255,14 @@ watch(roleName, (newValue) => {
       </div>
     </div>
 
-    <!-- Add department selection before permissions -->
+    <!-- Department Selection -->
     <div class="mt-5 border border-gray-200 rounded-md p-5 bg-white shadow-sm">
       <div class="font-semibold mb-4">Department Selection</div>
       <div class="form-control">
         <label class="label">
-          <span class="label-text text-gray-500 text-sm"
-            >Select Department<span class="text-red-500">*</span></span
-          >
+          <span class="label-text text-gray-500 text-sm">
+            Select Department<span class="text-red-500">*</span>
+          </span>
         </label>
         <select
           v-model="selectedDepartment"
@@ -270,7 +270,12 @@ watch(roleName, (newValue) => {
           :class="{ 'select-error': errors.department }"
         >
           <option value="">Select a department</option>
-          <option v-for="dept in departments" :key="dept" :value="dept">
+          <option
+            v-for="dept in departments"
+            :key="dept"
+            :value="dept"
+            :disabled="dept === DEPARTMENTS.ADMIN && !route.path.startsWith('/admin')"
+          >
             {{ dept }}
           </option>
         </select>
@@ -299,15 +304,6 @@ watch(roleName, (newValue) => {
               class="flex items-center justify-between border border-gray-200 rounded-md p-2 bg-gray-50"
             >
               <p class="text-black text-sm">{{ group.name }}</p>
-              <div class="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  :checked="isGroupFullySelected(group.name)"
-                  @change="toggleGroupPermissions(group.name)"
-                  class="checkbox checkbox-neutral checkbox-xs"
-                />
-                <span class="label-text text-xs">Select all</span>
-              </div>
             </div>
 
             <div class="p-5 flex flex-col gap-5">
