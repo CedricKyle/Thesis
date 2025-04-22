@@ -1,19 +1,26 @@
 <script setup>
 import { ref, defineAsyncComponent, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { LayoutDashboard, Wallet, FileText } from 'lucide-vue-next'
+import { LayoutDashboard, Wallet, FileText, LogOut } from 'lucide-vue-next'
 import {
   DEPARTMENTS,
   PERMISSION_IDS,
 } from '@/composables/Admin Composables/User & Role/role/permissionsId'
 import { usePermissions } from '@/composables/Admin Composables/User & Role/role/usePermissions'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
+import { useAuthStore } from '@/stores/Authentication/authStore'
 
 const router = useRouter()
 const currentTab = ref('Dashboard')
 const rolesStore = useRolesStore()
+const authStore = useAuthStore()
 const employeeRole = computed(() => rolesStore.getCurrentEmployeeRole())
 const { hasPermission } = usePermissions(employeeRole)
+
+const handleLogout = () => {
+  authStore.logout()
+  router.push('/login')
+}
 
 // Define a simple loading spinner component
 const LoadingSpinner = {
@@ -93,7 +100,7 @@ onMounted(() => {
 <template>
   <div class="flex">
     <!-- Sidebar -->
-    <div class="w-80 min-h-screen p-4 bg-primaryColor">
+    <div class="w-80 min-h-screen p-4 bg-primaryColor flex flex-col">
       <!-- Logo Section -->
       <div class="logo-section flex items-center mb-5 gap-4">
         <div class="logo-content">
@@ -123,6 +130,17 @@ onMounted(() => {
           </router-link>
         </li>
       </ul>
+
+      <!-- Logout Button -->
+      <div class="mt-auto pt-5">
+        <button
+          @click="handleLogout"
+          class="flex items-center gap-3 p-3 w-full hover:bg-primaryColor/20 rounded-md text-white"
+        >
+          <LogOut class="w-5 h-5" />
+          <span>Logout</span>
+        </button>
+      </div>
     </div>
 
     <!-- Main Content -->

@@ -3,9 +3,11 @@ import { ref, onMounted } from 'vue'
 import { Lock, IdCard } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/Authentication/authStore'
 import { useRouter } from 'vue-router'
+import { useRolesStore } from '@/stores/Users & Role/roleStore'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const rolesStore = useRolesStore()
 
 // Form data
 const userId = ref('')
@@ -17,6 +19,22 @@ const error = ref('')
 onMounted(() => {
   authStore.logout() // This will clear the auth state
 })
+
+// Add this helper function at the top of the script
+function getDepartmentPath(department) {
+  if (!department) return ''
+
+  const deptMap = {
+    'Super Admin': 'admin',
+    'Human Resource': 'hr',
+    Finance: 'finance',
+    Sales: 'sales',
+    'Supply Chain Management': 'scm', // Map SCM correctly
+    'Customer Relationship Management': 'crm',
+  }
+
+  return deptMap[department] || department.toLowerCase().split(' ')[0]
+}
 
 const handleSubmit = async (e) => {
   e.preventDefault()
@@ -36,14 +54,20 @@ const handleSubmit = async (e) => {
       console.log('User role:', userRole)
       console.log('Department:', department)
 
-      // Determine redirect path
+      // Set the current employee role in the role store
+      await rolesStore.setCurrentEmployeeRole({
+        role: userRole,
+        department: department,
+        permissions: authStore.currentUser?.role?.permissions || [],
+      })
+
+      // Determine redirect path using the helper function
       let redirectPath = ''
 
       if (userRole === 'Super Admin') {
         redirectPath = '/admin/hr/dashboard'
       } else {
-        // Convert department name to route path (e.g., "HR Department" -> "/hr/dashboard")
-        const deptPath = department?.toLowerCase().split(' ')[0]
+        const deptPath = getDepartmentPath(department)
         redirectPath = `/${deptPath}/dashboard`
       }
 

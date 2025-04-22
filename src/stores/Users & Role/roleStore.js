@@ -109,16 +109,37 @@ export const useRolesStore = defineStore('roles', {
 
     async setCurrentEmployeeRole(employeeData) {
       try {
-        // Check if employeeData and role exist
-        if (!employeeData || !employeeData.role) {
-          console.log('No employee data or role available yet')
+        // Check if employeeData exists
+        if (!employeeData) {
+          console.log('No employee data available yet')
           this.currentEmployeeRole = null
           return
         }
 
-        // Fetch the complete role data from backend
-        const roleData = await this.getRoleByName(employeeData.role)
-        this.currentEmployeeRole = roleData
+        // If we already have complete role data (from localStorage)
+        if (employeeData.role && Array.isArray(employeeData.permissions)) {
+          this.currentEmployeeRole = {
+            role_name: employeeData.role,
+            department: employeeData.department,
+            permissions: employeeData.permissions,
+          }
+          return
+        }
+
+        // Otherwise fetch from backend
+        if (employeeData.role) {
+          const roleData = await this.getRoleByName(employeeData.role)
+          if (roleData) {
+            // Ensure permissions is always an array
+            if (typeof roleData.permissions === 'string') {
+              roleData.permissions = JSON.parse(roleData.permissions)
+            }
+            this.currentEmployeeRole = roleData
+          }
+        } else {
+          console.log('No role specified in employee data')
+          this.currentEmployeeRole = null
+        }
       } catch (error) {
         console.error('Error setting current employee role:', error)
         this.currentEmployeeRole = null

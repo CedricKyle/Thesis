@@ -7,6 +7,22 @@ import {
   PERMISSION_IDS,
 } from '@/composables/Admin Composables/User & Role/role/permissionsId'
 
+// Add this helper function at the top of the file, after the imports
+function getDepartmentPath(department) {
+  if (!department) return ''
+
+  const deptMap = {
+    'Super Admin': 'admin',
+    'Human Resource': 'hr',
+    Finance: 'finance',
+    Sales: 'sales',
+    'Supply Chain Management': 'scm',
+    'Customer Relationship Management': 'crm',
+  }
+
+  return deptMap[department] || department.toLowerCase().split(' ')[0]
+}
+
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     currentUser: ref(null),
@@ -59,9 +75,12 @@ export const useAuthStore = defineStore('auth', {
           role: {
             id: 3,
             role_name: 'HR Staff',
-            description: 'Basic HR staff with dashboard access',
+            description: 'Basic HR staff with dashboard and report access',
             department: DEPARTMENTS.HR,
-            permissions: [PERMISSION_IDS.HR_VIEW_DASHBOARD],
+            permissions: [
+              PERMISSION_IDS.HR_VIEW_DASHBOARD,
+              PERMISSION_IDS.HR_VIEW_ATTENDANCE_REPORT,
+            ],
             last_modified: new Date().toISOString(),
           },
         },
@@ -94,6 +113,21 @@ export const useAuthStore = defineStore('auth', {
             last_modified: new Date().toISOString(),
           },
         },
+        financeStaff: {
+          userId: 'financestaff',
+          password: 'countryside123',
+          role: {
+            id: 9,
+            role_name: 'Finance Staff',
+            description: 'Basic Finance staff with dashboard and report access',
+            department: DEPARTMENTS.FINANCE,
+            permissions: [
+              PERMISSION_IDS.FINANCE_VIEW_DASHBOARD,
+              PERMISSION_IDS.FINANCE_VIEW_REPORTS,
+            ],
+            last_modified: new Date().toISOString(),
+          },
+        },
         salesManager: {
           userId: 'salesmanager',
           password: 'countryside123',
@@ -103,6 +137,18 @@ export const useAuthStore = defineStore('auth', {
             description: 'Full access to Sales department functions and management',
             department: DEPARTMENTS.SALES,
             permissions: [PERMISSION_IDS.SALES_FULL_ACCESS, PERMISSION_IDS.SALES_VIEW_DASHBOARD],
+            last_modified: new Date().toISOString(),
+          },
+        },
+        salesStaff: {
+          userId: 'salesstaff',
+          password: 'countryside123',
+          role: {
+            id: 10,
+            role_name: 'Sales Staff',
+            description: 'Basic Sales staff with dashboard access',
+            department: DEPARTMENTS.SALES,
+            permissions: [PERMISSION_IDS.SALES_VIEW_DASHBOARD],
             last_modified: new Date().toISOString(),
           },
         },
@@ -119,6 +165,18 @@ export const useAuthStore = defineStore('auth', {
               PERMISSION_IDS.SCM_VIEW_DASHBOARD,
               PERMISSION_IDS.SCM_VIEW_STOCKS,
             ],
+            last_modified: new Date().toISOString(),
+          },
+        },
+        scmStaff: {
+          userId: 'scmstaff',
+          password: 'countryside123',
+          role: {
+            id: 11,
+            role_name: 'SCM Staff',
+            description: 'Basic Supply Chain staff with dashboard and stocks access',
+            department: DEPARTMENTS.SCM,
+            permissions: [PERMISSION_IDS.SCM_VIEW_DASHBOARD, PERMISSION_IDS.SCM_VIEW_STOCKS],
             last_modified: new Date().toISOString(),
           },
         },
@@ -139,6 +197,18 @@ export const useAuthStore = defineStore('auth', {
               PERMISSION_IDS.CRM_MANAGE_CAMPAIGNS,
               PERMISSION_IDS.CRM_VIEW_ANALYTICS,
             ],
+            last_modified: new Date().toISOString(),
+          },
+        },
+        crmStaff: {
+          userId: 'crmstaff',
+          password: 'countryside123',
+          role: {
+            id: 12,
+            role_name: 'CRM Staff',
+            description: 'Basic Customer Relations staff with dashboard access',
+            department: DEPARTMENTS.CRM,
+            permissions: [PERMISSION_IDS.CRM_VIEW_DASHBOARD],
             last_modified: new Date().toISOString(),
           },
         },
@@ -177,30 +247,35 @@ export const useAuthStore = defineStore('auth', {
           if (employee && password === 'countryside123') {
             try {
               const rolesStore = useRolesStore()
-
-              // Get complete role data from backend
               const roleData = await rolesStore.getRoleByName(employee.role)
+
+              // Ensure roleData has the correct structure
+              const formattedRoleData = {
+                id: roleData.id,
+                role_name: roleData.role_name,
+                description: roleData.description,
+                department: roleData.department,
+                permissions: Array.isArray(roleData.permissions)
+                  ? roleData.permissions
+                  : JSON.parse(roleData.permissions || '[]'),
+                last_modified: roleData.updated_at || new Date().toISOString(),
+              }
 
               this.currentUser = {
                 id: employee.employee_id,
                 userId: employee.employee_id,
-                role: employee.role,
+                role: formattedRoleData,
                 fullName: employee.full_name,
                 department: employee.department,
               }
 
               this.isAuthenticated = true
-              await rolesStore.setCurrentEmployeeRole(employee)
+              await rolesStore.setCurrentEmployeeRole(formattedRoleData)
               this.saveToLocalStorage()
 
-              // Return the correct redirect path based on role and department
-              if (employee.role === 'Super Admin') {
-                return '/admin/hr/dashboard'
-              } else {
-                // Convert department name to route path
-                const deptPath = employee.department.toLowerCase().split(' ')[0] // Take first word of department
-                return `/${deptPath}/dashboard`
-              }
+              // Use the getDepartmentPath helper for consistent routing
+              const deptPath = getDepartmentPath(employee.department)
+              return `/${deptPath}/dashboard`
             } catch (error) {
               console.error('Error during login:', error)
               throw new Error('Failed to set up user role')
@@ -219,13 +294,19 @@ export const useAuthStore = defineStore('auth', {
     },
 
     saveToLocalStorage() {
-      localStorage.setItem(
-        'auth',
-        JSON.stringify({
-          user: this.currentUser,
-          isAuthenticated: true,
-        }),
-      )
+      if (this.currentUser) {
+        localStorage.setItem(
+          'user',
+          JSON.stringify({
+            id: this.currentUser.id,
+            userId: this.currentUser.userId,
+            role: this.currentUser.role,
+            fullName: this.currentUser.fullName,
+            department: this.currentUser.department,
+          }),
+        )
+        localStorage.setItem('isAuthenticated', 'true')
+      }
     },
 
     logout() {
@@ -245,19 +326,30 @@ export const useAuthStore = defineStore('auth', {
       return true
     },
 
-    // Check if there's a stored auth state
-    checkAuth() {
-      const stored = localStorage.getItem('auth')
-      if (stored) {
-        const { user, isAuthenticated } = JSON.parse(stored)
-        this.currentUser = user
-        this.isAuthenticated = isAuthenticated
+    async checkAuth() {
+      const userData = localStorage.getItem('user')
+      const isAuthenticated = localStorage.getItem('isAuthenticated')
 
-        // Restore role in roles store
-        const rolesStore = useRolesStore()
-        rolesStore.setCurrentEmployeeRole(user.role)
+      if (userData && isAuthenticated === 'true') {
+        try {
+          const user = JSON.parse(userData)
+          this.currentUser = user
+          this.isAuthenticated = true
 
-        return true
+          // Important: Restore the role data in the role store
+          const rolesStore = useRolesStore()
+          await rolesStore.setCurrentEmployeeRole({
+            role: user.role.role_name,
+            department: user.department,
+            permissions: user.role.permissions,
+          })
+
+          return true
+        } catch (error) {
+          console.error('Error restoring auth state:', error)
+          this.logout()
+          return false
+        }
       }
       return false
     },

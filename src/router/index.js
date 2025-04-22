@@ -288,12 +288,9 @@ router.beforeEach(async (to, from, next) => {
   // Always allow access to login and access-denied pages
   if (to.path === '/login' || to.path === '/access-denied') {
     if (to.path === '/login' && authStore.isAuthenticated) {
-      // If authenticated and trying to access login, redirect to appropriate dashboard
-      if (authStore.currentUser?.role === 'Super Admin') {
-        next('/admin/hr/dashboard')
-      } else {
-        next('/' + authStore.currentUser?.department?.toLowerCase()?.split(' ')[0] + '/dashboard')
-      }
+      // If authenticated, redirect to appropriate dashboard
+      const department = getDepartmentPath(authStore.currentUser?.department)
+      next(`/${department}/dashboard`)
       return
     }
     next()
@@ -306,20 +303,33 @@ router.beforeEach(async (to, from, next) => {
     return
   }
 
-  // Special handling for admin routes
-  if (to.path.startsWith('/admin')) {
-    const userRole = authStore.currentUser?.role?.role_name || authStore.currentUser?.role
-    console.log('Checking admin access, user role:', userRole)
+  // Get user's department path
+  const userDepartment = getDepartmentPath(authStore.currentUser?.department)
 
-    if (userRole !== 'Super Admin') {
-      console.log('Access denied - not Super Admin')
-      next('/access-denied')
-      return
-    }
+  // Check if user is trying to access their own department
+  if (!to.path.startsWith(`/${userDepartment}`)) {
+    next('/access-denied')
+    return
   }
 
   // Allow the navigation
   next()
 })
+
+// Add this helper function to consistently map department names to routes
+function getDepartmentPath(department) {
+  if (!department) return ''
+
+  const deptMap = {
+    'Super Admin': 'admin',
+    'Human Resource': 'hr',
+    Finance: 'finance',
+    Sales: 'sales',
+    'Supply Chain Management': 'scm',
+    'Customer Relationship Management': 'crm',
+  }
+
+  return deptMap[department] || department.toLowerCase().split(' ')[0]
+}
 
 export default router
