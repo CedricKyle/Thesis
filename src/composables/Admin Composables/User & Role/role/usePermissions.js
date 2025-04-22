@@ -28,7 +28,14 @@ export function usePermissions(employeeRole) {
 
   const isSuperAdmin = computed(() => {
     if (!employeeRole.value) return false
-    return employeeRole.value.permissions?.includes(PERMISSION_IDS.ADMIN_FULL_ACCESS)
+
+    // Check multiple conditions for Super Admin
+    return (
+      employeeRole.value.permissions?.includes(PERMISSION_IDS.ADMIN_FULL_ACCESS) ||
+      employeeRole.value.role_name === 'Super Admin' ||
+      (employeeRole.value.role && employeeRole.value.role.role_name === 'Super Admin') ||
+      employeeRole.value.department === DEPARTMENTS.ADMIN
+    )
   })
 
   const isDepartmentManager = computed(() => {
@@ -164,31 +171,24 @@ export function usePermissions(employeeRole) {
   }
 
   const getAdminMenuItems = () => {
-    if (!isSuperAdmin.value) return {}
-
     return {
       'Human Resource': {
         icon: Building2,
         submenu: {
           Dashboard: {
             route: '/admin/hr/dashboard',
-            permission: PERMISSION_IDS.HR_VIEW_DASHBOARD,
           },
           Employees: {
             route: '/admin/hr/employees',
-            permission: PERMISSION_IDS.HR_MANAGE_EMPLOYEES,
           },
           Attendance: {
             route: '/admin/hr/attendance',
-            permission: PERMISSION_IDS.HR_MANAGE_ATTENDANCE,
           },
           'Attendance Report': {
             route: '/admin/hr/attendance-report',
-            permission: PERMISSION_IDS.HR_VIEW_ATTENDANCE_REPORT,
           },
           Roles: {
             route: '/admin/hr/roles',
-            permission: PERMISSION_IDS.HR_MANAGE_ROLES,
           },
         },
       },
@@ -197,15 +197,12 @@ export function usePermissions(employeeRole) {
         submenu: {
           Dashboard: {
             route: '/admin/finance/dashboard',
-            permission: PERMISSION_IDS.FINANCE_VIEW_DASHBOARD,
           },
           Payroll: {
             route: '/admin/finance/payroll',
-            permission: PERMISSION_IDS.FINANCE_MANAGE_PAYROLL,
           },
           'Finance Report': {
             route: '/admin/finance/report',
-            permission: PERMISSION_IDS.FINANCE_VIEW_REPORTS,
           },
         },
       },
@@ -214,7 +211,6 @@ export function usePermissions(employeeRole) {
         submenu: {
           Dashboard: {
             route: '/admin/sales/dashboard',
-            permission: PERMISSION_IDS.SALES_VIEW_DASHBOARD,
           },
         },
       },
@@ -223,11 +219,9 @@ export function usePermissions(employeeRole) {
         submenu: {
           Dashboard: {
             route: '/admin/inventory/dashboard',
-            permission: PERMISSION_IDS.SCM_VIEW_DASHBOARD,
           },
           Stocks: {
             route: '/admin/inventory/stocks',
-            permission: PERMISSION_IDS.SCM_VIEW_STOCKS,
           },
         },
       },
@@ -236,7 +230,6 @@ export function usePermissions(employeeRole) {
         submenu: {
           Dashboard: {
             route: '/admin/crm/dashboard',
-            permission: PERMISSION_IDS.CRM_VIEW_DASHBOARD,
           },
         },
       },

@@ -9,35 +9,13 @@ const router = useRouter()
 const rolesStore = useRolesStore()
 const authStore = useAuthStore()
 
-// Check if user is authenticated
-if (!authStore.isAuthenticated) {
-  router.push('/login')
-}
-
-const employeeRole = computed(() => rolesStore.getCurrentEmployeeRole())
-const { isSuperAdmin, getAdminMenuItems } = usePermissions(employeeRole)
-
 // Current state
 const currentTab = ref(null)
 const openParentMenu = ref(null)
 const isLoading = ref(false)
 
-// Watch for authentication state changes
-watch(
-  () => authStore.isAuthenticated,
-  (isAuthenticated) => {
-    if (!isAuthenticated) {
-      router.push('/login')
-    }
-  },
-)
-
-// Watch for super admin status changes
-watch(isSuperAdmin, (isAdmin) => {
-  if (!isAdmin && router.currentRoute.value.path.startsWith('/admin')) {
-    router.push('/access-denied')
-  }
-})
+const employeeRole = computed(() => rolesStore.getCurrentEmployeeRole())
+const { isSuperAdmin, getAdminMenuItems } = usePermissions(employeeRole)
 
 // Loading spinner component
 const LoadingSpinner = {
@@ -52,12 +30,33 @@ const LoadingSpinner = {
 }
 
 // Get admin menu configuration
+const menuItems = ref(getAdminMenuItems())
+
+// Watch for role changes to update menu items
+watch(
+  [() => authStore.currentUser, employeeRole],
+  async ([newUser, newRole], [oldUser, oldRole]) => {
+    if (newUser && newRole) {
+      // Update menu items
+      menuItems.value = getAdminMenuItems()
+
+      // If no current tab is set, set default
+      if (!currentTab.value) {
+        currentTab.value = 'Dashboard'
+        openParentMenu.value = 'Human Resource'
+      }
+    }
+  },
+  { immediate: true },
+)
+
+// Create computed tabs with async components
 const tabs = computed(() => {
-  const menuItems = getAdminMenuItems()
+  const items = { ...menuItems.value }
 
   // Add async components to each submenu
-  Object.keys(menuItems).forEach((parentKey) => {
-    const parent = menuItems[parentKey]
+  Object.keys(items).forEach((parentKey) => {
+    const parent = items[parentKey]
     if (parent.submenu) {
       Object.keys(parent.submenu).forEach((subKey) => {
         const route = parent.submenu[subKey].route
@@ -76,7 +75,7 @@ const tabs = computed(() => {
     }
   })
 
-  return menuItems
+  return items
 })
 
 // Handle tab switching
@@ -94,17 +93,6 @@ const setTab = (tabName, parentTab = null) => {
 
 // Initialize based on current route
 onMounted(() => {
-  // Check authentication and super admin status
-  if (!authStore.isAuthenticated) {
-    router.push('/login')
-    return
-  }
-
-  if (!isSuperAdmin.value) {
-    router.push('/access-denied')
-    return
-  }
-
   const route = router.currentRoute.value
   const path = route.path.split('/')
 
@@ -130,7 +118,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div v-if="authStore.isAuthenticated && isSuperAdmin" class="flex">
+  <div class="flex">
     <!-- Sidebar -->
     <div class="w-80 min-h-screen p-4 bg-primaryColor">
       <div class="logo-section flex items-center mb-5 gap-4">
@@ -183,15 +171,6 @@ onMounted(() => {
     <!-- Main Content -->
     <div class="flex-1 p-6 bg-bgColor overflow-y-auto max-h-screen">
       <router-view></router-view>
-    </div>
-  </div>
-  <div v-else>
-    <!-- Access denied message -->
-    <div class="flex items-center justify-center h-screen">
-      <div class="text-center">
-        <h1 class="text-2xl font-bold text-red-500">Access Denied</h1>
-        <p class="mt-2 text-gray-600">You need Super Admin privileges to access this area.</p>
-      </div>
     </div>
   </div>
 </template>

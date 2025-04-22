@@ -93,7 +93,7 @@ exports.createEmployee = async (req, res) => {
       last_name: lastName,
       full_name: fullName,
       department,
-      job_title: jobTitle,
+      ...(department !== 'Admin Department' && { job_title: jobTitle }),
       role,
       date_of_hire: dateOfHire,
       date_of_birth: dateOfBirth,

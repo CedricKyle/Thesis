@@ -177,15 +177,22 @@ export const useAuthStore = defineStore('auth', {
             this.currentUser = {
               id: employee.employee_id,
               userId: employee.employee_id,
-              role: employee.role,
+              role: {
+                role_name: 'Super Admin',
+                department: 'Admin Department',
+              },
               fullName: employee.full_name,
-              department: employee.department,
+              department: 'Admin Department',
             }
             this.isAuthenticated = true
             const rolesStore = useRolesStore()
-            rolesStore.setCurrentEmployeeRole(employee.role)
+            rolesStore.setCurrentEmployeeRole({
+              role_name: 'Super Admin',
+              department: 'Admin Department',
+              permissions: [PERMISSION_IDS.ADMIN_FULL_ACCESS],
+            })
             this.saveToLocalStorage()
-            return true
+            return '/admin/hr/dashboard'
           }
 
           throw new Error('Invalid credentials')

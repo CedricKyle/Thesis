@@ -23,30 +23,64 @@ const handleSubmit = async (e) => {
   error.value = ''
 
   try {
-    const success = await authStore.login(userId.value, password.value)
-    if (success) {
-      // Let the router handle the redirection based on role
-      // Don't redirect here, just let the navigation guard handle it
-      if (authStore.currentUser?.role?.role_name === 'Super Admin') {
-        router.push('/admin/hr/dashboard')
+    const response = await authStore.login(userId.value, password.value)
+    console.log('Login response:', response)
+
+    if (response) {
+      console.log('Current user:', authStore.currentUser)
+
+      // Check role using the correct structure
+      const userRole = authStore.currentUser?.role?.role_name || authStore.currentUser?.role
+      console.log('User role:', userRole)
+
+      if (userRole === 'Super Admin') {
+        console.log('Redirecting to admin dashboard')
+        try {
+          await router.push('/admin/hr/dashboard')
+        } catch (navError) {
+          console.error('Navigation error:', navError)
+          window.location.href = '/admin/hr/dashboard'
+        }
       } else {
-        // Get department from the role
-        const department = authStore.currentUser?.role?.department?.toLowerCase()
+        const department = authStore.currentUser?.department?.toLowerCase()
         if (department) {
-          // Convert department name to route path
-          const routePath =
-            department === 'human resource'
-              ? '/hr/dashboard'
-              : department === 'supply chain management'
-                ? '/scm/dashboard'
-                : `/${department.split(' ')[0].toLowerCase()}/dashboard`
-          router.push(routePath)
+          let routePath = ''
+          switch (department) {
+            case 'admin department':
+              routePath = '/admin/hr/dashboard'
+              break
+            case 'human resource':
+              routePath = '/hr/dashboard'
+              break
+            case 'supply chain management':
+              routePath = '/scm/dashboard'
+              break
+            case 'finance':
+              routePath = '/finance/dashboard'
+              break
+            case 'sales':
+              routePath = '/sales/dashboard'
+              break
+            case 'crm':
+              routePath = '/crm/dashboard'
+              break
+            default:
+              routePath = '/login'
+          }
+
+          try {
+            await router.push(routePath)
+          } catch (navError) {
+            console.error('Navigation error:', navError)
+            window.location.href = routePath
+          }
         }
       }
     } else {
       error.value = 'Invalid credentials'
     }
   } catch (err) {
+    console.error('Login error:', err)
     error.value = err.message || 'An error occurred during login'
   }
 }

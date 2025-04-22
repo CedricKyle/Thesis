@@ -10,6 +10,7 @@ import { storeToRefs } from 'pinia'
 import Toast from '@/components/Admin Components/HR/Toast.vue'
 import { useResumeUpload } from '@/composables/Admin Composables/Human Resource/useResumeUpload'
 import { useToast } from '@/composables/Admin Composables/Human Resource/useToast'
+import { useRoute } from 'vue-router'
 
 // Store and composable setup
 const store = useEmployeeStore()
@@ -22,6 +23,7 @@ const { profileImage, profileImageFile, showUploadText, handleProfileUpload, rem
 const { showToast, toastMessage, toastType, showToastMessage } = useToast()
 const { resumeFile, resumeFileName, isProcessing, handleResumeUpload, removeResume } =
   useResumeUpload(showToastMessage)
+const route = useRoute()
 
 // UI state
 const confirmModal = ref(null)
@@ -63,13 +65,36 @@ const departmentJobs = {
 }
 
 const availableJobs = computed(() => {
+  // If Admin Department is selected, return empty array (no job titles needed)
+  if (newEmployee.value.department === 'Admin Department') {
+    return []
+  }
+
+  // For other departments, keep existing logic
   if (!newEmployee.value.department) return []
   const jobs = departmentJobs[newEmployee.value.department] || []
-  // Include current job title if it exists and isn't in the list
   if (newEmployee.value.jobTitle && !jobs.includes(newEmployee.value.jobTitle)) {
     jobs.push(newEmployee.value.jobTitle)
   }
   return jobs
+})
+
+// Add this computed property in the script setup
+const departments = computed(() => {
+  // Check if we're on the admin route
+  const isAdminRoute = route.path.startsWith('/admin')
+
+  // Base departments
+  const baseDepartments = [
+    'HR Department',
+    'Finance Department',
+    'Sales Department',
+    'Customer Service Department',
+    'Supply Chain Department',
+  ]
+
+  // If we're on the admin route, include Admin Department
+  return isAdminRoute ? ['Admin Department', ...baseDepartments] : baseDepartments
 })
 
 // Watchers
@@ -144,10 +169,24 @@ const handleFormSubmit = () => {
 const confirmAdd = async () => {
   try {
     const employeeData = createEmployeeData(employeeToAdd.value)
-    await store.createEmployee(employeeData)
+    const response = await store.createEmployee(employeeData)
     confirmModal.value?.close()
     employeeToAdd.value = null
-    showToastMessage('Employee added successfully!', 'success')
+
+    // Create a formatted credentials message
+    const credentialsMessage = `
+Employee added successfully!
+
+Login Credentials:
+Employee ID: ${response.employeeId}
+Default Password: countryside123
+
+Please provide these credentials to the employee.
+Note: Employee will be required to change password on first login.`
+
+    // Show success message with credentials
+    showToastMessage(credentialsMessage, 'success')
+
     resetForm()
   } catch (error) {
     console.error('Error adding employee:', error)
@@ -162,17 +201,19 @@ const createEmployeeData = (employee) => {
   // Create FormData for handling file uploads
   const formData = new FormData()
 
-  // Generate ID
+  // Generate Employee ID: Format will be YYYY-XXXXX (e.g., 2024-00001)
   const yearEmployees = store.employees
     .filter((emp) => String(emp.id).startsWith(String(hireYear)))
     .map((emp) => parseInt(emp.id.split('-')[1]))
 
-  const nextNumber = yearEmployees.length > 0 ? Math.max(...yearEmployees) + 1 : 50000
-  const newId = `${hireYear}-${nextNumber.toString().padStart(5, '0')}`
+  const nextNumber = yearEmployees.length > 0 ? Math.max(...yearEmployees) + 1 : 1
+  const employeeId = `${hireYear}-${nextNumber.toString().padStart(5, '0')}`
 
-  // Create the employee object first
+  // Create the employee object
   const employeeData = {
-    id: newId,
+    id: employeeId,
+    employee_id: employeeId, // This will be used as the login username
+    password: 'countryside123', // Default password
     firstName: employee.firstName,
     middleName: employee.middleName || '',
     lastName: employee.lastName,
@@ -180,7 +221,8 @@ const createEmployeeData = (employee) => {
       .filter(Boolean)
       .join(' '),
     department: employee.department,
-    jobTitle: employee.jobTitle,
+    // Only include jobTitle if not Admin Department
+    ...(employee.department !== 'Admin Department' && { jobTitle: employee.jobTitle }),
     role: employee.role,
     dateOfHire: employee.dateOfHire,
     dateOfBirth: employee.dateOfBirth,
@@ -188,6 +230,7 @@ const createEmployeeData = (employee) => {
     contactNumber: employee.contactNumber,
     email: employee.email,
     address: employee.address,
+    isFirstLogin: true, // Flag to force password change on first login
     emergencyContact: {
       firstName: employee.emergencyContact.firstName,
       middleName: employee.emergencyContact.middleName || '',
@@ -207,7 +250,7 @@ const createEmployeeData = (employee) => {
   // Append the stringified employee data
   formData.append('employeeData', JSON.stringify(employeeData))
 
-  // Add files if they exist - Use the File object instead of base64
+  // Add files if they exist
   if (profileImageFile.value) {
     formData.append('profileImage', profileImageFile.value)
   }
@@ -449,18 +492,17 @@ onMounted(async () => {
               :class="{ 'border-red-500': formErrors.professional.department }"
             >
               <option disabled value="">Select Department</option>
-              <option>HR Department</option>
-              <option>Finance Department</option>
-              <option>Sales Department</option>
-              <option>Customer Service Department</option>
-              <option>Supply Chain Department</option>
+              <option v-for="dept in departments" :key="dept" :value="dept">
+                {{ dept }}
+              </option>
             </select>
             <span v-if="formErrors.professional.department" class="text-red-500 text-xs mt-1">
               {{ formErrors.professional.department }}
             </span>
           </div>
 
-          <div class="">
+          <!-- Job Title field - Only show if not Admin Department -->
+          <div v-if="newEmployee.department !== 'Admin Department'">
             <legend class="fieldset-legend text-black text-xs justify-start">
               Job Title <span class="text-red-500">*</span>
             </legend>
@@ -555,7 +597,7 @@ onMounted(async () => {
           </div>
         </div>
       </div>
-    </div>  
+    </div>
 
     <!-- Personal Information -->
     <div
@@ -821,7 +863,8 @@ onMounted(async () => {
               <div class="w-32 text-gray-500">Department:</div>
               <div class="text-black">{{ employeeToAdd.department }}</div>
             </div>
-            <div class="flex flex-row">
+            <!-- Only show job title if not Admin Department -->
+            <div v-if="employeeToAdd.department !== 'Admin Department'" class="flex flex-row">
               <div class="w-32 text-gray-500">Job Title:</div>
               <div class="text-black">{{ employeeToAdd.jobTitle }}</div>
             </div>

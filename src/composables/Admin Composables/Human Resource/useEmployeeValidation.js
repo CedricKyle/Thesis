@@ -46,9 +46,13 @@ export function useEmployeeValidation() {
       errors.department = ''
     }
 
-    if (!employee.jobTitle) {
-      errors.jobTitle = 'Job title is required'
-      isValid = false
+    if (employee.department !== 'Admin Department') {
+      if (!employee.jobTitle) {
+        errors.jobTitle = 'Job title is required'
+        isValid = false
+      } else {
+        errors.jobTitle = ''
+      }
     } else {
       errors.jobTitle = ''
     }

@@ -284,80 +284,41 @@ const router = createRouter({
 
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
-  const rolesStore = useRolesStore()
 
-  // Allow login page access without further checks
-  if (to.path === '/login') {
-    if (authStore.isAuthenticated) {
-      // If already authenticated, redirect to appropriate dashboard
-      const role = authStore.currentUser?.role
-      if (role?.role_name === 'Super Admin') {
+  // Always allow access to login and access-denied pages
+  if (to.path === '/login' || to.path === '/access-denied') {
+    if (to.path === '/login' && authStore.isAuthenticated) {
+      // If authenticated and trying to access login, redirect to appropriate dashboard
+      if (authStore.currentUser?.role === 'Super Admin') {
         next('/admin/hr/dashboard')
       } else {
-        const department = role?.department?.toLowerCase()
-        if (department) {
-          const routePath =
-            department === 'human resource'
-              ? '/hr/dashboard'
-              : department === 'supply chain management'
-                ? '/scm/dashboard'
-                : `/${department.split(' ')[0].toLowerCase()}/dashboard`
-          next(routePath)
-        } else {
-          next()
-        }
+        next('/' + authStore.currentUser?.department?.toLowerCase()?.split(' ')[0] + '/dashboard')
       }
-    } else {
-      next()
+      return
     }
+    next()
     return
   }
 
-  // Check authentication state
+  // Check if user is authenticated
   if (!authStore.isAuthenticated) {
-    authStore.checkAuth()
-    if (!authStore.isAuthenticated) {
-      next('/login')
-      return
-    }
-  }
-
-  const employeeRole = rolesStore.getCurrentEmployeeRole()
-  const { isSuperAdmin, canAccessDepartment, hasPermission } = usePermissions(
-    computed(() => employeeRole),
-  )
-
-  // Handle admin routes
-  if (to.path.startsWith('/admin')) {
-    if (!isSuperAdmin.value) {
-      // Redirect non-admin users to their department dashboard
-      const userDepartment = employeeRole.department?.toLowerCase()
-      if (userDepartment) {
-        const routePath =
-          userDepartment === 'human resource'
-            ? '/hr/dashboard'
-            : userDepartment === 'supply chain management'
-              ? '/scm/dashboard'
-              : `/${userDepartment.split(' ')[0].toLowerCase()}/dashboard`
-        next(routePath)
-      } else {
-        next('/login')
-      }
-      return
-    }
-  }
-
-  // Check department access
-  const pathSegments = to.path.split('/')
-  const pathDepartment = pathSegments[1].toUpperCase()
-
-  if (!canAccessDepartment(DEPARTMENTS[pathDepartment]) && !isSuperAdmin.value) {
-    // If can't access the department, redirect to login
     next('/login')
     return
   }
 
-  // If all checks pass, allow navigation
+  // Special handling for admin routes
+  if (to.path.startsWith('/admin')) {
+    const userRole = authStore.currentUser?.role?.role_name || authStore.currentUser?.role
+    console.log('Checking admin access, user role:', userRole)
+
+    if (userRole !== 'Super Admin') {
+      console.log('Access denied - not Super Admin')
+      next('/access-denied')
+      return
+    }
+  }
+
+  // Allow the navigation
   next()
 })
 
