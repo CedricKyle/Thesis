@@ -16,6 +16,8 @@ const password = ref('')
 const rememberMe = ref(false)
 const error = ref('')
 const isLoading = ref(false)
+const showLoader = ref(false)
+const loading = ref(false)
 
 // Add this helper function at the top of the script
 function getDepartmentPath(department) {
@@ -37,6 +39,8 @@ const handleSubmit = async (e) => {
   e.preventDefault()
   error.value = ''
   isLoading.value = true
+  showLoader.value = true
+  loading.value = true
 
   try {
     console.log('Attempting login with:', { employeeId: userId.value, password: password.value })
@@ -60,13 +64,34 @@ const handleSubmit = async (e) => {
           : `/${getDepartmentPath(response.data.user.department)}/dashboard`
 
       console.log('Redirecting to:', redirectPath)
-      window.location.href = redirectPath
+
+      // Keep "Logging in..." for 2s, then show welcome
+      setTimeout(() => {
+        loading.value = false
+        setTimeout(() => {
+          showLoader.value = false
+          window.location.href = redirectPath
+        }, 1000) // keep welcome screen for 1s
+      }, 2000)
     } else {
       error.value = response.data.message || 'Invalid credentials'
+      // Invalid login - show loading briefly, then hide loader
+      setTimeout(() => {
+        loading.value = false
+        setTimeout(() => {
+          showLoader.value = false
+        }, 1000)
+      }, 1500)
     }
   } catch (err) {
     console.error('Login error:', err)
     error.value = err.response?.data?.message || 'An error occurred during login'
+    setTimeout(() => {
+      loading.value = false
+      setTimeout(() => {
+        showLoader.value = false
+      }, 1000)
+    }, 1500)
   } finally {
     isLoading.value = false
   }
@@ -75,6 +100,22 @@ const handleSubmit = async (e) => {
 
 <template>
   <div class="flex w-full justify-center items-center h-screen bg-auth">
+    <!-- Loader screen after login -->
+    <div
+      v-if="showLoader"
+      class="fixed inset-0 bg-primaryColor flex flex-col items-center justify-center z-50"
+    >
+      <div v-if="loading" class="flex flex-col items-center gap-3">
+        <span class="loading loading-spinner loading-lg text-white"></span>
+        <p class="text-white text-sm">Logging in...</p>
+      </div>
+      <div v-else class="flex flex-col items-center gap-2">
+        <img src="@/assets/Images/countryside-logo.png" alt="Logo" class="w-32" />
+        <p class="text-white text-lg">Welcome to Countryside</p>
+      </div>
+    </div>
+
+    <!-- Login Form -->
     <div class="flex justify-center items-center w-full max-w-md bg-white shadow-md h-96">
       <img class="h-full" src="../assets/Images/Landing-Page.jpg" alt="" />
     </div>
@@ -153,3 +194,13 @@ const handleSubmit = async (e) => {
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Add any additional styles you need */
+
+
+/* Add smooth transitions */
+.fixed {
+  transition: opacity 0.3s ease-in-out;
+}
+</style>

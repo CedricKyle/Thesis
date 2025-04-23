@@ -89,6 +89,9 @@
       opacity: 1;
     }
   }
+  .loading {
+    @apply animate-spin;
+  }
 
   /* Tabulator Theme Styles */
 
