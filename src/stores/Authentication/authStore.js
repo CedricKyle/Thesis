@@ -6,17 +6,18 @@ import {
   DEPARTMENTS,
   PERMISSION_IDS,
 } from '@/composables/Admin Composables/User & Role/role/permissionsId'
+import { useRouter } from 'vue-router'
 
 // Add this helper function at the top of the file, after the imports
 function getDepartmentPath(department) {
   if (!department) return ''
 
   const deptMap = {
-    'Super Admin': 'admin',
+    'Admin Department': 'admin',
     'Human Resource': 'hr',
     Finance: 'finance',
-    Sales: 'sales',
-    'Supply Chain Management': 'scm',
+    'Sales Department': 'sales',
+    'Supply Chain Department': 'scm',
     'Customer Relationship Management': 'crm',
   }
 
@@ -48,16 +49,31 @@ export const useAuthStore = defineStore('auth', {
           this.currentUser = response.data.user
           this.isAuthenticated = true
 
-          // Store the actual permissions from the backend response
-          this.userPermissions = response.data.user.permissions || []
+          // Log the permissions to see what we're getting
+          console.log('Raw permissions:', response.data.user.permissions)
 
-          // Determine redirect path based on department
-          const redirectPath =
-            response.data.user.role === 'Super Admin'
-              ? '/admin/hr/dashboard'
-              : `/${getDepartmentPath(response.data.user.department)}/dashboard`
+          // Parse permissions if they're a string
+          this.userPermissions =
+            typeof response.data.user.permissions === 'string'
+              ? JSON.parse(response.data.user.permissions)
+              : response.data.user.permissions
 
-          window.location.href = redirectPath
+          console.log('Parsed permissions:', this.userPermissions)
+          console.log('User department:', response.data.user.department)
+
+          // Use the router name instead of path
+          const router = useRouter()
+          const departmentPath = getDepartmentPath(response.data.user.department)
+
+          // Log for debugging
+          console.log('Department:', response.data.user.department)
+          console.log('Department path:', departmentPath)
+
+          // Navigate based on department
+          if (departmentPath) {
+            router.push(`/${departmentPath}/dashboard`)
+          }
+
           return true
         }
 
@@ -94,25 +110,25 @@ export const useAuthStore = defineStore('auth', {
     },
 
     async checkAuth() {
-      if (this.isAuthenticated && this.currentUser) {
-        return true
-      }
-
       try {
         const response = await axios.get('/api/employees/verify')
         if (response.data.user) {
           this.currentUser = response.data.user
           this.isAuthenticated = true
-          // Store the actual permissions from the verify response
-          this.userPermissions = response.data.user.permissions || []
+
+          // Log permissions during auth check
+          console.log('Auth check permissions:', response.data.user.permissions)
+          this.userPermissions =
+            typeof response.data.user.permissions === 'string'
+              ? JSON.parse(response.data.user.permissions)
+              : response.data.user.permissions
+
           return true
         }
         return false
       } catch (error) {
         console.error('Auth check error:', error)
-        this.currentUser = null
-        this.isAuthenticated = false
-        this.userPermissions = []
+        this.logout()
         return false
       }
     },

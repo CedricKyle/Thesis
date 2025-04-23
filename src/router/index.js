@@ -15,15 +15,15 @@ import LoginPage from '@/views/LoginPage.vue'
 import FinanceDashboard from '@/views/Finance/FinanceDashboard.vue'
 import FinancePayroll from '@/views/Finance/FinancePayroll.vue'
 import FinanceReport from '@/views/Finance/FinanceReport.vue'
-import BaseProductTable from '@/views/Suppy Chain Management Department/BaseProductTable.vue'
-import SCMDashboard from '@/views/Suppy Chain Management Department/SCMDashboard.vue'
-import StockView from '@/views/Suppy Chain Management Department/StockView.vue'
+import BaseProductTable from '@/views/Supply Chain Management Department/BaseProductTable.vue'
+import SCMDashboard from '@/views/Supply Chain Management Department/SCMDashboard.vue'
+import StockView from '@/views/Supply Chain Management Department/StockView.vue'
 import CRMDashboard from '@/views/CRM Department/CRMDashboard.vue'
 import SalesDashboard from '@/views/Sales Department/SalesDashboard.vue'
 import HRMSidebar from '@/views/Human Resource/HRMSidebar.vue'
 import FinanceSideBar from '@/views/Finance/FinanceSideBar.vue'
 import SalesSidebar from '@/views/Sales Department/SalesSidebar.vue'
-import SCMSidebar from '@/views/Suppy Chain Management Department/SCMSidebar.vue'
+import SCMSidebar from '@/views/Supply Chain Management Department/SCMSidebar.vue'
 import CRMSidebar from '@/views/CRM Department/CRMASidebar.vue'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import { usePermissions } from '@/composables/Admin Composables/User & Role/role/usePermissions'
@@ -136,6 +136,10 @@ const routes = [
   {
     path: '/hr',
     component: HRMSidebar,
+    meta: {
+      requiresAuth: true,
+      department: DEPARTMENTS.HR,
+    },
     children: [
       {
         path: '',
@@ -150,6 +154,9 @@ const routes = [
         path: 'employees',
         name: 'Employees',
         component: Employees,
+        meta: {
+          permissions: [PERMISSION_IDS.HR_MANAGE_EMPLOYEES],
+        },
       },
       {
         path: 'attendance',
@@ -165,6 +172,9 @@ const routes = [
         path: 'roles',
         name: 'Roles',
         component: UserRolesManagement,
+        meta: {
+          permissions: [PERMISSION_IDS.HR_MANAGE_ROLES],
+        },
       },
       {
         path: 'roles/create',
@@ -221,6 +231,10 @@ const routes = [
   {
     path: '/sales',
     component: SalesSidebar,
+    meta: {
+      requiresAuth: true,
+      department: 'Sales Department',
+    },
     children: [
       {
         path: '',
@@ -230,6 +244,9 @@ const routes = [
         path: 'dashboard',
         name: 'SalesDashboard',
         component: SalesDashboard,
+        meta: {
+          permissions: [PERMISSION_IDS.SALES_VIEW_DASHBOARD, PERMISSION_IDS.SALES_FULL_ACCESS],
+        },
       },
     ],
   },
@@ -237,6 +254,10 @@ const routes = [
   {
     path: '/scm',
     component: SCMSidebar,
+    meta: {
+      requiresAuth: true,
+      department: DEPARTMENTS.SCM,
+    },
     children: [
       {
         path: '',
@@ -246,11 +267,17 @@ const routes = [
         path: 'dashboard',
         name: 'SCMDashboard',
         component: SCMDashboard,
+        meta: {
+          permissions: [PERMISSION_IDS.SCM_VIEW_DASHBOARD],
+        },
       },
       {
         path: 'stocks',
         name: 'SCMStocks',
         component: StockView,
+        meta: {
+          permissions: [PERMISSION_IDS.SCM_VIEW_STOCKS],
+        },
       },
     ],
   },
@@ -258,6 +285,10 @@ const routes = [
   {
     path: '/crm',
     component: CRMSidebar,
+    meta: {
+      requiresAuth: true,
+      department: DEPARTMENTS.CRM,
+    },
     children: [
       {
         path: '',
@@ -267,6 +298,9 @@ const routes = [
         path: 'dashboard',
         name: 'CRMDashboard',
         component: CRMDashboard,
+        meta: {
+          permissions: [PERMISSION_IDS.CRM_VIEW_DASHBOARD, PERMISSION_IDS.CRM_FULL_ACCESS],
+        },
       },
     ],
   },
@@ -274,6 +308,21 @@ const routes = [
     path: '/access-denied',
     name: 'AccessDenied',
     component: () => import('@/components/common/AccessDenied.vue'),
+  },
+  // Add this redirect
+  {
+    path: '/supply/:pathMatch(.*)*',
+    redirect: (to) => {
+      // Redirect /supply/xxx to /scm/xxx
+      return `/scm${to.path.substring(7)}`
+    },
+  },
+  {
+    path: '/customer/:pathMatch(.*)*',
+    redirect: (to) => {
+      // Redirect /customer/xxx to /crm/xxx
+      return `/crm${to.path.substring(9)}`
+    },
   },
 ]
 
@@ -283,7 +332,6 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, from, next) => {
-  // Public routes that don't require auth
   const publicRoutes = ['/login', '/access-denied']
 
   if (publicRoutes.includes(to.path)) {
@@ -294,9 +342,56 @@ router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore()
   const isAuthenticated = await authStore.checkAuth()
 
+  console.log('Is authenticated:', isAuthenticated)
+  console.log('Current user:', authStore.currentUser)
+  console.log('User permissions:', authStore.userPermissions)
+
   if (!isAuthenticated) {
     next('/login')
     return
+  }
+
+  // Check department access
+  if (to.matched.some((record) => record.meta.department)) {
+    const userDepartment = authStore.currentUser?.department
+    const isSuperAdmin = userDepartment === DEPARTMENTS.ADMIN
+
+    console.log('User department:', userDepartment)
+    console.log('Required department:', to.meta.department)
+    console.log('DEPARTMENTS.SALES:', DEPARTMENTS.SALES)
+
+    // Check if user is super admin or if their department matches the required department
+    const hasAccess = isSuperAdmin || userDepartment === to.meta.department
+
+    if (!hasAccess) {
+      console.log('Department access denied')
+      next('/access-denied')
+      return
+    }
+  }
+
+  // Check route permissions
+  if (to.matched.some((record) => record.meta.permissions)) {
+    const requiredPermissions = to.matched.reduce((permissions, record) => {
+      return record.meta.permissions ? [...permissions, ...record.meta.permissions] : permissions
+    }, [])
+
+    console.log('Required permissions:', requiredPermissions)
+    console.log('User permissions:', authStore.userPermissions)
+
+    const hasPermission = requiredPermissions.some(
+      (permission) =>
+        authStore.userPermissions.includes(permission) ||
+        authStore.userPermissions.includes(PERMISSION_IDS.SCM_FULL_ACCESS),
+    )
+
+    console.log('Has permission:', hasPermission)
+
+    if (!hasPermission) {
+      console.log('Permission denied')
+      next('/access-denied')
+      return
+    }
   }
 
   next()

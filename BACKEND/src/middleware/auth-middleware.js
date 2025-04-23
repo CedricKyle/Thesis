@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken'
+import pool from '../config/database.js' // Make sure to import your database connection
 
 export const generateToken = (user) => {
   return jwt.sign(
@@ -6,15 +7,15 @@ export const generateToken = (user) => {
       id: user.employee_id,
       role: user.role,
       department: user.department,
+      permissions: user.permissions, // Add permissions to token
     },
     process.env.JWT_SECRET,
     { expiresIn: '24h' },
   )
 }
 
-export const verifyToken = (req, res, next) => {
+export const verifyToken = async (req, res, next) => {
   try {
-    // Get token from cookies instead of headers
     const token = req.cookies.jwt
 
     if (!token) {
@@ -23,11 +24,53 @@ export const verifyToken = (req, res, next) => {
 
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
-    req.user = decoded
+
+    // Get fresh user data from database
+    const [employees] = await pool.query(
+      `SELECT 
+        e.*,
+        r.permissions
+      FROM employees e
+      JOIN roles r ON e.role = r.role_name
+      WHERE e.employee_id = ?`,
+      [decoded.id],
+    )
+
+    if (employees.length === 0) {
+      return res.status(401).json({
+        message: 'User not found',
+        code: 'USER_NOT_FOUND',
+      })
+    }
+
+    const currentUser = employees[0]
+    const currentPermissions =
+      typeof currentUser.permissions === 'string'
+        ? JSON.parse(currentUser.permissions)
+        : currentUser.permissions
+
+    // Check if role has changed
+    if (decoded.role !== currentUser.role) {
+      return res.status(403).json({
+        message: 'Your role has been changed',
+        code: 'ROLE_CHANGED',
+      })
+    }
+
+    // Update req.user with fresh data
+    req.user = {
+      ...decoded,
+      role: currentUser.role,
+      permissions: currentPermissions,
+    }
 
     next()
   } catch (error) {
-    return res.status(401).json({ message: 'Invalid token' })
+    console.error('Token verification error:', error)
+    return res.status(401).json({
+      message: 'Invalid token',
+      code: 'INVALID_TOKEN',
+    })
   }
 }
 

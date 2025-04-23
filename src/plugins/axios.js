@@ -27,10 +27,35 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
   (response) => response,
   async (error) => {
-    if (error.response?.status === 401) {
-      const authStore = useAuthStore()
-      await authStore.logout()
-      window.location.href = '/login'
+    const authStore = useAuthStore()
+
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      const errorCode = error.response?.data?.code
+      let message = 'Your session has expired. Please login again.'
+
+      switch (errorCode) {
+        case 'ROLE_CHANGED':
+          message = 'Your role has been changed. Please login again with your new permissions.'
+          break
+        case 'USER_NOT_FOUND':
+          message = 'Your account no longer exists.'
+          break
+        case 'INVALID_TOKEN':
+          message = 'Invalid session. Please login again.'
+          break
+      }
+
+      // Show notification
+      ElNotification({
+        title: 'Session Expired',
+        message: message,
+        type: 'warning',
+        duration: 5000,
+        onClose: async () => {
+          await authStore.logout()
+          window.location.href = '/login'
+        },
+      })
     }
     return Promise.reject(error)
   },

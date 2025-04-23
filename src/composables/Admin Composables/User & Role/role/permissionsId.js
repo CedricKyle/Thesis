@@ -1,10 +1,10 @@
 export const DEPARTMENTS = {
-  ADMIN: 'Super Admin',
+  ADMIN: 'Admin Department',
   HR: 'Human Resource',
   FINANCE: 'Finance',
-  SALES: 'Sales',
-  SCM: 'Supply Chain Management',
-  CRM: 'Customer Relationship Management',
+  SALES: 'Sales Department',
+  SCM: 'Supply Chain Department',
+  CRM: 'Customer Service Department',
 }
 
 export const PERMISSION_IDS = {
@@ -32,21 +32,22 @@ export const PERMISSION_IDS = {
   // SCM Department Permissions
   SCM_FULL_ACCESS: 14,
   SCM_VIEW_STOCKS: 15,
+  SCM_VIEW_DASHBOARD: 16,
 
   // CRM Department Permissions
-  CRM_FULL_ACCESS: 16,
-  CRM_VIEW_DASHBOARD: 17,
+  CRM_FULL_ACCESS: 17,
+  CRM_VIEW_DASHBOARD: 18,
 }
 
 export const permissionGroups = [
   {
     department: DEPARTMENTS.ADMIN,
-    name: 'Super Admin',
+    name: 'Admin Department',
     permissions: [{ id: PERMISSION_IDS.ADMIN_FULL_ACCESS, name: 'Full Access' }],
   },
   {
     department: DEPARTMENTS.HR,
-    name: 'HR Management',
+    name: 'Human Resource',
     permissions: [
       { id: PERMISSION_IDS.HR_FULL_ACCESS, name: 'Full Access' },
       { id: PERMISSION_IDS.HR_VIEW_DASHBOARD, name: 'View Dashboard' },
@@ -58,7 +59,7 @@ export const permissionGroups = [
   },
   {
     department: DEPARTMENTS.FINANCE,
-    name: 'Finance Management',
+    name: 'Finance',
     permissions: [
       { id: PERMISSION_IDS.FINANCE_FULL_ACCESS, name: 'Full Access' },
       { id: PERMISSION_IDS.FINANCE_VIEW_DASHBOARD, name: 'View Dashboard' },
@@ -68,7 +69,7 @@ export const permissionGroups = [
   },
   {
     department: DEPARTMENTS.SALES,
-    name: 'Sales Management',
+    name: 'Sales',
     permissions: [
       { id: PERMISSION_IDS.SALES_FULL_ACCESS, name: 'Full Access' },
       { id: PERMISSION_IDS.SALES_VIEW_DASHBOARD, name: 'View Dashboard' },
@@ -76,7 +77,7 @@ export const permissionGroups = [
   },
   {
     department: DEPARTMENTS.SCM,
-    name: 'Supply Chain Management',
+    name: 'Supply Chain Department',
     permissions: [
       { id: PERMISSION_IDS.SCM_FULL_ACCESS, name: 'Full Access' },
       { id: PERMISSION_IDS.SCM_VIEW_DASHBOARD, name: 'View Dashboard' },
@@ -85,7 +86,7 @@ export const permissionGroups = [
   },
   {
     department: DEPARTMENTS.CRM,
-    name: 'CRM Management',
+    name: 'Customer Relationship Management',
     permissions: [
       { id: PERMISSION_IDS.CRM_FULL_ACCESS, name: 'Full Access' },
       { id: PERMISSION_IDS.CRM_VIEW_DASHBOARD, name: 'View Dashboard' },
