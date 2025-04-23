@@ -41,6 +41,17 @@ const handleViewResume = () => {
 }
 
 // No need for the computed emergency contact property since we're getting direct data
+
+// Add this computed property or method
+const formatDisplayDate = (dateString) => {
+  if (!dateString) return ''
+  const date = new Date(dateString)
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+}
 </script>
 
 <template>
@@ -89,7 +100,7 @@ const handleViewResume = () => {
             </div>
             <div class="flex flex-row">
               <div class="w-40 text-gray-500">Date of Hire</div>
-              <div>{{ formatDate(store.selectedEmployee.date_of_hire) }}</div>
+              <div>{{ formatDisplayDate(store.selectedEmployee.date_of_hire) }}</div>
             </div>
 
             <!-- Add resume button/link -->
@@ -118,7 +129,7 @@ const handleViewResume = () => {
             </div>
             <div class="flex flex-row">
               <div class="w-40 text-gray-500">Date of Birth</div>
-              <div>{{ formatDate(store.selectedEmployee.date_of_birth) }}</div>
+              <div>{{ formatDisplayDate(store.selectedEmployee.date_of_birth) }}</div>
             </div>
             <div class="flex flex-row">
               <div class="w-40 text-gray-500">Gender</div>

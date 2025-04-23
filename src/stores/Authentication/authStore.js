@@ -14,11 +14,11 @@ function getDepartmentPath(department) {
 
   const deptMap = {
     'Admin Department': 'admin',
-    'Human Resource': 'hr',
-    Finance: 'finance',
+    'HR Department': 'hr',
+    'Finance Department': 'finance',
     'Sales Department': 'sales',
     'Supply Chain Department': 'scm',
-    'Customer Relationship Management': 'crm',
+    'Customer Service Department': 'crm',
   }
 
   return deptMap[department] || department.toLowerCase().split(' ')[0]

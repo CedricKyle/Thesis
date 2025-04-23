@@ -1,7 +1,7 @@
 export const DEPARTMENTS = {
   ADMIN: 'Admin Department',
-  HR: 'Human Resource',
-  FINANCE: 'Finance',
+  HR: 'HR Department',
+  FINANCE: 'Finance Department',
   SALES: 'Sales Department',
   SCM: 'Supply Chain Department',
   CRM: 'Customer Service Department',
@@ -47,7 +47,7 @@ export const permissionGroups = [
   },
   {
     department: DEPARTMENTS.HR,
-    name: 'Human Resource',
+    name: 'HR Department',
     permissions: [
       { id: PERMISSION_IDS.HR_FULL_ACCESS, name: 'Full Access' },
       { id: PERMISSION_IDS.HR_VIEW_DASHBOARD, name: 'View Dashboard' },
@@ -59,7 +59,7 @@ export const permissionGroups = [
   },
   {
     department: DEPARTMENTS.FINANCE,
-    name: 'Finance',
+    name: 'Finance Department',
     permissions: [
       { id: PERMISSION_IDS.FINANCE_FULL_ACCESS, name: 'Full Access' },
       { id: PERMISSION_IDS.FINANCE_VIEW_DASHBOARD, name: 'View Dashboard' },
@@ -69,7 +69,7 @@ export const permissionGroups = [
   },
   {
     department: DEPARTMENTS.SALES,
-    name: 'Sales',
+    name: 'Sales Department',
     permissions: [
       { id: PERMISSION_IDS.SALES_FULL_ACCESS, name: 'Full Access' },
       { id: PERMISSION_IDS.SALES_VIEW_DASHBOARD, name: 'View Dashboard' },
@@ -86,7 +86,7 @@ export const permissionGroups = [
   },
   {
     department: DEPARTMENTS.CRM,
-    name: 'Customer Relationship Management',
+    name: 'Customer Service Department',
     permissions: [
       { id: PERMISSION_IDS.CRM_FULL_ACCESS, name: 'Full Access' },
       { id: PERMISSION_IDS.CRM_VIEW_DASHBOARD, name: 'View Dashboard' },

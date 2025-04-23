@@ -97,6 +97,34 @@ const departments = computed(() => {
   return isAdminRoute ? ['Admin Department', ...baseDepartments] : baseDepartments
 })
 
+// Add these computed properties after your existing computed properties
+const hasPersonalInfoChanges = computed(() => {
+  return (
+    newEmployee.value.firstName !== props.initialData?.first_name ||
+    newEmployee.value.middleName !== props.initialData?.middle_name ||
+    newEmployee.value.lastName !== props.initialData?.last_name ||
+    newEmployee.value.dateOfBirth !== formatDateForInput(props.initialData?.date_of_birth) ||
+    newEmployee.value.gender !== props.initialData?.gender ||
+    newEmployee.value.contactNumber !== props.initialData?.contact_number ||
+    newEmployee.value.email !== props.initialData?.email ||
+    newEmployee.value.address !== props.initialData?.address
+  )
+})
+
+const hasEmergencyContactChanges = computed(() => {
+  return (
+    newEmployee.value.emergencyContact.firstName !==
+      props.initialData?.emergencyContact?.firstName ||
+    newEmployee.value.emergencyContact.middleName !==
+      props.initialData?.emergencyContact?.middleName ||
+    newEmployee.value.emergencyContact.lastName !== props.initialData?.emergencyContact?.lastName ||
+    newEmployee.value.emergencyContact.relationship !==
+      props.initialData?.emergencyContact?.relationship ||
+    newEmployee.value.emergencyContact.contactNumber !==
+      props.initialData?.emergencyContact?.contactNumber
+  )
+})
+
 // Watchers
 watch(
   () => newEmployee.value.department,
@@ -130,7 +158,7 @@ const props = defineProps({
 })
 
 // Add this emit definition
-const emit = defineEmits(['submit'])
+const emit = defineEmits(['submit', 'field-change'])
 
 // Add this helper function at the top of the script section
 const formatDateForInput = (dateString) => {
@@ -141,29 +169,40 @@ const formatDateForInput = (dateString) => {
 
 // Form submission handlers
 const handleFormSubmit = () => {
-  const isProfessionalValid = validateProfessionalInfo(newEmployee.value)
-  const isPersonalValid = validatePersonalInfo(newEmployee.value)
-  const isEmergencyValid = validateEmergencyContact(newEmployee.value)
+  const isProfessionalValid = validateProfessionalInfo(newEmployee.value, props.isEditing)
+  const isPersonalValid = validatePersonalInfo(newEmployee.value, props.isEditing)
+  const isEmergencyValid = validateEmergencyContact(newEmployee.value, props.isEditing)
 
   if (!isProfessionalValid || !isPersonalValid || !isEmergencyValid) {
-    showToastMessage('Please fill in all required fields correctly', 'error')
+    showToastMessage('Please check the form for errors', 'error')
     return
   }
 
+  // For editing, directly emit the data without showing confirmation modal
   if (props.isEditing) {
     const formData = createEmployeeUpdateData(newEmployee.value)
-
-    // Debug log to verify data before emitting
-    console.log('FormData before emit:')
-    for (let [key, value] of formData.entries()) {
-      console.log(key, value instanceof File ? value.name : value)
-    }
-
     emit('submit', formData)
   } else {
+    // Only show confirmation modal for new employees
     employeeToAdd.value = { ...newEmployee.value }
     confirmModal.value?.showModal()
   }
+}
+
+const confirmUpdate = async () => {
+  try {
+    const formData = createEmployeeUpdateData(newEmployee.value)
+    emit('submit', formData)
+    confirmModal.value?.close()
+    showToastMessage('Employee updated successfully', 'success')
+  } catch (error) {
+    console.error('Error updating employee:', error)
+    showToastMessage(error.message || 'Error updating employee', 'error')
+  }
+}
+
+const cancelUpdate = () => {
+  confirmModal.value?.close()
 }
 
 const confirmAdd = async () => {
@@ -263,72 +302,61 @@ const createEmployeeData = (employee) => {
 
 const createEmployeeUpdateData = (employee) => {
   const formData = new FormData()
-
-  // Get existing data from props.initialData
   const existingData = props.initialData
 
-  // For emergency contact, start with existing data and only override fields that have new values
-  const emergencyContact = {
-    first_name: existingData.emergency_contact?.first_name || '',
-    middle_name: existingData.emergency_contact?.middle_name || '',
-    last_name: existingData.emergency_contact?.last_name || '',
-    relationship: existingData.emergency_contact?.relationship || '',
-    contact_number: existingData.emergency_contact?.contact_number || '',
-  }
-
-  // Only update emergency contact fields that have been changed
-  if (employee.emergencyContact.firstName.trim()) {
-    emergencyContact.first_name = employee.emergencyContact.firstName
-  }
-  if (employee.emergencyContact.middleName.trim()) {
-    emergencyContact.middle_name = employee.emergencyContact.middleName
-  }
-  if (employee.emergencyContact.lastName.trim()) {
-    emergencyContact.last_name = employee.emergencyContact.lastName
-  }
-  if (employee.emergencyContact.relationship.trim()) {
-    emergencyContact.relationship = employee.emergencyContact.relationship
-  }
-  if (employee.emergencyContact.contactNumber.trim()) {
-    emergencyContact.contact_number = employee.emergencyContact.contactNumber
+  // Format dates properly
+  const formatDate = (dateString) => {
+    if (!dateString) return null
+    const date = new Date(dateString)
+    return date.toISOString().split('T')[0] // Returns YYYY-MM-DD format
   }
 
   const employeeData = {
-    // Keep existing data for fields that haven't been modified
-    first_name: employee.firstName.trim() ? employee.firstName : existingData.first_name,
-    middle_name: employee.middleName.trim() ? employee.middleName : existingData.middle_name || '',
-    last_name: employee.lastName.trim() ? employee.lastName : existingData.last_name,
+    employee_id: existingData.employee_id,
+    first_name: employee.firstName || existingData.first_name,
+    middle_name: employee.middleName || existingData.middle_name || '',
+    last_name: employee.lastName || existingData.last_name,
+    full_name: [
+      employee.firstName || existingData.first_name,
+      employee.middleName || existingData.middle_name,
+      employee.lastName || existingData.last_name,
+    ]
+      .filter(Boolean)
+      .join(' '),
     department: employee.department || existingData.department,
     job_title: employee.jobTitle || existingData.job_title,
     role: employee.role || existingData.role,
-    date_of_hire: employee.dateOfHire || existingData.date_of_hire,
-    date_of_birth: employee.dateOfBirth || existingData.date_of_birth,
+    date_of_hire: formatDate(employee.dateOfHire) || existingData.date_of_hire,
+    date_of_birth: formatDate(employee.dateOfBirth) || existingData.date_of_birth,
     gender: employee.gender || existingData.gender,
-    contact_number: employee.contactNumber.trim()
-      ? employee.contactNumber
-      : existingData.contact_number,
-    email: employee.email.trim() ? employee.email : existingData.email,
-    address: employee.address.trim() ? employee.address : existingData.address,
-    emergency_contact: emergencyContact,
+    contact_number: employee.contactNumber || existingData.contact_number,
+    email: employee.email || existingData.email,
+    address: employee.address || existingData.address,
+    emergency_contact: {
+      first_name:
+        employee.emergencyContact.firstName || existingData.emergency_contact?.first_name || '',
+      middle_name:
+        employee.emergencyContact.middleName || existingData.emergency_contact?.middle_name || '',
+      last_name:
+        employee.emergencyContact.lastName || existingData.emergency_contact?.last_name || '',
+      relationship:
+        employee.emergencyContact.relationship ||
+        existingData.emergency_contact?.relationship ||
+        '',
+      contact_number:
+        employee.emergencyContact.contactNumber ||
+        existingData.emergency_contact?.contact_number ||
+        '',
+    },
   }
 
-  // Convert employeeData to string before appending
   formData.append('employeeData', JSON.stringify(employeeData))
 
-  // Only append files if new ones are selected
   if (profileImageFile.value) {
     formData.append('profileImage', profileImageFile.value)
   }
   if (resumeFile.value) {
     formData.append('resume', resumeFile.value)
-  }
-
-  // Debug logs
-  console.log('Existing Data:', existingData)
-  console.log('Updated Data:', employeeData)
-  console.log('FormData contents:')
-  for (let [key, value] of formData.entries()) {
-    console.log(key, value instanceof File ? value.name : value)
   }
 
   return formData
@@ -373,35 +401,30 @@ onMounted(async () => {
   try {
     await rolesStore.fetchRoles()
 
-    // If editing and initial data is provided, populate the form
     if (props.isEditing && props.initialData) {
-      // Set department first
-      newEmployee.value = {
-        ...newEmployee.value,
-        department: props.initialData.department || '',
-      }
+      console.log('Initial Data:', props.initialData) // Debug log
 
-      // Then set the rest of the data including job title
+      // Set all employee data
       newEmployee.value = {
         id: props.initialData.employee_id,
         firstName: props.initialData.first_name || '',
         middleName: props.initialData.middle_name || '',
         lastName: props.initialData.last_name || '',
         department: props.initialData.department || '',
-        jobTitle: props.initialData.job_title || '', // This should now persist
+        jobTitle: props.initialData.job_title || '',
         role: props.initialData.role || '',
-        dateOfHire: formatDateForInput(props.initialData.date_of_hire),
-        dateOfBirth: formatDateForInput(props.initialData.date_of_birth),
+        dateOfHire: formatDateForInput(props.initialData.date_of_hire) || '',
+        dateOfBirth: formatDateForInput(props.initialData.date_of_birth) || '',
         gender: props.initialData.gender || '',
         contactNumber: props.initialData.contact_number || '',
         email: props.initialData.email || '',
         address: props.initialData.address || '',
         emergencyContact: {
-          firstName: props.initialData.emergency_contact?.first_name || '',
-          middleName: props.initialData.emergency_contact?.middle_name || '',
-          lastName: props.initialData.emergency_contact?.last_name || '',
-          relationship: props.initialData.emergency_contact?.relationship || '',
-          contactNumber: props.initialData.emergency_contact?.contact_number || '',
+          firstName: props.initialData.emergencyContact?.firstName || '',
+          middleName: props.initialData.emergencyContact?.middleName || '',
+          lastName: props.initialData.emergencyContact?.lastName || '',
+          relationship: props.initialData.emergencyContact?.relationship || '',
+          contactNumber: props.initialData.emergencyContact?.contactNumber || '',
         },
       }
 
@@ -412,14 +435,41 @@ onMounted(async () => {
 
       // Set resume filename if exists
       if (props.initialData.resume_path) {
-        const filename = props.initialData.resume_path.split('/').pop()
-        resumeFileName.value = filename
+        resumeFileName.value = props.initialData.resume_path.split('/').pop()
       }
     }
-  } catch {
+  } catch (error) {
     showToastMessage('Failed to load roles', 'error')
   }
 })
+
+// Add watcher for form fields
+watch(
+  newEmployee,
+  (newVal, oldVal) => {
+    // Find which field changed
+    Object.keys(newVal).forEach((key) => {
+      if (newVal[key] !== oldVal[key]) {
+        emit('field-change', key, newVal[key])
+      }
+    })
+  },
+  { deep: true },
+)
+
+// Modify validation to be conditional during editing
+const validateForm = () => {
+  if (!props.isEditing) {
+    // Original required validation for new employees
+    // ... existing validation code ...
+  } else {
+    // For editing, only validate fields that were changed
+    const errors = {}
+    // Add validation only for changed fields
+    // ... validation logic for changed fields ...
+    return errors
+  }
+}
 </script>
 
 <template>
@@ -484,7 +534,7 @@ onMounted(async () => {
         <div class="form-control flex flex-col gap-5">
           <div class="">
             <legend class="fieldset-legend text-black text-xs justify-start">
-              Department <span class="text-red-500">*</span>
+              Department <span v-if="!props.isEditing" class="text-red-500">*</span>
             </legend>
             <select
               v-model="newEmployee.department"
@@ -504,7 +554,7 @@ onMounted(async () => {
           <!-- Job Title field - Only show if not Admin Department -->
           <div v-if="newEmployee.department !== 'Admin Department'">
             <legend class="fieldset-legend text-black text-xs justify-start">
-              Job Title <span class="text-red-500">*</span>
+              Job Title <span v-if="!props.isEditing" class="text-red-500">*</span>
             </legend>
             <select
               v-model="newEmployee.jobTitle"
@@ -529,7 +579,7 @@ onMounted(async () => {
 
           <div class="">
             <legend class="fieldset-legend text-black text-xs justify-start">
-              Role <span class="text-red-500">*</span>
+              Role <span v-if="!props.isEditing" class="text-red-500">*</span>
             </legend>
             <select
               v-model="newEmployee.role"
@@ -583,7 +633,7 @@ onMounted(async () => {
 
           <div class="">
             <legend class="fieldset-legend text-black text-xs justify-start">
-              Date of Hire <span class="text-red-500">*</span>
+              Date of Hire <span v-if="!props.isEditing" class="text-red-500">*</span>
             </legend>
             <input
               v-model="newEmployee.dateOfHire"
@@ -612,7 +662,7 @@ onMounted(async () => {
         <div class="form-control grid grid-cols-2 gap-5">
           <div class="">
             <legend class="fieldset-legend text-black text-xs justify-start">
-              First Name <span class="text-red-500">*</span>
+              First Name <span v-if="!props.isEditing" class="text-red-500">*</span>
             </legend>
             <input
               v-model="newEmployee.firstName"
@@ -641,7 +691,7 @@ onMounted(async () => {
 
           <div class="col-span-2">
             <legend class="fieldset-legend text-black text-xs justify-start">
-              Last Name <span class="text-red-500">*</span>
+              Last Name <span v-if="!props.isEditing" class="text-red-500">*</span>
             </legend>
             <input
               v-model="newEmployee.lastName"
@@ -656,7 +706,7 @@ onMounted(async () => {
 
           <div class="">
             <legend class="fieldset-legend text-black text-xs justify-start">
-              Date of Birth <span class="text-red-500">*</span>
+              Date of Birth <span v-if="!props.isEditing" class="text-red-500">*</span>
             </legend>
             <input
               v-model="newEmployee.dateOfBirth"
@@ -671,7 +721,7 @@ onMounted(async () => {
 
           <div class="">
             <legend class="fieldset-legend text-black text-xs justify-start">
-              Gender <span class="text-red-500">*</span>
+              Gender <span v-if="!props.isEditing" class="text-red-500">*</span>
             </legend>
             <select
               v-model="newEmployee.gender"
@@ -689,7 +739,7 @@ onMounted(async () => {
 
           <div class="">
             <legend class="fieldset-legend text-black text-xs justify-start">
-              Contact Number <span class="text-red-500">*</span>
+              Contact Number <span v-if="!props.isEditing" class="text-red-500">*</span>
             </legend>
             <input
               v-model="newEmployee.contactNumber"
@@ -706,7 +756,7 @@ onMounted(async () => {
 
           <div class="">
             <legend class="fieldset-legend text-black text-xs justify-start">
-              Email Address <span class="text-red-500">*</span>
+              Email Address <span v-if="!props.isEditing" class="text-red-500">*</span>
             </legend>
             <input
               v-model="newEmployee.email"
@@ -722,7 +772,7 @@ onMounted(async () => {
 
           <div class="col-span-2">
             <legend class="fieldset-legend text-black text-xs justify-start">
-              Address <span class="text-red-500">*</span>
+              Address <span v-if="!props.isEditing" class="text-red-500">*</span>
             </legend>
             <input
               v-model="newEmployee.address"
@@ -740,7 +790,7 @@ onMounted(async () => {
         <div class="form-control grid grid-cols-2 gap-5">
           <div class="">
             <legend class="fieldset-legend text-black text-xs justify-start">
-              First Name <span class="text-red-500">*</span>
+              First Name <span v-if="!props.isEditing" class="text-red-500">*</span>
             </legend>
             <input
               v-model="newEmployee.emergencyContact.firstName"
@@ -769,7 +819,7 @@ onMounted(async () => {
 
           <div class="col-span-2">
             <legend class="fieldset-legend text-black text-xs justify-start">
-              Last Name <span class="text-red-500">*</span>
+              Last Name <span v-if="!props.isEditing" class="text-red-500">*</span>
             </legend>
             <input
               v-model="newEmployee.emergencyContact.lastName"
@@ -784,7 +834,7 @@ onMounted(async () => {
 
           <div class="">
             <legend class="fieldset-legend text-black text-xs justify-start">
-              Relationship <span class="text-red-500">*</span>
+              Relationship <span v-if="!props.isEditing" class="text-red-500">*</span>
             </legend>
             <input
               v-model="newEmployee.emergencyContact.relationship"
@@ -799,7 +849,7 @@ onMounted(async () => {
 
           <div class="">
             <legend class="fieldset-legend text-black text-xs justify-start">
-              Contact Number <span class="text-red-500">*</span>
+              Contact Number <span v-if="!props.isEditing" class="text-red-500">*</span>
             </legend>
             <input
               v-model="newEmployee.emergencyContact.contactNumber"
@@ -824,10 +874,10 @@ onMounted(async () => {
             @click="handleFormSubmit"
             class="btn-primaryStyle btn-sm bg-primaryColor border-none text-white shadow-none"
           >
-            {{ isEditing ? 'Update' : '+ Add' }}
+            {{ props.isEditing ? 'Update' : '+ Add' }}
           </button>
           <button
-            v-if="!isEditing"
+            v-if="!props.isEditing"
             @click="resetForm"
             class="btn-secondaryStyle btn-sm bg-gray-400 border-none text-white shadow-none"
           >
@@ -841,45 +891,113 @@ onMounted(async () => {
     <dialog ref="confirmModal" class="modal">
       <div class="modal-box bg-white w-96">
         <h3 class="font-bold text-lg text-black">
-          {{ isEditing ? 'Confirm Update Employee' : 'Confirm Add Employee' }}
+          {{ props.isEditing ? 'Confirm Update Employee' : 'Confirm Add Employee' }}
         </h3>
         <div
           class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
         ></div>
 
-        <div v-if="employeeToAdd" class="py-4">
+        <div class="py-4">
           <p class="text-center text-black mb-4">
-            Are you sure you want to {{ isEditing ? 'update' : 'add' }} employee
-            <span class="font-bold">{{
-              [employeeToAdd.firstName, employeeToAdd.middleName, employeeToAdd.lastName]
-                .filter(Boolean)
-                .join(' ')
-            }}</span
+            {{ props.isEditing ? 'Update the following information for' : 'Add new employee' }}
+            <span class="font-bold">
+              {{
+                props.isEditing
+                  ? props.initialData?.full_name
+                  : [newEmployee.firstName, newEmployee.middleName, newEmployee.lastName]
+                      .filter(Boolean)
+                      .join(' ')
+              }} </span
             >?
           </p>
 
           <div class="mt-4 flex flex-col gap-2">
-            <div class="flex flex-row">
+            <!-- Professional Information -->
+            <div
+              v-if="newEmployee.department !== props.initialData?.department"
+              class="flex flex-row"
+            >
               <div class="w-32 text-gray-500">Department:</div>
-              <div class="text-black">{{ employeeToAdd.department }}</div>
+              <div class="text-black">{{ newEmployee.department }}</div>
             </div>
-            <!-- Only show job title if not Admin Department -->
-            <div v-if="employeeToAdd.department !== 'Admin Department'" class="flex flex-row">
+
+            <div v-if="newEmployee.jobTitle !== props.initialData?.job_title" class="flex flex-row">
               <div class="w-32 text-gray-500">Job Title:</div>
-              <div class="text-black">{{ employeeToAdd.jobTitle }}</div>
+              <div class="text-black">{{ newEmployee.jobTitle }}</div>
             </div>
-            <div class="flex flex-row">
+
+            <div v-if="newEmployee.role !== props.initialData?.role" class="flex flex-row">
               <div class="w-32 text-gray-500">Role:</div>
-              <div class="text-black">{{ employeeToAdd.role }}</div>
+              <div class="text-black">{{ newEmployee.role }}</div>
+            </div>
+
+            <!-- Personal Information -->
+            <div v-if="hasPersonalInfoChanges" class="flex flex-row">
+              <div class="w-32 text-gray-500">Personal Info:</div>
+              <div class="text-black flex flex-col">
+                <span
+                  >Name:
+                  {{
+                    [newEmployee.firstName, newEmployee.middleName, newEmployee.lastName]
+                      .filter(Boolean)
+                      .join(' ')
+                  }}</span
+                >
+                <span>Birth Date: {{ newEmployee.dateOfBirth }}</span>
+                <span>Gender: {{ newEmployee.gender }}</span>
+                <span>Contact: {{ newEmployee.contactNumber }}</span>
+                <span>Email: {{ newEmployee.email }}</span>
+                <span>Address: {{ newEmployee.address }}</span>
+              </div>
+            </div>
+
+            <!-- Emergency Contact -->
+            <div v-if="hasEmergencyContactChanges" class="flex flex-row">
+              <div class="w-32 text-gray-500">Emergency Contact:</div>
+              <div class="text-black flex flex-col">
+                <span
+                  >Name:
+                  {{
+                    [
+                      newEmployee.emergencyContact.firstName,
+                      newEmployee.emergencyContact.middleName,
+                      newEmployee.emergencyContact.lastName,
+                    ]
+                      .filter(Boolean)
+                      .join(' ')
+                  }}</span
+                >
+                <span>Relationship: {{ newEmployee.emergencyContact.relationship }}</span>
+                <span>Contact: {{ newEmployee.emergencyContact.contactNumber }}</span>
+              </div>
+            </div>
+
+            <!-- Files -->
+            <div v-if="profileImageFile" class="flex flex-row">
+              <div class="w-32 text-gray-500">Profile Image:</div>
+              <div class="text-black">{{ profileImageFile.name }}</div>
+            </div>
+
+            <div v-if="resumeFile" class="flex flex-row">
+              <div class="w-32 text-gray-500">Resume:</div>
+              <div class="text-black">{{ resumeFile.name }}</div>
             </div>
           </div>
         </div>
 
         <div class="modal-action justify-center gap-4">
-          <button class="btn-primaryStyle" @click="confirmAdd">
-            {{ isEditing ? 'Update Employee' : 'Add Employee' }}
+          <button
+            class="btn-primaryStyle bg-primaryColor text-white"
+            @click="props.isEditing ? confirmUpdate() : confirmAdd()"
+          >
+            {{ props.isEditing ? 'Update Employee' : 'Add Employee' }}
           </button>
-          <button class="btn-secondaryStyle" @click="cancelAdd">Cancel</button>
+          <button
+            class="btn-secondaryStyle bg-gray-400 text-white"
+            @click="props.isEditing ? cancelUpdate() : cancelAdd()"
+          >
+            Cancel
+          </button>
         </div>
       </div>
     </dialog>

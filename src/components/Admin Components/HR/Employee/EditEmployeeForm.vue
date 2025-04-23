@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
 import { useToast } from '@/composables/Admin Composables/Human Resource/useToast'
@@ -16,33 +16,86 @@ const isLoading = ref(true)
 const confirmModal = ref(null)
 const formDataToUpdate = ref(null)
 const employeeToUpdate = ref(null)
+const originalData = ref(null)
+const changedFields = ref(new Set())
+
+const hasPersonalInfoChanges = computed(() => {
+  if (!employeeToUpdate.value || !originalData.value) return false
+
+  return (
+    employeeToUpdate.value.firstName !== originalData.value.first_name ||
+    employeeToUpdate.value.middleName !== originalData.value.middle_name ||
+    employeeToUpdate.value.lastName !== originalData.value.last_name ||
+    employeeToUpdate.value.dateOfBirth !== originalData.value.date_of_birth ||
+    employeeToUpdate.value.gender !== originalData.value.gender ||
+    employeeToUpdate.value.contactNumber !== originalData.value.contact_number ||
+    employeeToUpdate.value.email !== originalData.value.email ||
+    employeeToUpdate.value.address !== originalData.value.address
+  )
+})
+
+const hasEmergencyContactChanges = computed(() => {
+  if (!employeeToUpdate.value?.emergencyContact || !originalData.value?.emergency_contact)
+    return false
+
+  return (
+    employeeToUpdate.value.emergencyContact.firstName !==
+      originalData.value.emergency_contact.first_name ||
+    employeeToUpdate.value.emergencyContact.middleName !==
+      originalData.value.emergency_contact.middle_name ||
+    employeeToUpdate.value.emergencyContact.lastName !==
+      originalData.value.emergency_contact.last_name ||
+    employeeToUpdate.value.emergencyContact.relationship !==
+      originalData.value.emergency_contact.relationship ||
+    employeeToUpdate.value.emergencyContact.contactNumber !==
+      originalData.value.emergency_contact.contact_number
+  )
+})
 
 onMounted(async () => {
   try {
-    // Get employee ID from route params
     const employeeId = route.params.id
-
-    // Fetch employee data
     const response = await store.getEmployee(employeeId)
     employeeData.value = response
+    originalData.value = JSON.parse(JSON.stringify(response)) // Keep original data for comparison
     isLoading.value = false
   } catch (error) {
     console.error('Error loading employee:', error)
     showToastMessage('Error loading employee data', 'error')
-    // Redirect back to employee list
     const isAdmin = route.path.startsWith('/admin')
     router.push(isAdmin ? '/admin/hr/employees' : '/hr/employees')
   }
 })
 
+const handleFieldChange = (fieldName, value) => {
+  if (JSON.stringify(originalData.value[fieldName]) !== JSON.stringify(value)) {
+    changedFields.value.add(fieldName)
+  } else {
+    changedFields.value.delete(fieldName)
+  }
+}
+
 const handleUpdate = async (formData) => {
   try {
-    // Store the FormData and parse employee data for display
-    formDataToUpdate.value = formData
-    const employeeDataStr = formData.get('employeeData')
-    employeeToUpdate.value = JSON.parse(employeeDataStr)
+    const employeeDataObj = JSON.parse(formData.get('employeeData'))
 
-    // Show confirmation modal
+    // Check if there are any changes
+    const hasChanges =
+      Array.from(changedFields.value).length > 0 ||
+      formData.has('profile_picture') ||
+      formData.has('resume')
+
+    if (!hasChanges) {
+      showToastMessage('No changes detected. Update cancelled.', 'info')
+      return
+    }
+
+    // Only proceed with update if there are changes
+    formDataToUpdate.value = formData
+    employeeToUpdate.value = {
+      ...employeeDataObj,
+      changed_fields: Array.from(changedFields.value),
+    }
     confirmModal.value?.showModal()
   } catch (error) {
     console.error('Error preparing update:', error)
@@ -53,6 +106,8 @@ const handleUpdate = async (formData) => {
 const confirmUpdate = async () => {
   try {
     await store.updateEmployee(route.params.id, formDataToUpdate.value)
+    // Reload the employee list to get fresh data
+    await store.loadEmployees()
     showToastMessage('Employee updated successfully', 'success')
     confirmModal.value?.close()
 
@@ -71,6 +126,13 @@ const cancelUpdate = () => {
   confirmModal.value?.close()
   formDataToUpdate.value = null
   employeeToUpdate.value = null
+}
+
+const formatFieldName = (field) => {
+  return field
+    .split('_')
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ')
 }
 </script>
 
@@ -93,7 +155,13 @@ const cancelUpdate = () => {
       <div class="loading loading-spinner loading-lg"></div>
     </div>
 
-    <EmployeeForm v-else :initial-data="employeeData" :is-editing="true" @submit="handleUpdate" />
+    <EmployeeForm
+      v-else
+      :initial-data="employeeData"
+      :is-editing="true"
+      @submit="handleUpdate"
+      @field-change="handleFieldChange"
+    />
 
     <!-- Confirmation Modal -->
     <dialog ref="confirmModal" class="modal">
@@ -105,32 +173,38 @@ const cancelUpdate = () => {
 
         <div v-if="employeeToUpdate" class="py-4">
           <p class="text-center text-black mb-4">
-            Are you sure you want to update employee
-            <span class="font-bold">{{
-              [
-                employeeToUpdate.first_name,
-                employeeToUpdate.middle_name,
-                employeeToUpdate.last_name,
-              ]
-                .filter(Boolean)
-                .join(' ')
-            }}</span
+            Update information for
+            <span class="font-bold"
+              >{{ employeeToUpdate.first_name }} {{ employeeToUpdate.middle_name }}
+              {{ employeeToUpdate.last_name }}</span
             >?
           </p>
 
           <div class="mt-4 flex flex-col gap-2">
-            <div class="flex flex-row">
-              <div class="w-32 text-gray-500">Department:</div>
-              <div class="text-black">{{ employeeToUpdate.department }}</div>
-            </div>
-            <div class="flex flex-row">
-              <div class="w-32 text-gray-500">Job Title:</div>
-              <div class="text-black">{{ employeeToUpdate.job_title }}</div>
-            </div>
-            <div class="flex flex-row">
-              <div class="w-32 text-gray-500">Role:</div>
-              <div class="text-black">{{ employeeToUpdate.role }}</div>
-            </div>
+            <template v-if="changedFields.size > 0">
+              <div class="text-sm font-semibold mb-2">Changed Fields:</div>
+              <template v-for="field in Array.from(changedFields)" :key="field">
+                <div class="flex flex-row" v-if="employeeToUpdate[field]">
+                  <div class="w-32 text-gray-500">{{ formatFieldName(field) }}:</div>
+                  <div class="text-black">{{ employeeToUpdate[field] }}</div>
+                </div>
+              </template>
+            </template>
+
+            <!-- File Updates Section -->
+            <template
+              v-if="formDataToUpdate?.has('profile_picture') || formDataToUpdate?.has('resume')"
+            >
+              <div class="text-sm font-semibold mt-3 mb-2">File Updates:</div>
+              <div v-if="formDataToUpdate?.has('profile_picture')" class="flex flex-row">
+                <div class="w-32 text-gray-500">Profile Image:</div>
+                <div class="text-black">New image selected</div>
+              </div>
+              <div v-if="formDataToUpdate?.has('resume')" class="flex flex-row">
+                <div class="w-32 text-gray-500">Resume:</div>
+                <div class="text-black">New resume selected</div>
+              </div>
+            </template>
           </div>
         </div>
 

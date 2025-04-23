@@ -28,9 +28,38 @@ export function useEmployeeValidation() {
     },
   })
 
-  const validateProfessionalInfo = (employee) => {
+  const validateProfessionalInfo = (employee, isEditing = false) => {
     let isValid = true
     const errors = formErrors.value.professional
+
+    if (isEditing) {
+      if (employee.department) {
+        errors.department = ''
+      }
+
+      if (employee.department && employee.department !== 'Admin Department' && employee.jobTitle) {
+        errors.jobTitle = ''
+      }
+
+      if (employee.role) {
+        errors.role = ''
+      }
+
+      if (employee.resume) {
+        const allowedTypes = ['application/pdf']
+        if (!allowedTypes.includes(employee.resume.type)) {
+          errors.resume = 'Please upload a PDF file'
+          isValid = false
+        } else if (employee.resume.size > 5 * 1024 * 1024) {
+          errors.resume = 'File size should not exceed 5MB'
+          isValid = false
+        } else {
+          errors.resume = ''
+        }
+      }
+
+      return isValid
+    }
 
     if (!employee.dateOfHire) {
       errors.dateOfHire = 'Date of hire is required'
@@ -90,9 +119,51 @@ export function useEmployeeValidation() {
     return isValid
   }
 
-  const validatePersonalInfo = (employee) => {
+  const validatePersonalInfo = (employee, isEditing = false) => {
     let isValid = true
     const errors = formErrors.value.personal
+
+    if (isEditing) {
+      if (employee.firstName) {
+        if (employee.firstName.length < 2) {
+          errors.firstName = 'First name must be at least 2 characters'
+          isValid = false
+        } else {
+          errors.firstName = ''
+        }
+      }
+
+      if (employee.lastName) {
+        if (employee.lastName.length < 2) {
+          errors.lastName = 'Last name must be at least 2 characters'
+          isValid = false
+        } else {
+          errors.lastName = ''
+        }
+      }
+
+      if (employee.email) {
+        const emailRegex = /^[^\s@]+@gmail\.com$/
+        if (!emailRegex.test(employee.email)) {
+          errors.email = 'Only Gmail accounts are allowed (countryside@gmail.com)'
+          isValid = false
+        } else {
+          errors.email = ''
+        }
+      }
+
+      if (employee.contactNumber) {
+        const phoneRegex = /^09\d{9}$/
+        if (!phoneRegex.test(employee.contactNumber)) {
+          errors.contactNumber = 'Invalid Philippine contact number (format: 09XXXXXXXXX)'
+          isValid = false
+        } else {
+          errors.contactNumber = ''
+        }
+      }
+
+      return isValid
+    }
 
     if (!employee.firstName) {
       errors.firstName = 'First name is required'
@@ -173,9 +244,45 @@ export function useEmployeeValidation() {
     return isValid
   }
 
-  const validateEmergencyContact = (employee) => {
+  const validateEmergencyContact = (employee, isEditing = false) => {
     let isValid = true
     const errors = formErrors.value.emergencyContact
+
+    if (isEditing) {
+      if (employee.emergencyContact.firstName) {
+        if (employee.emergencyContact.firstName.length < 2) {
+          errors.firstName = 'First name must be at least 2 characters'
+          isValid = false
+        } else {
+          errors.firstName = ''
+        }
+      }
+
+      if (employee.emergencyContact.lastName) {
+        if (employee.emergencyContact.lastName.length < 2) {
+          errors.lastName = 'Last name must be at least 2 characters'
+          isValid = false
+        } else {
+          errors.lastName = ''
+        }
+      }
+
+      if (employee.emergencyContact.contactNumber) {
+        const phoneRegex = /^09\d{9}$/
+        if (!phoneRegex.test(employee.emergencyContact.contactNumber)) {
+          errors.contactNumber = 'Invalid Philippine contact number (format: 09XXXXXXXXX)'
+          isValid = false
+        } else if (employee.emergencyContact.contactNumber === employee.contactNumber) {
+          errors.contactNumber =
+            'Emergency contact number cannot be the same as primary contact number'
+          isValid = false
+        } else {
+          errors.contactNumber = ''
+        }
+      }
+
+      return isValid
+    }
 
     if (!employee.emergencyContact.firstName) {
       errors.firstName = 'First name is required'

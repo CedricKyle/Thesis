@@ -38,5 +38,5 @@ const menuItems = [
 </script>
 
 <template>
-  <BaseDepartmentSidebar departmentName="HR" :menuItems="menuItems" basePath="/hr" />
+  <BaseDepartmentSidebar departmentName="HR Department" :menuItems="menuItems" basePath="/hr" />
 </template>
