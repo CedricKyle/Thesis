@@ -180,7 +180,7 @@ const cancelLogout = () => {
 <template>
   <div class="flex">
     <!-- Sidebar -->
-    <div class="w-80 min-h-screen p-4 bg-primaryColor flex flex-col">
+    <div class="w-80 h-screen p-4 bg-primaryColor flex flex-col justify-between">
       <div>
         <!-- Logo Section -->
         <div class="logo-section flex items-center mb-5 gap-4">
@@ -214,11 +214,11 @@ const cancelLogout = () => {
       </div>
 
       <!-- User Profile Section at Bottom -->
-      <div class="mt-auto">
+      <div class="p-4 border-t border-gray-700/50">
         <div class="dropdown dropdown-top dropdown-end">
           <label
             tabindex="0"
-            class="cursor-pointer flex items-center gap-3 p-4 hover:bg-gray-300/5"
+            class="cursor-pointer flex items-center gap-3 p-4 hover:bg-gray-300/5 w-full"
           >
             <!-- Employee Image -->
             <div class="w-10 h-10 rounded-full overflow-hidden ring ring-gray-300">

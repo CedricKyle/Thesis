@@ -109,6 +109,25 @@ export const useAuthStore = defineStore('auth', {
       }
     },
 
+    async handleUnauthorized() {
+      // Reset store data
+      this.currentUser = null
+      this.isAuthenticated = false
+      this.error = null
+      this.userPermissions = []
+
+      // Reset other stores
+      const rolesStore = useRolesStore()
+      rolesStore.reset()
+
+      // Return error info instead of redirecting
+      return {
+        status: 'error',
+        message: 'You are not authorized to perform this action. Please log in again.',
+        code: 'UNAUTHORIZED',
+      }
+    },
+
     async checkAuth() {
       try {
         const response = await axios.get('/api/employees/verify')

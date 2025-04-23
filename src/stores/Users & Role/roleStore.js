@@ -84,6 +84,10 @@ export const useRolesStore = defineStore('roles', {
         return response.data
       } catch (error) {
         console.error('Error updating role:', error)
+        if (error.response?.status === 401 || error.response?.status === 403) {
+          const authStore = useAuthStore()
+          await authStore.handleUnauthorized()
+        }
         throw error
       }
     },

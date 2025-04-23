@@ -224,6 +224,25 @@ const confirmSave = async () => {
       router.push(isAdmin ? '/admin/hr/roles' : '/hr/roles')
     }, 500)
   } catch (error) {
+    confirmModal.value?.close()
+
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      // Show unauthorized error page
+      const errorDiv = document.createElement('div')
+      errorDiv.className = 'fixed inset-0 bg-white flex flex-col items-center justify-center z-50'
+      errorDiv.innerHTML = `
+        <div class="text-center">
+          <h1 class="text-2xl font-bold text-red-600 mb-4">Unauthorized Access</h1>
+          <p class="text-gray-700 mb-6">You are not authorized to perform this action. Please log in again.</p>
+          <button onclick="window.location.href='/login'" class="bg-green-700 text-white px-6 py-2 rounded hover:bg-green-800">
+            Back to Login
+          </button>
+        </div>
+      `
+      document.body.appendChild(errorDiv)
+      return
+    }
+
     toastType.value = 'error'
     toastMessage.value = error.message || 'Error updating role'
     showToast.value = true
