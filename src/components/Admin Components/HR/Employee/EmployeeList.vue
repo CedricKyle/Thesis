@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
 import BaseTable from '@/components/common/BaseTable.vue'
 import EmployeeView from './EmployeeView.vue'
@@ -16,6 +16,41 @@ const authStore = useAuthStore()
 // Modal refs
 const deleteConfirmModal = ref(null)
 const employeeToDelete = ref(null)
+
+// Add search functionality
+const searchQuery = ref('')
+
+// Add this computed property to check if current user is Super Admin
+const isSuperAdmin = computed(() => {
+  return authStore.currentUser?.role === 'Super Admin'
+})
+
+// Filtered employees computed property
+const filteredEmployees = computed(() => {
+  if (!store.employees) return []
+
+  let employees = store.employees
+
+  // Filter out Super Admin users if current user is not Super Admin
+  if (!isSuperAdmin.value) {
+    employees = employees.filter((emp) => emp.role !== 'Super Admin')
+  }
+
+  if (!searchQuery.value) {
+    return employees
+  }
+
+  const query = searchQuery.value.toLowerCase()
+  return employees.filter(
+    (employee) =>
+      employee.employee_id.toLowerCase().includes(query) ||
+      employee.full_name.toLowerCase().includes(query) ||
+      employee.department.toLowerCase().includes(query) ||
+      employee.job_title?.toLowerCase().includes(query) ||
+      employee.email.toLowerCase().includes(query) ||
+      employee.contact_number.toLowerCase().includes(query),
+  )
+})
 
 // Define columns for Tabulator
 const columns = [
@@ -96,42 +131,6 @@ const tableOptions = {
   initialSort: [{ column: 'employee_id', dir: 'asc' }],
 }
 
-// Add search functionality
-const searchQuery = ref('')
-const filteredEmployees = ref([])
-
-const filterEmployees = () => {
-  if (!searchQuery.value) {
-    filteredEmployees.value = store.employees
-    return
-  }
-
-  const query = searchQuery.value.toLowerCase()
-  filteredEmployees.value = store.employees.filter(
-    (employee) =>
-      employee.employee_id.toLowerCase().includes(query) ||
-      employee.full_name.toLowerCase().includes(query) ||
-      employee.department.toLowerCase().includes(query) ||
-      employee.job_title.toLowerCase().includes(query) ||
-      employee.email.toLowerCase().includes(query) ||
-      employee.contact_number.toLowerCase().includes(query),
-  )
-}
-
-// Watch for changes in search query
-watch(searchQuery, () => {
-  filterEmployees()
-})
-
-// Watch for changes in store.employees
-watch(
-  () => store.employees,
-  () => {
-    filterEmployees()
-  },
-  { deep: true },
-)
-
 // Action handlers
 const handleView = (employee) => {
   store.setSelectedEmployee(employee)
@@ -169,12 +168,9 @@ const cancelDelete = () => {
 }
 
 onMounted(async () => {
-  const authStore = useAuthStore()
-
   try {
     if (authStore.isAuthenticated) {
       await store.loadEmployees()
-      filterEmployees() // Initialize filtered employees
     }
   } catch (error) {
     console.error('Error loading employees:', error)
@@ -189,13 +185,19 @@ watch(
     if (isAuthenticated) {
       try {
         await store.loadEmployees()
-        filterEmployees()
       } catch (error) {
         console.error('Error loading employees:', error)
         showToastMessage('Error loading employees', 'error')
       }
     }
   },
+)
+
+// Watch for changes in store.employees
+watch(
+  () => store.employees,
+  () => {},
+  { deep: true },
 )
 </script>
 
@@ -215,13 +217,7 @@ watch(
           <path d="m21 21-4.3-4.3"></path>
         </g>
       </svg>
-      <input
-        v-model="searchQuery"
-        type="search"
-        placeholder="Search"
-        class=""
-        @input="filterEmployees"
-      />
+      <input v-model="searchQuery" type="search" placeholder="Search" class="" />
     </label>
 
     <!-- Update BaseTable to use filteredEmployees -->

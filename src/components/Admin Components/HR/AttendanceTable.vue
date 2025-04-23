@@ -1,11 +1,13 @@
 <script setup>
-import { ref, onMounted, watch, onBeforeUnmount } from 'vue'
+import { ref, onMounted, watch, onBeforeUnmount, computed } from 'vue'
 import { useAttendanceLogic } from '@/composables/Admin Composables/Human Resource/useAttendanceLogic'
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
+import { useAuthStore } from '@/stores/Authentication/authStore'
 import { TabulatorFull as Tabulator } from 'tabulator-tables'
 
 const { formatDate, calculateOvertime } = useAttendanceLogic()
 const employeeStore = useEmployeeStore()
+const authStore = useAuthStore()
 
 const props = defineProps({
   records: {
@@ -29,10 +31,20 @@ const statusClasses = {
 
 const commonButtonClasses = 'btn btn-sm btn-circle border-none btn-ghost'
 
-// Add a function to get default attendance data for employees
+// Add computed property to check if current user is Super Admin
+const isSuperAdmin = computed(() => {
+  return authStore.currentUser?.role === 'Super Admin'
+})
+
+// Modify the getDefaultAttendanceData function to filter out Super Admin users
 const getDefaultAttendanceData = (employees) => {
+  // Filter out Super Admin users if current user is not Super Admin
+  const filteredEmployees = isSuperAdmin.value
+    ? employees
+    : employees.filter((emp) => emp.role !== 'Super Admin')
+
   const currentDate = new Date()
-  return employees.map((employee) => ({
+  return filteredEmployees.map((employee) => ({
     id: `absent-${employee.employee_id}`,
     employee_id: employee.employee_id,
     full_name: employee.full_name,
@@ -44,12 +56,25 @@ const getDefaultAttendanceData = (employees) => {
   }))
 }
 
-// Add a function to merge attendance records with employee data
+// Modify the mergeAttendanceWithEmployees function to handle role-based filtering
 const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
-  const defaultAttendance = getDefaultAttendanceData(employees)
+  // Filter out Super Admin users if current user is not Super Admin
+  const filteredEmployees = isSuperAdmin.value
+    ? employees
+    : employees.filter((emp) => emp.role !== 'Super Admin')
+
+  const defaultAttendance = getDefaultAttendanceData(filteredEmployees)
+
+  // Filter attendance records to exclude Super Admin records if needed
+  const filteredAttendance = isSuperAdmin.value
+    ? attendanceRecords
+    : attendanceRecords.filter((record) => {
+        const employee = employees.find((emp) => emp.employee_id === record.employee_id)
+        return employee && employee.role !== 'Super Admin'
+      })
 
   // Create a map of existing attendance records by employee_id
-  const attendanceMap = new Map(attendanceRecords.map((record) => [record.employee_id, record]))
+  const attendanceMap = new Map(filteredAttendance.map((record) => [record.employee_id, record]))
 
   // Return either the actual attendance record or the default one
   return defaultAttendance.map((defaultRecord) => {

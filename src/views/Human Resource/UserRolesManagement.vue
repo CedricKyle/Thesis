@@ -35,10 +35,8 @@ const filteredRoles = ref([])
 // Modal refs
 const viewModal = ref(null)
 const deleteConfirmModal = ref(null)
-const duplicateConfirmModal = ref(null)
 const roleToView = ref(null)
 const roleToDelete = ref(null)
-const roleToDuplicate = ref(null)
 
 // Determine if we're in admin mode
 const isAdminMode = computed(() => route.path.startsWith('/admin'))
@@ -104,12 +102,6 @@ const columns = [
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
           </button>
-          <button class="btn btn-sm btn-circle hover:bg-secondaryColor border-none btn-ghost duplicate-button" title="Duplicate Role">
-            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 9h-9a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2z" />
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-            </svg>
-          </button>
           <button class="btn btn-sm btn-circle hover:bg-red-400 border-none btn-ghost delete-button" title="Delete Role">
             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 6 6 18M6 6l12 12" />
@@ -126,7 +118,6 @@ const columns = [
       if (button.classList.contains('view-button')) handleView(record)
       else if (button.classList.contains('edit-button')) handleEdit(record)
       else if (button.classList.contains('delete-button')) handleDelete(record)
-      else if (button.classList.contains('duplicate-button')) handleDuplicate(record)
     },
   },
 ]
@@ -208,11 +199,6 @@ const handleDelete = (rowData) => {
   deleteConfirmModal.value?.showModal()
 }
 
-const handleDuplicate = (rowData) => {
-  roleToDuplicate.value = rowData
-  duplicateConfirmModal.value?.showModal()
-}
-
 // Update the handleRefresh function to be reusable
 const refreshTableData = async () => {
   try {
@@ -249,48 +235,10 @@ const confirmDelete = async () => {
   }
 }
 
-// Update confirmDuplicate to refresh the table
-const confirmDuplicate = async () => {
-  if (!roleToDuplicate.value) return
-
-  try {
-    const newRoleData = {
-      role_name: `Copy of ${roleToDuplicate.value.role_name}`,
-      description: roleToDuplicate.value.description || '',
-      permissions: roleToDuplicate.value.permissions || [],
-    }
-    await rolesStore.addRole(newRoleData)
-    duplicateConfirmModal.value?.close()
-    roleToDuplicate.value = null
-    showToastMessage('Role duplicated successfully')
-    await refreshTableData()
-  } catch (error) {
-    showToastMessage('Error duplicating role', 'error')
-  }
-}
-
 // Navigation
 const navigateToCreateRole = () => {
   const routeName = isAdminMode.value ? 'AdminCreateRole' : 'CreateRole'
   router.push({ name: routeName })
-}
-
-// Add this function after the other function definitions but before the lifecycle hooks
-const formatPermissions = (permissions) => {
-  if (!permissions || !Array.isArray(permissions)) return 'No permissions'
-
-  const categories = getPermissionCategories(permissions)
-  let formattedText = ''
-
-  for (const [category, perms] of Object.entries(categories)) {
-    formattedText += `${category}:\n`
-    for (const [permName] of Object.entries(perms)) {
-      formattedText += `  • ${permName}\n`
-    }
-    formattedText += '\n'
-  }
-
-  return formattedText.trim()
 }
 
 // Add this computed property
@@ -425,46 +373,6 @@ onBeforeUnmount(() => {
         <div class="modal-action justify-center gap-4">
           <button class="btn-errorStyle" @click="confirmDelete">Delete</button>
           <button class="btn-secondaryStyle" @click="deleteConfirmModal?.close()">Cancel</button>
-        </div>
-      </div>
-    </dialog>
-
-    <!-- Duplicate Confirmation Modal -->
-    <dialog ref="duplicateConfirmModal" class="modal">
-      <div class="modal-box bg-white w-96">
-        <h3 class="font-bold text-lg text-black">Confirm Duplicate</h3>
-        <div
-          class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
-        ></div>
-
-        <div v-if="roleToDuplicate" class="py-4">
-          <p class="text-center text-black">
-            Are you sure you want to duplicate the role
-            <span class="font-bold">{{ roleToDuplicate.role_name }}</span
-            >?
-          </p>
-
-          <div class="mt-4 flex flex-col gap-2">
-            <div class="flex flex-row">
-              <div class="w-32 text-gray-500">New Name:</div>
-              <div class="text-black">Copy of {{ roleToDuplicate.role_name }}</div>
-            </div>
-            <div class="flex flex-row">
-              <div class="w-32 text-gray-500">Description:</div>
-              <div class="text-black">{{ roleToDuplicate.description }}</div>
-            </div>
-            <div class="flex flex-col">
-              <div class="text-gray-500 mb-2">Permissions to copy:</div>
-              <pre class="text-black text-sm whitespace-pre-wrap bg-gray-50 p-3 rounded-md">{{
-                formatPermissions(roleToDuplicate.permissions)
-              }}</pre>
-            </div>
-          </div>
-        </div>
-
-        <div class="modal-action justify-center gap-4">
-          <button class="btn-primaryStyle" @click="confirmDuplicate">Duplicate</button>
-          <button class="btn-secondaryStyle" @click="duplicateConfirmModal?.close()">Cancel</button>
         </div>
       </div>
     </dialog>
