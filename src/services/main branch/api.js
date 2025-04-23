@@ -1,26 +1,23 @@
-import axios from 'axios'
-
-const api = axios.create({
-  baseURL: 'http://localhost:3000/api',
-  headers: {
-    'Content-Type': 'multipart/form-data', // This is important for file uploads
-  },
-  withCredentials: false,
-})
+import axios from '@/plugins/axios' // Import our configured axios instance
 
 export const employeeAPI = {
   // Get all employees
-  getAllEmployees: () => api.get('/employees'),
+  getAllEmployees: () => axios.get('/api/employees'),
 
   // Get single employee
-  getEmployee: (id) => api.get(`/employees/${id}`),
+  getEmployee: (id) => axios.get(`/api/employees/${id}`),
 
   // Create employee
-  createEmployee: (formData) => api.post('/employees', formData),
+  createEmployee: (formData) =>
+    axios.post('/api/employees', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }),
 
   // Update employee
   updateEmployee: (id, formData) => {
-    return api.put(`/employees/${id}`, formData, {
+    return axios.put(`/api/employees/${id}`, formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
@@ -28,5 +25,5 @@ export const employeeAPI = {
   },
 
   // Delete employee
-  deleteEmployee: (id) => api.delete(`/employees/${id}`),
+  deleteEmployee: (id) => axios.delete(`/api/employees/${id}`),
 }

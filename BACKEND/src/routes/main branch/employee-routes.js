@@ -1,39 +1,29 @@
-const express = require('express')
+import express from 'express'
+import * as employeeController from '../../controller/main branch/employee-controller.js'
+import { upload } from '../../utils/main branch/fileHandler.js'
+import { verifyToken } from '../../middleware/auth-middleware.js'
+
 const router = express.Router()
-const employeeController = require('../../controller/main branch/employee-controller')
-const { uploadProfile, uploadResume } = require('../../utils/main branch/fileHandler')
 
-// Create a middleware for handling file uploads
-const upload = require('multer')()
+// Public routes (no authentication needed)
+router.post('/login', employeeController.login)
+router.post('/logout', employeeController.logout)
 
+// Protected routes (require authentication)
 // Employee routes
-router.post(
-  '/',
-  upload.fields([
-    { name: 'employeeData', maxCount: 1 },
-    { name: 'profileImage', maxCount: 1 },
-    { name: 'resume', maxCount: 1 },
-  ]),
-  employeeController.createEmployee,
-)
+router.get('/verify', verifyToken, employeeController.verifyToken)
 
-router.get('/', employeeController.getAllEmployees)
-router.get('/:id', employeeController.getAllEmployeeById)
+// Use upload for profile image and resume uploads
+router.post('/', verifyToken, upload, employeeController.createEmployee)
 
-// Add multer middleware to the update route
-router.put(
-  '/:id',
-  upload.fields([
-    { name: 'employeeData', maxCount: 1 },
-    { name: 'profileImage', maxCount: 1 },
-    { name: 'resume', maxCount: 1 },
-  ]),
-  employeeController.updateEmployee,
-)
+router.get('/', verifyToken, employeeController.getAllEmployees)
+router.get('/:id', verifyToken, employeeController.getAllEmployeeById)
 
-router.delete('/:id', employeeController.deleteEmployee)
+router.put('/:id', verifyToken, upload, employeeController.updateEmployee)
 
-// Add route for serving files
-router.get('/files/:type/:filename', employeeController.getFile)
+router.delete('/:id', verifyToken, employeeController.deleteEmployee)
 
-module.exports = router
+// Add route for serving files - might want to protect this based on your requirements
+router.get('/files/:type/:filename', verifyToken, employeeController.getFile)
+
+export default router

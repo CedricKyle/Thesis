@@ -206,7 +206,7 @@ const routes = [
         component: FinancePayroll,
       },
       {
-        path: 'report',
+        path: 'reports',
         name: 'FinanceReport',
         component: FinanceReport,
       },
@@ -283,36 +283,22 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, from, next) => {
-  const authStore = useAuthStore()
+  // Public routes that don't require auth
+  const publicRoutes = ['/login', '/access-denied']
 
-  // Always allow access to login and access-denied pages
-  if (to.path === '/login' || to.path === '/access-denied') {
-    if (to.path === '/login' && authStore.isAuthenticated) {
-      // If authenticated, redirect to appropriate dashboard
-      const department = getDepartmentPath(authStore.currentUser?.department)
-      next(`/${department}/dashboard`)
-      return
-    }
+  if (publicRoutes.includes(to.path)) {
     next()
     return
   }
 
-  // Check if user is authenticated
-  if (!authStore.isAuthenticated) {
+  const authStore = useAuthStore()
+  const isAuthenticated = await authStore.checkAuth()
+
+  if (!isAuthenticated) {
     next('/login')
     return
   }
 
-  // Get user's department path
-  const userDepartment = getDepartmentPath(authStore.currentUser?.department)
-
-  // Check if user is trying to access their own department
-  if (!to.path.startsWith(`/${userDepartment}`)) {
-    next('/access-denied')
-    return
-  }
-
-  // Allow the navigation
   next()
 })
 

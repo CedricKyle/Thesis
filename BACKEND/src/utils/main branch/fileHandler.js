@@ -1,13 +1,19 @@
-const multer = require('multer')
-const path = require('path')
-const fs = require('fs').promises
+import multer from 'multer'
+import path from 'path'
+import { promises as fs } from 'fs'
+import { fileURLToPath } from 'url'
+import { dirname } from 'path'
+
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 
 // Create upload directories if they don't exist
 const createUploadDirectories = async () => {
   const directories = ['profiles', 'resumes']
 
   for (const dir of directories) {
-    const dirPath = path.join(__dirname, '../../uploads', dir)
+    const dirPath = path.join(__dirname, '../../../uploads/main branch', dir)
     try {
       await fs.access(dirPath)
     } catch {
@@ -19,75 +25,67 @@ const createUploadDirectories = async () => {
 // Create upload directories on startup
 createUploadDirectories()
 
-// Configure storage for profile images
-const profileStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, '../../uploads/main branch/profiles'))
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9)
-    cb(null, 'profile-' + uniqueSuffix + path.extname(file.originalname))
-  },
-})
-
-// Configure storage for resumes
-const resumeStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, '../../uploads/main branch/resumes'))
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9)
-    cb(null, 'resume-' + uniqueSuffix + path.extname(file.originalname))
-  },
-})
+// Configure multer storage
+const storage = multer.memoryStorage() // Use memory storage for flexibility
 
 // File filters
-const imageFilter = (req, file, cb) => {
-  if (file.mimetype.startsWith('image/')) {
-    cb(null, true)
+const fileFilter = (req, file, cb) => {
+  if (file.fieldname === 'profileImage') {
+    // Handle profile image
+    if (file.mimetype.startsWith('image/')) {
+      cb(null, true)
+    } else {
+      cb(new Error('Only image files are allowed for profile picture'), false)
+    }
+  } else if (file.fieldname === 'resume') {
+    // Handle resume
+    if (file.mimetype === 'application/pdf') {
+      cb(null, true)
+    } else {
+      cb(new Error('Only PDF files are allowed for resume'), false)
+    }
   } else {
-    cb(new Error('Only image files are allowed'), false)
+    cb(new Error('Unexpected field'), false)
   }
 }
 
-const pdfFilter = (req, file, cb) => {
-  if (file.mimetype === 'application/pdf') {
-    cb(null, true)
-  } else {
-    cb(new Error('Only PDF files are allowed'), false)
-  }
-}
-
-// Create multer instances
-const uploadProfile = multer({
-  storage: profileStorage,
-  fileFilter: imageFilter,
-  limits: {
-    fileSize: 2 * 1024 * 1024, // 2MB limit
-  },
-})
-
-const uploadResume = multer({
-  storage: resumeStorage,
-  fileFilter: pdfFilter,
+// Create multer upload instance for multiple files
+export const upload = multer({
+  storage: storage,
+  fileFilter: fileFilter,
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
   },
-})
+}).fields([
+  { name: 'profileImage', maxCount: 1 },
+  { name: 'resume', maxCount: 1 },
+])
 
-// Helper function to delete files
-const deleteFile = async (filePath) => {
+// Helper function to save file
+export const saveFile = async (file, type) => {
+  if (!file) return null
+
+  const directory = type === 'profile' ? 'profiles' : 'resumes'
+  const prefix = type === 'profile' ? 'profile-' : 'resume-'
+
+  const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9)
+  const filename = prefix + uniqueSuffix + path.extname(file.originalname)
+  const filepath = path.join(__dirname, `../../../uploads/main branch/${directory}`, filename)
+
+  await fs.writeFile(filepath, file.buffer)
+  return `uploads/main branch/${directory}/${filename}`
+}
+
+// Helper function to delete file
+export const deleteFile = async (filePath) => {
+  if (!filePath) return true
+
   try {
-    await fs.unlink(filePath)
+    const fullPath = path.join(__dirname, '../../../', filePath)
+    await fs.unlink(fullPath)
     return true
   } catch (error) {
     console.error('Error deleting file:', error)
     return false
   }
-}
-
-module.exports = {
-  uploadProfile,
-  uploadResume,
-  deleteFile,
 }

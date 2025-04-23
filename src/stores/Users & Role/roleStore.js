@@ -1,10 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
+import axios from '@/plugins/axios'
+import { useAuthStore } from '@/stores/Authentication/authStore'
 import {
   PERMISSION_IDS,
   DEPARTMENTS,
 } from '@/composables/Admin Composables/User & Role/role/permissionsId'
-import axios from 'axios'
 
 export const useRolesStore = defineStore('roles', {
   state: () => ({
@@ -15,37 +16,51 @@ export const useRolesStore = defineStore('roles', {
   }),
 
   actions: {
-    // Fetch roles from backend API
     async fetchRoles() {
       try {
+        const authStore = useAuthStore()
+        if (!authStore.isAuthenticated) {
+          console.log('Not authenticated, skipping roles fetch')
+          return
+        }
+
         this.loading = true
-        const response = await axios.get('http://localhost:3000/api/roles')
+        const response = await axios.get('/api/roles')
         this.roles = response.data
       } catch (error) {
         console.error('Error fetching roles:', error)
         this.error = error.message
+        if (error.response?.status === 401) {
+          const authStore = useAuthStore()
+          await authStore.logout()
+        }
       } finally {
         this.loading = false
       }
     },
 
-    // Get role by name from backend
     async getRoleByName(roleName) {
       try {
         if (!roleName) {
           console.log('No role name provided')
           return null
         }
-        const response = await axios.get(`http://localhost:3000/api/roles/name/${roleName}`)
+        const response = await axios.get(`/api/roles/name/${roleName}`)
         return response.data
       } catch (error) {
         console.error('Error getting role by name:', error)
-        return null // Return null instead of throwing error
+        return null
       }
     },
 
     async addRole(roleData) {
       try {
+        const authStore = useAuthStore()
+        if (!authStore.isAuthenticated) {
+          console.log('Not authenticated, skipping role creation')
+          return
+        }
+
         const newRole = {
           role_name: roleData.role_name,
           description: roleData.description || '',
@@ -53,7 +68,7 @@ export const useRolesStore = defineStore('roles', {
           permissions: roleData.permissions || [],
         }
 
-        const response = await axios.post('http://localhost:3000/api/roles', newRole)
+        const response = await axios.post('/api/roles', newRole)
         await this.fetchRoles()
         return response.data
       } catch (error) {
@@ -64,7 +79,7 @@ export const useRolesStore = defineStore('roles', {
 
     async updateRole(roleId, updatedRole) {
       try {
-        const response = await axios.put(`http://localhost:3000/api/roles/${roleId}`, updatedRole)
+        const response = await axios.put(`/api/roles/${roleId}`, updatedRole)
         await this.fetchRoles()
         return response.data
       } catch (error) {
@@ -75,8 +90,7 @@ export const useRolesStore = defineStore('roles', {
 
     async deleteRole(roleId) {
       try {
-        await axios.delete(`http://localhost:3000/api/roles/${roleId}`)
-        // Refresh the roles list after deleting
+        await axios.delete(`/api/roles/${roleId}`)
         await this.fetchRoles()
       } catch (error) {
         console.error('Error deleting role:', error)
@@ -89,7 +103,7 @@ export const useRolesStore = defineStore('roles', {
         if (!id) {
           throw new Error('Role ID is required')
         }
-        const response = await axios.get(`http://localhost:3000/api/roles/${id}`)
+        const response = await axios.get(`/api/roles/${id}`)
 
         // Ensure permissions is always an array
         const roleData = response.data
@@ -109,28 +123,23 @@ export const useRolesStore = defineStore('roles', {
 
     async setCurrentEmployeeRole(employeeData) {
       try {
-        // Check if employeeData exists
         if (!employeeData) {
           console.log('No employee data available yet')
           this.currentEmployeeRole = null
           return
         }
 
-        // If we already have complete role data (from localStorage)
-        if (employeeData.role && Array.isArray(employeeData.permissions)) {
-          this.currentEmployeeRole = {
-            role_name: employeeData.role,
-            department: employeeData.department,
-            permissions: employeeData.permissions,
-          }
+        // If we have complete role data
+        if (employeeData.role_name && Array.isArray(employeeData.permissions)) {
+          this.currentEmployeeRole = employeeData
           return
         }
 
-        // Otherwise fetch from backend
-        if (employeeData.role) {
-          const roleData = await this.getRoleByName(employeeData.role)
+        // If we have a role name, fetch the complete role data
+        const roleName = employeeData.role || employeeData.role_name
+        if (roleName) {
+          const roleData = await this.getRoleByName(roleName)
           if (roleData) {
-            // Ensure permissions is always an array
             if (typeof roleData.permissions === 'string') {
               roleData.permissions = JSON.parse(roleData.permissions)
             }
@@ -148,10 +157,14 @@ export const useRolesStore = defineStore('roles', {
 
     async initializeStore() {
       try {
-        // Fetch roles from backend instead of using localStorage
+        const authStore = useAuthStore()
+        if (!authStore.isAuthenticated) {
+          console.log('Not authenticated, skipping store initialization')
+          return
+        }
+
         await this.fetchRoles()
 
-        // If no roles exist, create default roles
         if (this.roles.length === 0) {
           const defaultRoles = [
             {
@@ -181,7 +194,6 @@ export const useRolesStore = defineStore('roles', {
             },
           ]
 
-          // Add default roles to backend
           for (const role of defaultRoles) {
             await this.addRole(role)
           }
@@ -190,6 +202,14 @@ export const useRolesStore = defineStore('roles', {
         console.error('Error initializing roles store:', error)
         this.error = error.message
       }
+    },
+
+    // Add a reset method
+    reset() {
+      this.roles = []
+      this.loading = false
+      this.error = null
+      this.currentEmployeeRole = null
     },
   },
 })

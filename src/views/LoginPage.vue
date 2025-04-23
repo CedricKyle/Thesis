@@ -1,9 +1,10 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 import { Lock, IdCard } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/Authentication/authStore'
 import { useRouter } from 'vue-router'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
+import axios from 'axios'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -14,11 +15,7 @@ const userId = ref('')
 const password = ref('')
 const rememberMe = ref(false)
 const error = ref('')
-
-// Add this to logout any existing session when the login page is mounted
-onMounted(() => {
-  authStore.logout() // This will clear the auth state
-})
+const isLoading = ref(false)
 
 // Add this helper function at the top of the script
 function getDepartmentPath(department) {
@@ -39,53 +36,39 @@ function getDepartmentPath(department) {
 const handleSubmit = async (e) => {
   e.preventDefault()
   error.value = ''
+  isLoading.value = true
 
   try {
-    const response = await authStore.login(userId.value, password.value)
-    console.log('Login response:', response)
+    console.log('Attempting login with:', { employeeId: userId.value, password: password.value })
 
-    if (response) {
-      console.log('Current user:', authStore.currentUser)
+    const response = await axios.post('/api/employees/login', {
+      employeeId: userId.value,
+      password: password.value,
+    })
 
-      // Get user role and department
-      const userRole = authStore.currentUser?.role?.role_name || authStore.currentUser?.role
-      const department = authStore.currentUser?.department
+    console.log('Login response:', response.data)
 
-      console.log('User role:', userRole)
-      console.log('Department:', department)
+    if (response.data.message === 'Login successful' && response.data.user) {
+      // Update auth store
+      authStore.currentUser = response.data.user
+      authStore.isAuthenticated = true
 
-      // Set the current employee role in the role store
-      await rolesStore.setCurrentEmployeeRole({
-        role: userRole,
-        department: department,
-        permissions: authStore.currentUser?.role?.permissions || [],
-      })
-
-      // Determine redirect path using the helper function
-      let redirectPath = ''
-
-      if (userRole === 'Super Admin') {
-        redirectPath = '/admin/hr/dashboard'
-      } else {
-        const deptPath = getDepartmentPath(department)
-        redirectPath = `/${deptPath}/dashboard`
-      }
+      // Determine redirect path
+      const redirectPath =
+        response.data.user.role === 'Super Admin'
+          ? '/admin/hr/dashboard'
+          : `/${getDepartmentPath(response.data.user.department)}/dashboard`
 
       console.log('Redirecting to:', redirectPath)
-
-      try {
-        await router.push(redirectPath)
-      } catch (navError) {
-        console.error('Navigation error:', navError)
-        // Fallback to window.location if router.push fails
-        window.location.href = redirectPath
-      }
+      window.location.href = redirectPath
     } else {
-      error.value = 'Invalid credentials'
+      error.value = response.data.message || 'Invalid credentials'
     }
   } catch (err) {
     console.error('Login error:', err)
-    error.value = err.message || 'An error occurred during login'
+    error.value = err.response?.data?.message || 'An error occurred during login'
+  } finally {
+    isLoading.value = false
   }
 }
 </script>
@@ -124,6 +107,7 @@ const handleSubmit = async (e) => {
                     placeholder="Employee ID"
                     class="placeholder:text-gray-500 text-black w-full"
                     required
+                    :disabled="isLoading"
                   />
                 </label>
               </div>
@@ -137,11 +121,14 @@ const handleSubmit = async (e) => {
                     placeholder="Password"
                     class="placeholder:text-gray-500 text-black w-full"
                     required
+                    :disabled="isLoading"
                   />
                 </label>
               </div>
               <!-- Submit Button -->
-              <button type="submit" class="btn-loginStyle w-full h-10">Login</button>
+              <button type="submit" class="btn-loginStyle w-full h-10" :disabled="isLoading">
+                {{ isLoading ? 'Logging in...' : 'Login' }}
+              </button>
             </div>
 
             <div class="flex justify-between text-xs mt-2">
@@ -150,6 +137,7 @@ const handleSubmit = async (e) => {
                   v-model="rememberMe"
                   type="checkbox"
                   class="checkbox checkbox-white checkbox-xs"
+                  :disabled="isLoading"
                 />
                 <p>Remember Me</p>
               </div>

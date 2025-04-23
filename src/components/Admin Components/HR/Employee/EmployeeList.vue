@@ -6,10 +6,12 @@ import EmployeeView from './EmployeeView.vue'
 import { useRouter } from 'vue-router'
 import { useToast } from '@/composables/Admin Composables/Human Resource/useToast'
 import Toast from '@/components/Admin Components/HR/Toast.vue'
+import { useAuthStore } from '@/stores/Authentication/authStore'
 
 const router = useRouter()
 const store = useEmployeeStore()
 const { showToast, toastMessage, toastType, showToastMessage } = useToast()
+const authStore = useAuthStore()
 
 // Modal refs
 const deleteConfirmModal = ref(null)
@@ -167,14 +169,34 @@ const cancelDelete = () => {
 }
 
 onMounted(async () => {
+  const authStore = useAuthStore()
+
   try {
-    await store.loadEmployees()
-    filterEmployees() // Initialize filtered employees
+    if (authStore.isAuthenticated) {
+      await store.loadEmployees()
+      filterEmployees() // Initialize filtered employees
+    }
   } catch (error) {
     console.error('Error loading employees:', error)
     showToastMessage('Error loading employees', 'error')
   }
 })
+
+// Add a watch for authentication state
+watch(
+  () => authStore.isAuthenticated,
+  async (isAuthenticated) => {
+    if (isAuthenticated) {
+      try {
+        await store.loadEmployees()
+        filterEmployees()
+      } catch (error) {
+        console.error('Error loading employees:', error)
+        showToastMessage('Error loading employees', 'error')
+      }
+    }
+  },
+)
 </script>
 
 <template>

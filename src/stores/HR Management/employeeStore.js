@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { employeeAPI } from '@/services/main branch/api'
-import axios from 'axios'
+import { useAuthStore } from '@/stores/Authentication/authStore'
 
 export const useEmployeeStore = defineStore('employee', () => {
   // State
@@ -13,6 +13,8 @@ export const useEmployeeStore = defineStore('employee', () => {
   const sortDesc = ref(false)
   const showViewModal = ref(false)
   const selectedEmployee = ref(null)
+  const loading = ref(false)
+  const error = ref(null)
 
   // Getters
   const filteredEmployees = computed(() => {
@@ -59,11 +61,26 @@ export const useEmployeeStore = defineStore('employee', () => {
   // Load employees from API
   async function loadEmployees() {
     try {
+      loading.value = true
+      error.value = null
+
+      const authStore = useAuthStore()
+      if (!authStore.isAuthenticated) {
+        console.log('Not authenticated, skipping employee load')
+        return
+      }
+
       const response = await employeeAPI.getAllEmployees()
       employees.value = response.data
-    } catch (error) {
-      console.error('Error loading employees:', error)
-      throw error
+    } catch (err) {
+      console.error('Error loading employees:', err)
+      error.value = err.message
+      if (err.response?.status === 401) {
+        const authStore = useAuthStore()
+        await authStore.logout()
+      }
+    } finally {
+      loading.value = false
     }
   }
 
@@ -95,10 +112,15 @@ export const useEmployeeStore = defineStore('employee', () => {
   // Update employee
   async function updateEmployee(id, formData) {
     try {
-      // Debug log to verify data
-      console.log('FormData in store:')
-      for (let [key, value] of formData.entries()) {
-        console.log(key, value instanceof File ? value.name : value)
+      // Debug log to verify data being sent
+      console.log('Updating employee with ID:', id)
+      console.log('FormData contents:')
+      for (let pair of formData.entries()) {
+        if (pair[1] instanceof File) {
+          console.log(pair[0], 'File:', pair[1].name)
+        } else {
+          console.log(pair[0], pair[1])
+        }
       }
 
       const response = await employeeAPI.updateEmployee(id, formData)
@@ -106,7 +128,7 @@ export const useEmployeeStore = defineStore('employee', () => {
       // Update local state
       const index = employees.value.findIndex((emp) => emp.employee_id === id)
       if (index !== -1) {
-        employees.value[index] = response.data
+        employees.value[index] = response.data.data // Note: adjust this based on your API response structure
       }
 
       return response.data
@@ -213,6 +235,8 @@ export const useEmployeeStore = defineStore('employee', () => {
     sortDesc,
     showViewModal,
     selectedEmployee,
+    loading,
+    error,
 
     // Getters
     filteredEmployees,

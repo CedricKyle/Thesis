@@ -1,4 +1,5 @@
-const pool = require('../../config/database')
+import pool from '../../config/database.js'
+import bcrypt from 'bcrypt'
 
 class Employee {
   static async createEmployee(employeeData, emergencyContact) {
@@ -151,4 +152,4 @@ class Employee {
   }
 }
 
-module.exports = Employee
+export default Employee

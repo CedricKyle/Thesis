@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
-import axios from 'axios'
+import axios from '@/plugins/axios'
 import {
   DEPARTMENTS,
   PERMISSION_IDS,
@@ -25,125 +25,116 @@ function getDepartmentPath(department) {
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    currentUser: ref(null),
-    isAuthenticated: ref(false),
-    error: ref(null),
-    isFirstLogin: false,
+    currentUser: null,
+    isAuthenticated: false,
+    error: null,
+    isLoading: false,
+    userPermissions: [], // This will store the actual permissions from the backend
   }),
 
   actions: {
     async login(employeeId, password) {
       this.error = null
+      this.isLoading = true
 
       try {
-        const response = await axios.get(`http://localhost:3000/api/employees/${employeeId}`)
-        const employee = response.data
+        const response = await axios.post('/api/employees/login', {
+          employeeId,
+          password,
+        })
 
-        if (!employee) {
-          throw new Error('Employee not found')
-        }
-
-        if (password !== 'countryside123') {
-          throw new Error('Invalid password')
-        }
-
-        try {
-          const rolesStore = useRolesStore()
-          const roleData = await rolesStore.getRoleByName(employee.role)
-
-          if (!roleData) {
-            throw new Error('Role not found')
-          }
-
-          const formattedRoleData = {
-            id: roleData.id,
-            role_name: roleData.role_name,
-            description: roleData.description,
-            department: roleData.department,
-            permissions: Array.isArray(roleData.permissions)
-              ? roleData.permissions
-              : JSON.parse(roleData.permissions || '[]'),
-            last_modified: roleData.updated_at || new Date().toISOString(),
-          }
-
-          this.currentUser = {
-            id: employee.employee_id,
-            userId: employee.employee_id,
-            role: formattedRoleData,
-            fullName: employee.full_name,
-            department: employee.department,
-          }
-
+        if (response.data.message === 'Login successful' && response.data.user) {
+          // Store user data
+          this.currentUser = response.data.user
           this.isAuthenticated = true
-          await rolesStore.setCurrentEmployeeRole(formattedRoleData)
-          this.saveToLocalStorage()
 
-          const deptPath = getDepartmentPath(employee.department)
-          return `/${deptPath}/dashboard`
-        } catch (error) {
-          console.error('Error during login:', error)
-          throw new Error(error.message || 'Failed to set up user role')
+          // Store the actual permissions from the backend response
+          this.userPermissions = response.data.user.permissions || []
+
+          // Determine redirect path based on department
+          const redirectPath =
+            response.data.user.role === 'Super Admin'
+              ? '/admin/hr/dashboard'
+              : `/${getDepartmentPath(response.data.user.department)}/dashboard`
+
+          window.location.href = redirectPath
+          return true
         }
+
+        this.error = response.data.message || 'Invalid credentials'
+        return false
       } catch (error) {
         console.error('Login error:', error)
-        this.error = error.message
+        this.error = error.response?.data?.message || error.message
+        return false
+      } finally {
+        this.isLoading = false
+      }
+    },
+
+    async logout() {
+      try {
+        await axios.post('/api/employees/logout')
+      } catch (error) {
+        console.error('Logout error:', error)
+      } finally {
+        // Reset all store data
+        this.currentUser = null
+        this.isAuthenticated = false
+        this.error = null
+        this.userPermissions = []
+
+        // Reset other stores
+        const rolesStore = useRolesStore()
+        rolesStore.reset()
+
+        // Redirect to login
+        window.location.href = '/login'
+      }
+    },
+
+    async checkAuth() {
+      if (this.isAuthenticated && this.currentUser) {
+        return true
+      }
+
+      try {
+        const response = await axios.get('/api/employees/verify')
+        if (response.data.user) {
+          this.currentUser = response.data.user
+          this.isAuthenticated = true
+          // Store the actual permissions from the verify response
+          this.userPermissions = response.data.user.permissions || []
+          return true
+        }
+        return false
+      } catch (error) {
+        console.error('Auth check error:', error)
+        this.currentUser = null
+        this.isAuthenticated = false
+        this.userPermissions = []
         return false
       }
     },
 
-    saveToLocalStorage() {
-      if (this.currentUser) {
-        localStorage.setItem(
-          'user',
-          JSON.stringify({
-            id: this.currentUser.id,
-            userId: this.currentUser.userId,
-            role: this.currentUser.role,
-            fullName: this.currentUser.fullName,
-            department: this.currentUser.department,
-          }),
-        )
-        localStorage.setItem('isAuthenticated', 'true')
-      }
+    // Getter for permissions
+    getUserPermissions() {
+      return this.userPermissions
     },
 
-    logout() {
-      this.isAuthenticated = false
-      this.currentUser = null
-      this.isFirstLogin = false
-      localStorage.removeItem('user')
-      localStorage.removeItem('token')
-      localStorage.removeItem('auth')
-      const rolesStore = useRolesStore()
-      rolesStore.setCurrentEmployeeRole(null)
-      return true
+    // Helper method to check if user has specific permission
+    hasPermission(permissionId) {
+      return this.userPermissions.includes(permissionId)
     },
 
-    async checkAuth() {
-      const userData = localStorage.getItem('user')
-      const isAuthenticated = localStorage.getItem('isAuthenticated')
+    // Helper method to check if user has any of the given permissions
+    hasAnyPermission(permissionIds) {
+      return permissionIds.some((id) => this.userPermissions.includes(id))
+    },
 
-      if (userData && isAuthenticated === 'true') {
-        try {
-          const user = JSON.parse(userData)
-          this.currentUser = user
-          this.isAuthenticated = true
-
-          const rolesStore = useRolesStore()
-          await rolesStore.setCurrentEmployeeRole({
-            role: user.role.role_name,
-            department: user.department,
-            permissions: user.role.permissions,
-          })
-
-          return true
-        } catch (error) {
-          console.error('Error restoring auth state:', error)
-          this.logout()
-          return false
-        }
-      }
-      return false
+    // Helper method to check if user has all of the given permissions
+    hasAllPermissions(permissionIds) {
+      return permissionIds.every((id) => this.userPermissions.includes(id))
     },
   },
 })

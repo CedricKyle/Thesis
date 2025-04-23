@@ -1,11 +1,18 @@
-const Employee = require('../../model/main branch/employee-model')
-const pool = require('../../config/database')
-const { deleteFile } = require('../../utils/main branch/fileHandler')
-const path = require('path')
-const fs = require('fs').promises
-const bcrypt = require('bcrypt')
+import Employee from '../../model/main branch/employee-model.js'
+import pool from '../../config/database.js'
+import { deleteFile, saveFile } from '../../utils/main branch/fileHandler.js'
+import path from 'path'
+import { promises as fs } from 'fs'
+import bcrypt from 'bcrypt'
+import { generateToken, clearToken } from '../../middleware/auth-middleware.js'
+import { fileURLToPath } from 'url'
+import { dirname } from 'path'
 
-exports.createEmployee = async (req, res) => {
+// Get __dirname equivalent in ES modules
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+
+export const createEmployee = async (req, res) => {
   const connection = await pool.getConnection()
   try {
     await connection.beginTransaction()
@@ -159,7 +166,7 @@ exports.createEmployee = async (req, res) => {
   }
 }
 
-exports.getAllEmployees = async (req, res) => {
+export const getAllEmployees = async (req, res) => {
   try {
     // First get employees
     const [employees] = await pool.query(`
@@ -211,7 +218,7 @@ exports.getAllEmployees = async (req, res) => {
 }
 
 //get all employees by id
-exports.getAllEmployeeById = async (req, res) => {
+export const getAllEmployeeById = async (req, res) => {
   try {
     const [employees] = await pool.query(
       `
@@ -268,42 +275,30 @@ exports.getAllEmployeeById = async (req, res) => {
 }
 
 //update employee
-exports.updateEmployee = async (req, res) => {
+export const updateEmployee = async (req, res) => {
   const connection = await pool.getConnection()
   try {
     await connection.beginTransaction()
 
     const { id } = req.params
+    console.log('Files received:', req.files) // Debug log
+    console.log('Body received:', req.body) // Debug log
 
-    // Debug log to see what's being received
-    console.log('Request body:', req.body)
-    console.log('Request files:', req.files)
-
-    // Parse the employeeData from the FormData
+    // Parse the employeeData from the request body
     const employeeData = JSON.parse(req.body.employeeData)
 
     // Handle profile image file
     let profileImagePath = null
-    if (req.files && req.files.profileImage) {
+    if (req.files?.profileImage?.[0]) {
       const profileFile = req.files.profileImage[0]
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9)
-      profileImagePath = `uploads/main branch/profiles/profile-${uniqueSuffix}${path.extname(profileFile.originalname)}`
-      await fs.mkdir(path.dirname(path.join(__dirname, '../../../', profileImagePath)), {
-        recursive: true,
-      })
-      await fs.writeFile(path.join(__dirname, '../../../', profileImagePath), profileFile.buffer)
+      profileImagePath = await saveFile(profileFile, 'profile')
     }
 
     // Handle resume file
     let resumePath = null
-    if (req.files && req.files.resume) {
+    if (req.files?.resume?.[0]) {
       const resumeFile = req.files.resume[0]
-      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9)
-      resumePath = `uploads/main branch/resumes/resume-${uniqueSuffix}${path.extname(resumeFile.originalname)}`
-      await fs.mkdir(path.dirname(path.join(__dirname, '../../../', resumePath)), {
-        recursive: true,
-      })
-      await fs.writeFile(path.join(__dirname, '../../../', resumePath), resumeFile.buffer)
+      resumePath = await saveFile(resumeFile, 'resume')
     }
 
     // Update main employee data
@@ -347,7 +342,7 @@ exports.updateEmployee = async (req, res) => {
       ],
     )
 
-    // Update emergency contact
+    // Update emergency contact if provided
     if (employeeData.emergency_contact) {
       await connection.query(
         `UPDATE emergency_contacts SET
@@ -378,7 +373,7 @@ exports.updateEmployee = async (req, res) => {
 
     await connection.commit()
 
-    // Fetch updated employee data
+    // Fetch and return updated employee data
     const [updatedEmployee] = await connection.query(
       `SELECT e.*, 
         ec.first_name as emergency_contact_first_name,
@@ -400,7 +395,7 @@ exports.updateEmployee = async (req, res) => {
     await connection.rollback()
     console.error('Error updating employee:', error)
     res.status(500).json({
-      message: 'Error updating employee',
+      message: 'Something went wrong!',
       error: error.message,
     })
   } finally {
@@ -409,7 +404,7 @@ exports.updateEmployee = async (req, res) => {
 }
 
 //delete employee
-exports.deleteEmployee = async (req, res) => {
+export const deleteEmployee = async (req, res) => {
   const connection = await pool.getConnection()
   try {
     await connection.beginTransaction()
@@ -437,7 +432,7 @@ exports.deleteEmployee = async (req, res) => {
 }
 
 // Add employee with files
-exports.addEmployee = async (req, res) => {
+export const addEmployee = async (req, res) => {
   const connection = await pool.getConnection()
   try {
     await connection.beginTransaction()
@@ -511,7 +506,7 @@ exports.addEmployee = async (req, res) => {
 }
 
 // Update employee with files
-exports.updateEmployeeWithFiles = async (req, res) => {
+export const updateEmployeeWithFiles = async (req, res) => {
   const connection = await pool.getConnection()
   try {
     await connection.beginTransaction()
@@ -561,7 +556,7 @@ exports.updateEmployeeWithFiles = async (req, res) => {
 }
 
 // Serve files
-exports.getFile = async (req, res) => {
+export const getFile = async (req, res) => {
   try {
     const { type, filename } = req.params
     const filePath = path.join(__dirname, '../../../uploads/main branch', type + 's', filename)
@@ -604,5 +599,116 @@ exports.getFile = async (req, res) => {
   } catch (error) {
     console.error('Error retrieving file:', error)
     res.status(500).json({ error: 'Error retrieving file' })
+  }
+}
+
+export const login = async (req, res) => {
+  const connection = await pool.getConnection()
+  try {
+    const { employeeId, password } = req.body
+
+    // Get employee with their password and role permissions
+    const [employees] = await connection.query(
+      `SELECT 
+        e.*,
+        u.password,
+        r.permissions
+      FROM employees e
+      JOIN users u ON e.employee_id = u.employee_id
+      JOIN roles r ON e.role = r.role_name
+      WHERE e.employee_id = ?`,
+      [employeeId],
+    )
+
+    if (employees.length === 0) {
+      return res.status(401).json({ message: 'Employee not found' })
+    }
+
+    const employee = employees[0]
+
+    // Verify password
+    const isValidPassword = await bcrypt.compare(password, employee.password)
+    if (!isValidPassword) {
+      return res.status(401).json({ message: 'Invalid password' })
+    }
+
+    // Parse permissions if they're stored as a string
+    const permissions =
+      typeof employee.permissions === 'string'
+        ? JSON.parse(employee.permissions)
+        : employee.permissions
+
+    // Generate JWT token with permissions
+    const token = generateToken({
+      employee_id: employee.employee_id,
+      role: employee.role,
+      department: employee.department,
+      permissions: permissions, // Include permissions in the token
+    })
+
+    // Set token as HTTP-only cookie
+    res.cookie('jwt', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+    })
+
+    // Remove sensitive data before sending response
+    const { password: _, ...employeeData } = employee
+
+    res.json({
+      message: 'Login successful',
+      user: {
+        ...employeeData,
+        permissions: permissions, // Include permissions in the response
+      },
+    })
+  } catch (error) {
+    console.error('Login error:', error)
+    res.status(500).json({
+      message: 'Error during login',
+      error: error.message,
+    })
+  } finally {
+    connection.release()
+  }
+}
+
+export const logout = async (req, res) => {
+  clearToken(res)
+  res.json({ message: 'Logged out successfully' })
+}
+
+export const verifyToken = async (req, res) => {
+  const connection = await pool.getConnection()
+  try {
+    // Get fresh permissions from the database
+    const [roles] = await connection.query('SELECT permissions FROM roles WHERE role_name = ?', [
+      req.user.role,
+    ])
+
+    if (roles.length === 0) {
+      throw new Error('Role not found')
+    }
+
+    // Parse permissions if they're stored as a string
+    const permissions =
+      typeof roles[0].permissions === 'string'
+        ? JSON.parse(roles[0].permissions)
+        : roles[0].permissions
+
+    res.json({
+      message: 'Token is valid',
+      user: {
+        ...req.user,
+        permissions: permissions, // Include fresh permissions in the response
+      },
+    })
+  } catch (error) {
+    console.error('Token verification error:', error)
+    res.status(401).json({ message: 'Token verification failed' })
+  } finally {
+    connection.release()
   }
 }
