@@ -20,5 +20,9 @@ const menuItems = [
 </script>
 
 <template>
-  <BaseDepartmentSidebar departmentName="SCM" :menuItems="menuItems" basePath="/scm" />
+  <BaseDepartmentSidebar
+    departmentName="Supply Chain Management"
+    :menuItems="menuItems"
+    :basePath="'/scm'"
+  />
 </template>

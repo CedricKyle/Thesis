@@ -17,6 +17,6 @@ const menuItems = [
   <BaseDepartmentSidebar
     departmentName="Customer Relationship Management"
     :menuItems="menuItems"
-    basePath="/crm"
+    :basePath="'/crm'"
   />
 </template>

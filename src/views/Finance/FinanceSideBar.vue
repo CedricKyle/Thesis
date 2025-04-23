@@ -26,5 +26,9 @@ const menuItems = [
 </script>
 
 <template>
-  <BaseDepartmentSidebar departmentName="FINANCE" :menuItems="menuItems" basePath="/finance" />
+  <BaseDepartmentSidebar
+    departmentName="Finance Department"
+    :menuItems="menuItems"
+    :basePath="'/finance'"
+  />
 </template>

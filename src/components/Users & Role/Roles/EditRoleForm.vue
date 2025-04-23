@@ -202,11 +202,24 @@ const handleSubmit = () => {
 const confirmSave = async () => {
   try {
     const roleId = props.id || route.params.id
+
+    // Clear existing permissions when department changes
+    let updatedPermissions = []
+    if (selectedPermissions.value.length > 0) {
+      // Filter permissions based on selected department
+      updatedPermissions = selectedPermissions.value.filter((permissionId) => {
+        const permissionGroup = permissionGroupsRef.value.find((group) =>
+          group.permissions.some((p) => p.id === permissionId),
+        )
+        return permissionGroup?.department === selectedDepartment.value
+      })
+    }
+
     const updatedRole = {
       role_name: formData.value.roleName,
       description: formData.value.description,
       department: selectedDepartment.value,
-      permissions: selectedPermissions.value,
+      permissions: updatedPermissions,
     }
 
     await rolesStore.updateRole(roleId, updatedRole)
@@ -226,14 +239,25 @@ const confirmSave = async () => {
   } catch (error) {
     confirmModal.value?.close()
 
+    if (error.message === 'Role changed for current user') {
+      // Error page is already shown by the roleStore
+      return
+    }
+
     if (error.response?.status === 401 || error.response?.status === 403) {
       // Show unauthorized error page
       const errorDiv = document.createElement('div')
-      errorDiv.className = 'fixed inset-0 bg-white flex flex-col items-center justify-center z-50'
+      errorDiv.className =
+        'fixed inset-0 bg-white flex flex-col items-center justify-center z-[9999]'
       errorDiv.innerHTML = `
-        <div class="text-center">
+        <div class="text-center p-8 max-w-lg">
+          <div class="mb-6">
+            <svg class="mx-auto h-16 w-16 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+          </div>
           <h1 class="text-2xl font-bold text-red-600 mb-4">Unauthorized Access</h1>
-          <p class="text-gray-700 mb-6">You are not authorized to perform this action. Please log in again.</p>
+          <p class="text-gray-700 mb-6">You do not have permission to perform this action.</p>
           <button onclick="window.location.href='/login'" class="bg-green-700 text-white px-6 py-2 rounded hover:bg-green-800">
             Back to Login
           </button>
@@ -282,7 +306,20 @@ const isGroupFullySelected = (groupName) => {
   return group.permissions.every((permission) => selectedPermissions.value.includes(permission.id))
 }
 
-// Update the watch effect
+// Add watch effect for department changes
+watch(selectedDepartment, (newDepartment, oldDepartment) => {
+  if (newDepartment !== oldDepartment) {
+    // Clear existing permissions when department changes
+    selectedPermissions.value = []
+
+    // Reset group select states
+    permissionGroupsRef.value.forEach((group) => {
+      groupSelectState.value[group.name] = false
+    })
+  }
+})
+
+// Update the watch effect for permissions
 watch(
   selectedPermissions,
   () => {

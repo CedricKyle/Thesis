@@ -15,6 +15,10 @@ const props = defineProps({
     type: Array,
     required: true,
   },
+  basePath: {
+    type: String,
+    required: true,
+  },
 })
 
 const router = useRouter()
