@@ -9,10 +9,10 @@ export const employeeAPI = {
 
   // Create employee
   createEmployee: (formData) => {
-    // Only try to parse the employeeData field from FormData
-    const employeeDataString = formData.get('employeeData')
+    // Log the data being sent
+    const employeeData = JSON.parse(formData.get('employeeData'))
     console.log('API createEmployee called with:', {
-      employeeData: employeeDataString ? JSON.parse(employeeDataString) : null,
+      employeeData,
       files: {
         hasProfileImage: formData.has('profileImage'),
         hasResume: formData.has('resume'),

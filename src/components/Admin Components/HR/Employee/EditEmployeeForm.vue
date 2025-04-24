@@ -186,27 +186,78 @@ const handleUpdate = async () => {
     // Create FormData with the correct field names to match backend
     const formData = new FormData()
 
-    // Format the employee data to match backend expectations
+    // Format the employee data to match backend expectations (using camelCase)
     const updateData = {
       firstName: employeeData.value.first_name,
       middleName: employeeData.value.middle_name || '',
       lastName: employeeData.value.last_name,
       department: employeeData.value.department,
-      jobTitle: employeeData.value.job_title,
+      jobTitle:
+        employeeData.value.department === 'Admin Department'
+          ? 'Administrator'
+          : employeeData.value.job_title,
       role: employeeData.value.role,
       dateOfHire: employeeData.value.date_of_hire,
       dateOfBirth: employeeData.value.date_of_birth,
       gender: employeeData.value.gender,
       contactNumber: employeeData.value.contact_number,
-      email: employeeData.value.email,
+      email: employeeData.value.email.toLowerCase(),
       address: employeeData.value.address,
       emergencyContact: {
-        firstName: employeeData.value.emergency_contact.first_name || '',
+        firstName: employeeData.value.emergency_contact.first_name,
         middleName: employeeData.value.emergency_contact.middle_name || '',
-        lastName: employeeData.value.emergency_contact.last_name || '',
-        relationship: employeeData.value.emergency_contact.relationship || '',
-        contactNumber: employeeData.value.emergency_contact.contact_number || '',
+        lastName: employeeData.value.emergency_contact.last_name,
+        relationship: employeeData.value.emergency_contact.relationship,
+        contactNumber: employeeData.value.emergency_contact.contact_number,
       },
+    }
+
+    // Validate required fields
+    const requiredFields = {
+      firstName: 'First Name',
+      lastName: 'Last Name',
+      department: 'Department',
+      jobTitle: 'Job Title',
+      role: 'Role',
+      dateOfHire: 'Date of Hire',
+      dateOfBirth: 'Date of Birth',
+      gender: 'Gender',
+      contactNumber: 'Contact Number',
+      email: 'Email',
+      address: 'Address',
+      'emergencyContact.firstName': 'Emergency Contact First Name',
+      'emergencyContact.lastName': 'Emergency Contact Last Name',
+      'emergencyContact.relationship': 'Emergency Contact Relationship',
+      'emergencyContact.contactNumber': 'Emergency Contact Number',
+    }
+
+    const missingFields = []
+    Object.entries(requiredFields).forEach(([field, label]) => {
+      const value = field.includes('.')
+        ? updateData[field.split('.')[0]][field.split('.')[1]]
+        : updateData[field]
+      if (!value || value.trim() === '') {
+        missingFields.push(label)
+      }
+    })
+
+    if (missingFields.length > 0) {
+      throw new Error(`Missing required fields: ${missingFields.join(', ')}`)
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(updateData.email)) {
+      throw new Error('Invalid email format')
+    }
+
+    // Validate phone numbers
+    const phoneRegex = /^09\d{9}$/
+    if (!phoneRegex.test(updateData.contactNumber)) {
+      throw new Error('Invalid contact number format (should be 09xxxxxxxxx)')
+    }
+    if (!phoneRegex.test(updateData.emergencyContact.contactNumber)) {
+      throw new Error('Invalid emergency contact number format (should be 09xxxxxxxxx)')
     }
 
     // Add the formatted data
@@ -220,30 +271,53 @@ const handleUpdate = async () => {
       formData.append('resume', resumeFile.value)
     }
 
+    // Log the data being sent
+    console.log('Updating employee with data:', {
+      employeeData: JSON.parse(formData.get('employeeData')),
+      hasProfileImage: formData.has('profileImage'),
+      hasResume: formData.has('resume'),
+    })
+
     formDataToUpdate.value = formData
     employeeToUpdate.value = updateData
     confirmModal.value?.showModal()
   } catch (error) {
     console.error('Error preparing update:', error)
-    showToastMessage('Error preparing update', 'error')
+    showToastMessage(error.message || 'Error preparing update', 'error')
   }
 }
 
 const confirmUpdate = async () => {
   try {
-    // Use the employee_id from the route params
     await store.updateEmployee(route.params.id, formDataToUpdate.value)
     await store.loadEmployees()
     showToastMessage('Employee updated successfully', 'success')
     confirmModal.value?.close()
 
+    // Add a small delay before redirecting
     setTimeout(() => {
       const isAdmin = route.path.startsWith('/admin')
       router.push(isAdmin ? '/admin/hr/employees' : '/hr/employees')
     }, 1500)
   } catch (error) {
-    console.error('Error updating employee:', error)
-    showToastMessage(error.message || 'Error updating employee', 'error')
+    console.error('Error updating employee:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+    })
+
+    let errorMessage = 'Error updating employee'
+    if (error.response?.data?.message) {
+      if (error.response.data.fields) {
+        errorMessage = `Missing required fields: ${error.response.data.fields.join(', ')}`
+      } else {
+        errorMessage = error.response.data.message
+      }
+    } else if (error.message) {
+      errorMessage = error.message
+    }
+
+    showToastMessage(errorMessage, 'error')
   }
 }
 

@@ -40,7 +40,6 @@ const loading = ref(false)
 
 // Form state
 const newEmployee = ref({
-  id: '',
   firstName: '',
   middleName: '',
   lastName: '',
@@ -60,32 +59,25 @@ const newEmployee = ref({
     relationship: '',
     contactNumber: '',
   },
-  profileImage: '',
-  resume: null,
 })
 
 const departmentJobs = {
-  'HR Department': ['HR Manager'],
-  'Finance Department': ['Accountant'],
-  'Sales Department': ['Sales Manager'],
-  'Customer Service Department': ['Customer Service Representative'],
-  'Supply Chain Department': ['Supply Chain Manager'],
-  // Add any other department-job combinations that might exist in your data
+  'HR Department': ['HR Manager', 'HR Assistant', 'HR Specialist'],
+  'Finance Department': ['Accountant', 'Financial Analyst', 'Bookkeeper'],
+  'Sales Department': ['Sales Manager', 'Sales Representative', 'Sales Coordinator'],
+  'Customer Service Department': ['Customer Service Representative', 'Customer Service Manager'],
+  'Supply Chain Department': [
+    'Supply Chain Manager',
+    'Inventory Specialist',
+    'Logistics Coordinator',
+  ],
 }
 
 const availableJobs = computed(() => {
-  // If Admin Department is selected, return empty array (no job titles needed)
   if (newEmployee.value.department === 'Admin Department') {
-    return []
+    return ['Administrator']
   }
-
-  // For other departments, keep existing logic
-  if (!newEmployee.value.department) return []
-  const jobs = departmentJobs[newEmployee.value.department] || []
-  if (newEmployee.value.jobTitle && !jobs.includes(newEmployee.value.jobTitle)) {
-    jobs.push(newEmployee.value.jobTitle)
-  }
-  return jobs
+  return departmentJobs[newEmployee.value.department] || []
 })
 
 // Add this computed property in the script setup
@@ -109,10 +101,13 @@ const departments = computed(() => {
 // Watchers
 watch(
   () => newEmployee.value.department,
-  (newDepartment, oldDepartment) => {
-    // Only clear job title if this is a user change, not initial data load
-    if (oldDepartment !== undefined) {
+  (newDepartment) => {
+    if (newDepartment === 'Admin Department') {
+      newEmployee.value.jobTitle = 'Administrator'
+      newEmployee.value.role = 'Admin'
+    } else {
       newEmployee.value.jobTitle = ''
+      newEmployee.value.role = 'Employee'
     }
   },
 )
@@ -140,10 +135,9 @@ const validateDates = (dateString, fieldName) => {
 
 const validateFiles = () => {
   const errors = {}
+  const maxSize = 5 * 1024 * 1024 // 5MB
 
-  // Profile Image validation
   if (profileImageFile.value) {
-    const maxSize = 5 * 1024 * 1024 // 5MB
     if (profileImageFile.value.size > maxSize) {
       errors.profileImage = 'Profile image must be less than 5MB'
     }
@@ -154,9 +148,7 @@ const validateFiles = () => {
     }
   }
 
-  // Resume validation
   if (resumeFile.value) {
-    const maxSize = 5 * 1024 * 1024 // 5MB
     if (resumeFile.value.size > maxSize) {
       errors.resume = 'Resume must be less than 5MB'
     }
@@ -169,10 +161,35 @@ const validateFiles = () => {
   return errors
 }
 
+// Add these computed properties
+const isValidEmail = computed(() => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  return !newEmployee.value.email || emailRegex.test(newEmployee.value.email)
+})
+
+const isValidPhone = computed(() => {
+  const phoneRegex = /^09\d{9}$/
+  return !newEmployee.value.contactNumber || phoneRegex.test(newEmployee.value.contactNumber)
+})
+
+const isValidEmergencyPhone = computed(() => {
+  const phoneRegex = /^09\d{9}$/
+  return (
+    !newEmployee.value.emergencyContact.contactNumber ||
+    phoneRegex.test(newEmployee.value.emergencyContact.contactNumber)
+  )
+})
+
+// Add these refs
+const isSubmitting = ref(false)
+const submitError = ref(null)
+
 // Form submission handlers
 const handleFormSubmit = async () => {
   try {
-    // Initialize all error objects
+    submitError.value = null
+
+    // Reset form errors
     formErrors.value = {
       professional: {},
       personal: {},
@@ -181,63 +198,84 @@ const handleFormSubmit = async () => {
     }
 
     // Validate professional info
-    const isProfessionalValid = validateProfessionalInfo(newEmployee.value)
+    if (!newEmployee.value.department) {
+      formErrors.value.professional.department = 'Department is required'
+    }
+    if (!newEmployee.value.jobTitle && newEmployee.value.department !== 'Admin Department') {
+      formErrors.value.professional.jobTitle = 'Job Title is required'
+    }
+    if (!newEmployee.value.role) {
+      formErrors.value.professional.role = 'Role is required'
+    }
+    if (!newEmployee.value.dateOfHire) {
+      formErrors.value.professional.dateOfHire = 'Date of Hire is required'
+    }
 
     // Validate personal info
-    const isPersonalValid = validatePersonalInfo(newEmployee.value)
+    if (!newEmployee.value.firstName) {
+      formErrors.value.personal.firstName = 'First Name is required'
+    }
+    if (!newEmployee.value.lastName) {
+      formErrors.value.personal.lastName = 'Last Name is required'
+    }
+    if (!newEmployee.value.dateOfBirth) {
+      formErrors.value.personal.dateOfBirth = 'Date of Birth is required'
+    }
+    if (!newEmployee.value.gender) {
+      formErrors.value.personal.gender = 'Gender is required'
+    }
+    if (!newEmployee.value.contactNumber) {
+      formErrors.value.personal.contactNumber = 'Contact Number is required'
+    }
+    if (!newEmployee.value.email) {
+      formErrors.value.personal.email = 'Email is required'
+    }
+    if (!newEmployee.value.address) {
+      formErrors.value.personal.address = 'Address is required'
+    }
 
     // Validate emergency contact
-    const isEmergencyValid = validateEmergencyContact(newEmployee.value)
-
-    // Validate dates
-    const dateHireError = validateDates(newEmployee.value.dateOfHire, 'Date of Hire')
-    const dateBirthError = validateDates(newEmployee.value.dateOfBirth, 'Date of Birth')
-
-    if (dateHireError) {
-      formErrors.value.professional.dateOfHire = dateHireError
+    if (!newEmployee.value.emergencyContact.firstName) {
+      formErrors.value.emergencyContact.firstName = 'Emergency Contact First Name is required'
     }
-    if (dateBirthError) {
-      formErrors.value.personal.dateOfBirth = dateBirthError
+    if (!newEmployee.value.emergencyContact.lastName) {
+      formErrors.value.emergencyContact.lastName = 'Emergency Contact Last Name is required'
     }
-
-    // Validate files
-    const fileErrors = validateFiles()
-    if (Object.keys(fileErrors).length > 0) {
-      formErrors.value.files = fileErrors
+    if (!newEmployee.value.emergencyContact.relationship) {
+      formErrors.value.emergencyContact.relationship = 'Relationship is required'
+    }
+    if (!newEmployee.value.emergencyContact.contactNumber) {
+      formErrors.value.emergencyContact.contactNumber = 'Emergency Contact Number is required'
     }
 
     // Check if there are any validation errors
-    if (
-      !isProfessionalValid ||
-      !isPersonalValid ||
-      !isEmergencyValid ||
-      dateHireError ||
-      dateBirthError ||
-      Object.keys(formErrors.value.files).length > 0
-    ) {
-      showToastMessage('Please check the form for errors', 'error')
+    const hasErrors = Object.values(formErrors.value).some(
+      (section) => Object.keys(section).length > 0,
+    )
+
+    if (hasErrors) {
+      showToastMessage('Please fill in all required fields', 'error')
       return
     }
 
     employeeToAdd.value = { ...newEmployee.value }
     confirmModal.value?.showModal()
   } catch (error) {
-    console.error('Error in form submission:', error)
-    showToastMessage('An error occurred while submitting the form', 'error')
+    console.error('Form submission error:', error)
+    showToastMessage('An error occurred while validating the form', 'error')
   }
 }
 
 const confirmAdd = async () => {
   try {
-    loading.value = true // Set loading to true when starting the request
+    loading.value = true
     console.log('Starting employee creation process...')
     console.log('Employee to add:', employeeToAdd.value)
 
-    const employeeData = createEmployeeData(employeeToAdd.value)
+    const formData = createEmployeeData(employeeToAdd.value)
     console.log('FormData created successfully')
 
-    // Use store directly instead of emitting
-    const response = await store.createEmployee(employeeData)
+    const response = await store.createEmployee(formData)
     console.log('Response received:', response)
 
     confirmModal.value?.close()
@@ -247,7 +285,7 @@ const confirmAdd = async () => {
 Employee added successfully!
 
 Login Credentials:
-Employee ID: ${response.employeeId}
+Employee ID: ${response.data.employeeId}
 Default Password: countryside123
 
 Please provide these credentials to the employee.
@@ -256,96 +294,61 @@ Note: Employee will be required to change password on first login.`
     showToastMessage(credentialsMessage, 'success')
     resetForm()
   } catch (error) {
-    console.error('Error in confirmAdd:', error)
+    console.error('Error in confirmAdd:', {
+      message: error.message,
+      response: error.response?.data,
+      status: error.response?.status,
+    })
 
-    // Handle specific error cases
     let errorMessage = 'Error adding employee'
-
-    if (error.response) {
-      switch (error.response.status) {
-        case 400:
-          errorMessage = error.response.data.message || 'Invalid employee data'
-          break
-        case 401:
-          errorMessage = 'Unauthorized. Please log in again.'
-          // Optionally redirect to login
-          break
-        case 413:
-          errorMessage = 'Files are too large. Please reduce file sizes.'
-          break
-        case 415:
-          errorMessage = 'Invalid file type uploaded.'
-          break
-        case 500:
-          errorMessage = 'Server error. Please try again later.'
-          break
-        default:
-          errorMessage = error.response.data.message || 'Error adding employee'
+    if (error.response?.data?.message) {
+      if (error.response.data.fields) {
+        errorMessage = `Missing required fields: ${error.response.data.fields.join(', ')}`
+      } else {
+        errorMessage = error.response.data.message
       }
+    } else if (error.message) {
+      errorMessage = error.message
     }
 
     showToastMessage(errorMessage, 'error')
-
-    // Keep the modal open if there's an error
-    // so the user doesn't lose their data
-    if (error.response?.status !== 401) {
-      confirmModal.value?.close()
-    }
   } finally {
-    loading.value = false // Reset loading state whether the request succeeds or fails
+    loading.value = false
   }
 }
 
 const createEmployeeData = (employee) => {
   try {
-    // Get hire year from dateOfHire
-    const hireYear = new Date(employee.dateOfHire).getFullYear()
-    console.log('Hire Year:', hireYear)
-
-    // Generate Employee ID
-    const yearEmployees = store.employees.filter((emp) =>
-      String(emp.employee_id).startsWith(String(hireYear)),
-    )
-    const employeeNumbers = yearEmployees.map((emp) => parseInt(emp.employee_id.split('-')[1]))
-    const nextNumber = employeeNumbers.length > 0 ? Math.max(...employeeNumbers) + 1 : 50000
-    const employeeId = `${hireYear}-${nextNumber.toString().padStart(5, '0')}`
-
     // Format dates properly
     const formatDate = (dateString) => {
       if (!dateString) return null
       const date = new Date(dateString)
-      return date.toISOString().split('T')[0] // Returns YYYY-MM-DD format
+      return date.toISOString().split('T')[0]
     }
 
-    // Create the employee object matching EXACTLY the backend model structure
+    // Create the employee object with the exact field names the backend expects
     const employeeData = {
-      employee_id: employeeId,
-      first_name: employee.firstName,
-      middle_name: employee.middleName || '',
-      last_name: employee.lastName,
-      full_name: `${employee.firstName} ${employee.middleName || ''} ${employee.lastName}`.trim(),
-      department: employee.department,
-      job_title: employee.department === 'Admin Department' ? 'Administrator' : employee.jobTitle,
-      role: employee.role,
-      date_of_hire: formatDate(employee.dateOfHire),
-      date_of_birth: formatDate(employee.dateOfBirth),
-      gender: employee.gender,
-      contact_number: employee.contactNumber,
-      email: employee.email,
-      address: employee.address,
-      emergency_contact: {
-        first_name: employee.emergencyContact.firstName,
-        middle_name: employee.emergencyContact.middleName || '',
-        last_name: employee.emergencyContact.lastName,
-        full_name:
-          `${employee.emergencyContact.firstName} ${employee.emergencyContact.middleName || ''} ${employee.emergencyContact.lastName}`.trim(),
-        relationship: employee.emergencyContact.relationship,
-        contact_number: employee.emergencyContact.contactNumber,
+      firstName: employee.firstName.trim(),
+      middleName: (employee.middleName || '').trim(),
+      lastName: employee.lastName.trim(),
+      department: employee.department.trim(),
+      jobTitle:
+        employee.department === 'Admin Department' ? 'Administrator' : employee.jobTitle.trim(),
+      role: employee.role.trim(),
+      dateOfHire: formatDate(employee.dateOfHire),
+      dateOfBirth: formatDate(employee.dateOfBirth),
+      gender: employee.gender.trim(),
+      contactNumber: employee.contactNumber.trim(),
+      email: employee.email.trim().toLowerCase(),
+      address: employee.address.trim(),
+      emergencyContact: {
+        firstName: employee.emergencyContact.firstName.trim(),
+        middleName: (employee.emergencyContact.middleName || '').trim(),
+        lastName: employee.emergencyContact.lastName.trim(),
+        relationship: employee.emergencyContact.relationship.trim(),
+        contactNumber: employee.emergencyContact.contactNumber.trim(),
       },
     }
-
-    // Log the complete employee data before creating FormData
-    console.log('Employee data before FormData:', employeeData)
 
     // Create FormData
     const formData = new FormData()
@@ -353,24 +356,14 @@ const createEmployeeData = (employee) => {
 
     // Add files if they exist
     if (profileImageFile.value) {
-      console.log('Adding profile image:', {
-        name: profileImageFile.value.name,
-        type: profileImageFile.value.type,
-        size: profileImageFile.value.size,
-      })
       formData.append('profileImage', profileImageFile.value)
     }
     if (resumeFile.value) {
-      console.log('Adding resume:', {
-        name: resumeFile.value.name,
-        type: resumeFile.value.type,
-        size: resumeFile.value.size,
-      })
       formData.append('resume', resumeFile.value)
     }
 
-    // Log final form data for debugging
-    console.log('Final FormData:', {
+    // Log the data being sent for debugging
+    console.log('Sending employee data:', {
       employeeData: JSON.parse(formData.get('employeeData')),
       hasProfileImage: formData.has('profileImage'),
       hasResume: formData.has('resume'),
@@ -392,14 +385,13 @@ const createEmployeeData = (employee) => {
 
     return formData
   } catch (error) {
-    console.error('Error in createEmployeeData:', error)
+    console.error('Error creating employee data:', error)
     throw error
   }
 }
 
 const resetForm = () => {
   newEmployee.value = {
-    id: '',
     firstName: '',
     middleName: '',
     lastName: '',
@@ -419,8 +411,6 @@ const resetForm = () => {
       relationship: '',
       contactNumber: '',
     },
-    profileImage: '',
-    resume: null,
   }
   removeProfile()
   removeResume()

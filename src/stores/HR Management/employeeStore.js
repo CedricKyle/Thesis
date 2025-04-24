@@ -94,47 +94,35 @@ export const useEmployeeStore = defineStore('employee', () => {
   }
 
   // Add employee
-  const createEmployee = async (employeeData) => {
+  const createEmployee = async (formData) => {
     try {
-      // Log the data being sent - but only log the parsed employeeData from FormData
+      const employeeData = JSON.parse(formData.get('employeeData'))
       console.log('Creating employee with data:', {
-        formDataContent: employeeData.get('employeeData')
-          ? JSON.parse(employeeData.get('employeeData'))
-          : null,
-        hasFiles: {
-          profileImage: employeeData.has('profileImage'),
-          resume: employeeData.has('resume'),
-        },
+        employeeData,
+        hasProfileImage: formData.has('profileImage'),
+        hasResume: formData.has('resume'),
       })
 
-      const response = await employeeAPI.createEmployee(employeeData)
-      console.log('Create employee response:', response)
-
-      await loadEmployees() // Refresh the employee list
+      const response = await employeeAPI.createEmployee(formData)
+      await loadEmployees()
       return response.data
     } catch (error) {
       console.error('Error creating employee:', {
         message: error.message,
         response: error.response?.data,
         status: error.response?.status,
-        // Don't try to parse error.config.data as it's FormData
         requestInfo: {
           method: error.config?.method,
           url: error.config?.url,
         },
       })
 
-      // Handle specific error cases
-      if (error.code === 'ECONNABORTED') {
-        throw new Error('Request timed out. Please try again.')
+      // If we have specific field errors from the backend, format them
+      if (error.response?.data?.fields) {
+        const missingFields = error.response.data.fields
+        throw new Error(`Missing required fields: ${missingFields.join(', ')}`)
       }
-
-      if (!error.response) {
-        throw new Error('Network error. Please check your connection.')
-      }
-
-      // Re-throw the error with the response message if available
-      throw new Error(error.response?.data?.message || error.message)
+      throw error
     }
   }
 
