@@ -17,6 +17,28 @@ const resumeUrl = computed(() => {
   return `http://localhost:3000/${store.selectedEmployee.resume_path}`
 })
 
+// Updated emergency contact computed properties
+const hasEmergencyContact = computed(() => {
+  const emergencyContact = store.selectedEmployee?.emergency_contact
+  console.log('Raw emergency contact data:', JSON.parse(JSON.stringify(emergencyContact)))
+  // Check if the emergency contact object has the required properties
+  return !!emergencyContact && !!emergencyContact.first_name && !!emergencyContact.last_name
+})
+
+const emergencyContact = computed(() => {
+  if (!hasEmergencyContact.value) return null
+  const contact = store.selectedEmployee.emergency_contact
+  console.log('Processed emergency contact data:', JSON.parse(JSON.stringify(contact)))
+  return {
+    first_name: contact.first_name,
+    middle_name: contact.middle_name || 'N/A',
+    last_name: contact.last_name,
+    full_name: `${contact.first_name} ${contact.middle_name || ''} ${contact.last_name}`.trim(),
+    relationship: contact.relationship || 'Not specified',
+    contact_number: contact.contact_number || 'Not provided',
+  }
+})
+
 // Format date helper
 const formatDate = (dateString) => {
   if (!dateString) return ''
@@ -27,10 +49,10 @@ const formatDate = (dateString) => {
   })
 }
 
-// Add handleCall method
+// Add handleCall method with safety checks
 const handleCall = (phoneNumber) => {
-  if (phoneNumber) {
-    window.open(`tel:${phoneNumber}`, '_self')
+  if (phoneNumber && phoneNumber.trim() && phoneNumber !== 'Not provided') {
+    window.open(`tel:${phoneNumber.trim()}`, '_self')
   }
 }
 
@@ -40,9 +62,7 @@ const handleViewResume = () => {
   }
 }
 
-// No need for the computed emergency contact property since we're getting direct data
-
-// Add this computed property or method
+// Format display date
 const formatDisplayDate = (dateString) => {
   if (!dateString) return ''
   const date = new Date(dateString)
@@ -150,7 +170,7 @@ const formatDisplayDate = (dateString) => {
           </div>
         </div>
 
-        <!-- Emergency Contact Section -->
+        <!-- Updated Emergency Contact Section -->
         <div class="text-sm">
           <h4 class="font-semibold text-primaryColor flex items-center gap-2">
             Emergency Contact
@@ -158,61 +178,51 @@ const formatDisplayDate = (dateString) => {
           </h4>
 
           <div class="bg-gray-50 p-4 rounded-lg mt-2">
-            <div class="grid gap-1">
+            <div v-if="store.loading" class="text-center text-gray-500 py-2">
+              Loading emergency contact information...
+            </div>
+
+            <div v-else-if="hasEmergencyContact" class="grid gap-1">
               <!-- Name Information -->
-              <div class="flex">
-                <div class="w-40 text-gray-500">First Name</div>
-                <div class="text-black">
-                  {{ store.selectedEmployee?.emergencyContact?.firstName }}
-                </div>
-              </div>
-
-              <div class="flex">
-                <div class="w-40 text-gray-500">Middle Name</div>
-                <div class="text-black">
-                  {{ store.selectedEmployee?.emergencyContact?.middleName || 'N/A' }}
-                </div>
-              </div>
-
-              <div class="flex">
-                <div class="w-40 text-gray-500">Last Name</div>
-                <div class="text-black">
-                  {{ store.selectedEmployee?.emergencyContact?.lastName }}
-                </div>
-              </div>
 
               <div class="flex">
                 <div class="w-40 text-gray-500">Full Name</div>
                 <div class="text-black">
-                  {{ store.selectedEmployee?.emergencyContact?.fullName }}
+                  {{ emergencyContact.full_name }}
                 </div>
               </div>
-
-              <!-- Empty line for spacing -->
-              <div class="h-2"></div>
 
               <!-- Contact Information -->
               <div class="flex">
                 <div class="w-40 text-gray-500">Relationship</div>
                 <div class="text-black">
-                  {{ store.selectedEmployee?.emergencyContact?.relationship }}
+                  {{ emergencyContact.relationship }}
                 </div>
               </div>
 
               <div class="flex">
                 <div class="w-40 text-gray-500">Contact Number</div>
                 <div class="flex items-center gap-2">
-                  <span class="text-black">{{
-                    store.selectedEmployee?.emergencyContact?.contactNumber
-                  }}</span>
+                  <span class="text-black">
+                    {{ emergencyContact.contact_number }}
+                  </span>
                   <button
+                    v-if="
+                      emergencyContact.contact_number &&
+                      emergencyContact.contact_number !== 'Not provided'
+                    "
                     class="underline text-secondaryColor cursor-pointer text-xs hover:text-secondaryColor/80"
-                    @click="handleCall(store.selectedEmployee?.emergencyContact?.contactNumber)"
+                    @click="handleCall(emergencyContact.contact_number)"
                   >
                     Call
                   </button>
                 </div>
               </div>
+            </div>
+
+            <!-- Show message if no emergency contact -->
+            <div v-else class="text-center text-gray-500 py-2">
+              No emergency contact information available.
             </div>
 
             <!-- Note text -->
@@ -264,5 +274,15 @@ const formatDisplayDate = (dateString) => {
 .btn:hover {
   transform: translateY(-1px);
   transition: transform 0.2s ease;
+}
+
+/* Add styles for emergency contact section */
+.emergency-contact-section {
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+.emergency-contact-section:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 </style>

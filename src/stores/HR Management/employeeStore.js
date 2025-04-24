@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { employeeAPI } from '@/services/main branch/api'
 import { useAuthStore } from '@/stores/Authentication/authStore'
+import axios from 'axios'
 
 export const useEmployeeStore = defineStore('employee', () => {
   // State
@@ -15,10 +16,15 @@ export const useEmployeeStore = defineStore('employee', () => {
   const selectedEmployee = ref(null)
   const loading = ref(false)
   const error = ref(null)
+  const showArchived = ref(false)
 
   // Getters
   const filteredEmployees = computed(() => {
     let records = [...employees.value]
+
+    if (!showArchived.value) {
+      records = records.filter((employee) => !employee.deleted_at)
+    }
 
     if (searchQuery.value) {
       const query = searchQuery.value.toLowerCase()
@@ -72,6 +78,8 @@ export const useEmployeeStore = defineStore('employee', () => {
 
       const response = await employeeAPI.getAllEmployees()
       employees.value = response.data
+
+      return response.data
     } catch (err) {
       console.error('Error loading employees:', err)
       error.value = err.message
@@ -79,6 +87,7 @@ export const useEmployeeStore = defineStore('employee', () => {
         const authStore = useAuthStore()
         await authStore.logout()
       }
+      throw err
     } finally {
       loading.value = false
     }
@@ -113,28 +122,37 @@ export const useEmployeeStore = defineStore('employee', () => {
   async function updateEmployee(id, formData) {
     try {
       // Debug log to verify data being sent
-      console.log('Updating employee with ID:', id)
-      console.log('FormData contents:')
-      for (let pair of formData.entries()) {
-        if (pair[1] instanceof File) {
-          console.log(pair[0], 'File:', pair[1].name)
-        } else {
-          console.log(pair[0], pair[1])
+      const employeeDataObj = JSON.parse(formData.get('employeeData'))
+      console.log('Updating employee:', {
+        numericId: id,
+        formDataContent: employeeDataObj,
+      })
+
+      const response = await employeeAPI.updateEmployee(id, formData)
+      console.log('Update response:', response.data)
+
+      // Update local state using the employee_id for finding the record
+      const index = employees.value.findIndex((emp) => emp.id === id) // Use numeric ID
+      if (index !== -1) {
+        employees.value[index] = {
+          ...employees.value[index],
+          ...response.data,
         }
       }
 
-      const response = await employeeAPI.updateEmployee(id, formData)
-
-      // Update local state
-      const index = employees.value.findIndex((emp) => emp.employee_id === id)
-      if (index !== -1) {
-        employees.value[index] = response.data.data // Note: adjust this based on your API response structure
-      }
+      // Reload employees to ensure we have fresh data
+      await loadEmployees()
 
       return response.data
     } catch (error) {
-      console.error('Error updating employee:', error)
-      console.error('Error response:', error.response?.data)
+      console.error('Employee update error:', {
+        message: error.message,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        url: error.config?.url,
+        method: error.config?.method,
+        responseData: error.response?.data,
+      })
       throw error
     }
   }
@@ -151,9 +169,38 @@ export const useEmployeeStore = defineStore('employee', () => {
   }
 
   // View employee details
-  function setSelectedEmployee(employee) {
-    selectedEmployee.value = employee
-    showViewModal.value = true
+  async function setSelectedEmployee(employee) {
+    try {
+      loading.value = true
+      console.log('Initial employee data:', JSON.parse(JSON.stringify(employee)))
+
+      // Fetch both employee and emergency contact data
+      const [employeeResponse, emergencyContactResponse] = await Promise.all([
+        employeeAPI.getEmployee(employee.employee_id),
+        employeeAPI.getEmployeeEmergencyContact(employee.employee_id),
+      ])
+
+      console.log('Employee Response data:', employeeResponse.data)
+      console.log('Emergency Contact Response data:', emergencyContactResponse.data)
+
+      // Combine the data, accessing the emergency contact from the data property
+      selectedEmployee.value = {
+        ...employeeResponse.data,
+        emergency_contact: emergencyContactResponse.data.data, // Access the data property
+      }
+
+      console.log(
+        'Combined selected employee data:',
+        JSON.parse(JSON.stringify(selectedEmployee.value)),
+      )
+      showViewModal.value = true
+    } catch (error) {
+      console.error('Error fetching employee details:', error)
+      selectedEmployee.value = employee
+      showViewModal.value = true
+    } finally {
+      loading.value = false
+    }
   }
 
   function closeViewModal() {
@@ -225,6 +272,21 @@ export const useEmployeeStore = defineStore('employee', () => {
     }
   }
 
+  // Add restore employee function
+  async function restoreEmployee(id) {
+    try {
+      const response = await employeeAPI.restoreEmployee(id)
+
+      // Reload employees to get fresh data
+      await loadEmployees()
+
+      return response.data
+    } catch (error) {
+      console.error('Error restoring employee:', error)
+      throw error
+    }
+  }
+
   return {
     // State
     employees,
@@ -237,6 +299,7 @@ export const useEmployeeStore = defineStore('employee', () => {
     selectedEmployee,
     loading,
     error,
+    showArchived,
 
     // Getters
     filteredEmployees,
@@ -255,5 +318,6 @@ export const useEmployeeStore = defineStore('employee', () => {
     resetFilters,
     downloadResume,
     getEmployee,
+    restoreEmployee,
   }
 })

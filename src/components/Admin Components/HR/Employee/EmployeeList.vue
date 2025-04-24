@@ -15,21 +15,29 @@ const authStore = useAuthStore()
 
 // Modal refs
 const deleteConfirmModal = ref(null)
+const restoreConfirmModal = ref(null)
 const employeeToDelete = ref(null)
+const employeeToRestore = ref(null)
 
-// Add search functionality
+// Add search functionality and archive toggle
 const searchQuery = ref('')
+const showArchived = ref(false)
 
 // Add this computed property to check if current user is Super Admin
 const isSuperAdmin = computed(() => {
   return authStore.currentUser?.role === 'Super Admin'
 })
 
-// Filtered employees computed property
+// Updated filtered employees computed property
 const filteredEmployees = computed(() => {
   if (!store.employees) return []
 
   let employees = store.employees
+
+  // Filter based on archived status
+  if (!showArchived.value) {
+    employees = employees.filter((emp) => !emp.deleted_at)
+  }
 
   // Filter out Super Admin users if current user is not Super Admin
   if (!isSuperAdmin.value) {
@@ -85,8 +93,39 @@ const columns = [
     sorter: 'string',
   },
   {
+    title: 'Status',
+    field: 'deleted_at',
+    formatter: function (cell) {
+      const deleted_at = cell.getValue()
+      return deleted_at
+        ? `<span class="badge badge-ghost">Archived</span>`
+        : `<span class="badge badge-success">Active</span>`
+    },
+    width: 100,
+  },
+  {
     title: 'Actions',
     formatter: function (cell) {
+      const employee = cell.getRow().getData()
+      const isArchived = employee.deleted_at
+
+      if (isArchived) {
+        return `
+          <div class="flex gap-2">
+            <button class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost view-button" title='View Employee'>
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
+            <button class="btn btn-sm btn-circle hover:bg-green-500 border-none btn-ghost restore-button" title='Restore Employee'>
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 12h1m8-9v1m8 8h1M5.6 5.6l.7.7m12.1-.7-.7.7M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+              </svg>
+            </button>
+          </div>`
+      }
+
       return `
         <div class="flex gap-2">
           <button class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost view-button" title='View Employee'>
@@ -101,7 +140,7 @@ const columns = [
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
           </button>
-          <button class="btn btn-sm btn-circle hover:bg-red-400 border-none btn-ghost delete-button" title='Delete Employee'>
+          <button class="btn btn-sm btn-circle hover:bg-red-400 border-none btn-ghost delete-button" title='Archive Employee'>
             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <path d="M18 6 6 18M6 6l12 12" />
             </svg>
@@ -117,6 +156,8 @@ const columns = [
         handleEdit(record)
       } else if (e.target.closest('.delete-button')) {
         handleDelete(record)
+      } else if (e.target.closest('.restore-button')) {
+        handleRestore(record)
       }
     },
     hozAlign: 'center',
@@ -124,11 +165,16 @@ const columns = [
   },
 ]
 
-// Table options
+// Table options with row formatting
 const tableOptions = {
   pagination: true,
   paginationSize: 10,
   initialSort: [{ column: 'employee_id', dir: 'asc' }],
+  rowFormatter: function (row) {
+    if (row.getData().deleted_at) {
+      row.getElement().classList.add('archived-row')
+    }
+  },
 }
 
 // Action handlers
@@ -149,15 +195,38 @@ const handleDelete = (employee) => {
   deleteConfirmModal.value?.showModal()
 }
 
+const handleRestore = (employee) => {
+  employeeToRestore.value = employee
+  restoreConfirmModal.value?.showModal()
+}
+
 const confirmDelete = async () => {
   if (employeeToDelete.value) {
     try {
       await store.deleteEmployee(employeeToDelete.value.employee_id)
+      await store.loadEmployees()
       deleteConfirmModal.value?.close()
       employeeToDelete.value = null
-      showToastMessage('Employee deleted successfully', 'success')
+      showToastMessage('Employee archived successfully', 'success')
     } catch (error) {
-      showToastMessage(error.message || 'Error deleting employee', 'error')
+      showToastMessage(error.message || 'Error archiving employee', 'error')
+    }
+  }
+}
+
+const confirmRestore = async () => {
+  if (employeeToRestore.value) {
+    try {
+      await store.restoreEmployee(employeeToRestore.value.employee_id)
+      await store.loadEmployees()
+      if (!showArchived.value) {
+        showArchived.value = true
+      }
+      restoreConfirmModal.value?.close()
+      employeeToRestore.value = null
+      showToastMessage('Employee restored successfully', 'success')
+    } catch (error) {
+      showToastMessage(error.message || 'Error restoring employee', 'error')
     }
   }
 }
@@ -165,6 +234,11 @@ const confirmDelete = async () => {
 const cancelDelete = () => {
   deleteConfirmModal.value?.close()
   employeeToDelete.value = null
+}
+
+const cancelRestore = () => {
+  restoreConfirmModal.value?.close()
+  employeeToRestore.value = null
 }
 
 onMounted(async () => {
@@ -199,28 +273,46 @@ watch(
   () => {},
   { deep: true },
 )
+
+// Add a watch for showArchived to reload data when toggled
+watch(showArchived, async (newValue) => {
+  try {
+    await store.loadEmployees()
+  } catch (error) {
+    console.error('Error reloading employees:', error)
+    showToastMessage('Error reloading employees', 'error')
+  }
+})
 </script>
 
 <template>
   <div class="flex flex-col mt-4">
-    <!-- Add search input -->
-    <label class="input-search input-sm">
-      <svg class="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
-        <g
-          stroke-linejoin="round"
-          stroke-linecap="round"
-          stroke-width="2.5"
-          fill="none"
-          stroke="currentColor"
-        >
-          <circle cx="11" cy="11" r="8"></circle>
-          <path d="m21 21-4.3-4.3"></path>
-        </g>
-      </svg>
-      <input v-model="searchQuery" type="search" placeholder="Search" class="" />
-    </label>
+    <!-- Add archive toggle and search bar container -->
+    <div class="flex justify-between items-center mb-4">
+      <label class="cursor-pointer flex items-center gap-2">
+        <input type="checkbox" v-model="showArchived" class="checkbox checkbox-sm" />
+        <span class="text-sm">Show Archived Employees</span>
+      </label>
 
-    <!-- Update BaseTable to use filteredEmployees -->
+      <!-- Search input -->
+      <label class="input-search input-sm">
+        <svg class="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+          <g
+            stroke-linejoin="round"
+            stroke-linecap="round"
+            stroke-width="2.5"
+            fill="none"
+            stroke="currentColor"
+          >
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="m21 21-4.3-4.3"></path>
+          </g>
+        </svg>
+        <input v-model="searchQuery" type="search" placeholder="Search" class="" />
+      </label>
+    </div>
+
+    <!-- Table -->
     <BaseTable :data="filteredEmployees" :columns="columns" :options="tableOptions" />
 
     <!-- Delete Confirmation Modal -->
@@ -244,6 +336,27 @@ watch(
       </div>
     </dialog>
 
+    <!-- Restore Confirmation Modal -->
+    <dialog ref="restoreConfirmModal" class="modal">
+      <div class="modal-box bg-white w-96">
+        <h3 class="font-bold text-md text-black">Confirm Restore</h3>
+        <div
+          class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
+        ></div>
+
+        <p class="py-4 text-center text-black text-sm">
+          Are you sure you want to restore employee
+          <span class="font-bold">{{ employeeToRestore?.full_name }}</span
+          >?
+        </p>
+
+        <div class="modal-action justify-center gap-4">
+          <button class="btn-primaryStyle" @click="confirmRestore">Restore</button>
+          <button class="btn-secondaryStyle" @click="cancelRestore">Cancel</button>
+        </div>
+      </div>
+    </dialog>
+
     <!-- Employee View Modal -->
     <EmployeeView />
 
@@ -261,5 +374,14 @@ input {
 input:focus {
   border-color: var(--primary-color);
   box-shadow: 0 0 0 2px rgba(var(--primary-color-rgb), 0.1);
+}
+
+/* Archived row styling */
+.archived-row {
+  background-color: rgba(0, 0, 0, 0.05);
+}
+
+.archived-row:hover {
+  background-color: rgba(0, 0, 0, 0.08) !important;
 }
 </style>
