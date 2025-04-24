@@ -1,20 +1,20 @@
-import jwt from 'jsonwebtoken'
-import pool from '../config/database.js' // Make sure to import your database connection
+const jwt = require('jsonwebtoken')
+const pool = require('../config/database.js')
 
-export const generateToken = (user) => {
+const generateToken = (user) => {
   return jwt.sign(
     {
       id: user.employee_id,
       role: user.role,
       department: user.department,
-      permissions: user.permissions, // Add permissions to token
+      permissions: user.permissions,
     },
     process.env.JWT_SECRET,
     { expiresIn: '24h' },
   )
 }
 
-export const verifyToken = async (req, res, next) => {
+const verifyToken = async (req, res, next) => {
   try {
     const token = req.cookies.jwt
 
@@ -22,10 +22,8 @@ export const verifyToken = async (req, res, next) => {
       return res.status(401).json({ message: 'No token provided' })
     }
 
-    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET)
 
-    // Get fresh user data from database
     const [employees] = await pool.query(
       `SELECT 
         e.*,
@@ -49,7 +47,6 @@ export const verifyToken = async (req, res, next) => {
         ? JSON.parse(currentUser.permissions)
         : currentUser.permissions
 
-    // Check if role has changed
     if (decoded.role !== currentUser.role) {
       return res.status(403).json({
         message: 'Your role has been changed',
@@ -57,7 +54,6 @@ export const verifyToken = async (req, res, next) => {
       })
     }
 
-    // Update req.user with fresh data
     req.user = {
       ...decoded,
       role: currentUser.role,
@@ -74,11 +70,17 @@ export const verifyToken = async (req, res, next) => {
   }
 }
 
-export const clearToken = (res) => {
+const clearToken = (res) => {
   res.cookie('jwt', '', {
     httpOnly: true,
     expires: new Date(0),
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',
   })
+}
+
+module.exports = {
+  generateToken,
+  clearToken,
+  verifyToken,
 }

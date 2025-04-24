@@ -1,5 +1,5 @@
-import pool from '../../config/database.js'
-import bcrypt from 'bcrypt'
+const pool = require('../../config/database.js')
+const bcrypt = require('bcrypt')
 
 class Employee {
   static async createEmployee(employeeData, emergencyContact) {
@@ -152,4 +152,4 @@ class Employee {
   }
 }
 
-export default Employee
+module.exports = Employee

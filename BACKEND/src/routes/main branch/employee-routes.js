@@ -1,7 +1,7 @@
-import express from 'express'
-import * as employeeController from '../../controller/main branch/employee-controller.js'
-import { upload } from '../../utils/main branch/fileHandler.js'
-import { verifyToken } from '../../middleware/auth-middleware.js'
+const express = require('express')
+const employeeController = require('../../controller/main branch/employee-controller.js')
+const { upload } = require('../../utils/main branch/fileHandler.js')
+const { verifyToken } = require('../../middleware/auth-middleware.js')
 
 const router = express.Router()
 
@@ -23,7 +23,18 @@ router.put('/:id', verifyToken, upload, employeeController.updateEmployee)
 
 router.delete('/:id', verifyToken, employeeController.deleteEmployee)
 
+// Add restore route
+router.post('/:id/restore', verifyToken, employeeController.restoreEmployee)
+
 // Add route for serving files - might want to protect this based on your requirements
 router.get('/files/:type/:filename', verifyToken, employeeController.getFile)
 
-export default router
+// Emergency contact routes
+router.get('/:id/emergency-contact', verifyToken, employeeController.checkEmergencyContact)
+router.post(
+  '/:id/emergency-contact/restore',
+  verifyToken,
+  employeeController.restoreEmergencyContact,
+)
+
+module.exports = router

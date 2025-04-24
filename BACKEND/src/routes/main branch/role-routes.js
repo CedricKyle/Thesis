@@ -1,6 +1,6 @@
-import express from 'express'
-import * as roleController from '../../controller/main branch/role-controller.js'
-import { verifyToken } from '../../middleware/auth-middleware.js'
+const express = require('express')
+const roleController = require('../../controller/main branch/role-controller.js')
+const { verifyToken } = require('../../middleware/auth-middleware.js')
 
 const router = express.Router()
 
@@ -23,4 +23,4 @@ router.delete('/roles/:id', verifyToken, roleController.deleteRole)
 // Get role by ID
 router.get('/roles/:id', verifyToken, roleController.getRoleById)
 
-export default router
+module.exports = router

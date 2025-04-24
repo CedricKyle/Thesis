@@ -1,17 +1,11 @@
 // BACKEND/src/server.js
-import express from 'express'
-import cors from 'cors'
-import cookieParser from 'cookie-parser'
-import dotenv from 'dotenv'
-import employeeRoutes from './routes/main branch/employee-routes.js'
-import roleRoutes from './routes/main branch/role-routes.js'
-import path from 'path'
-import { fileURLToPath } from 'url'
-import { dirname } from 'path'
-
-// Get __dirname equivalent in ES modules
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
+const express = require('express')
+const cors = require('cors')
+const cookieParser = require('cookie-parser')
+const dotenv = require('dotenv')
+const employeeRoutes = require('./routes/main branch/employee-routes.js')
+const roleRoutes = require('./routes/main branch/role-routes.js')
+const path = require('path')
 
 dotenv.config()
 

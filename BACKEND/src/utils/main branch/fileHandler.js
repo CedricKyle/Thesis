@@ -1,12 +1,9 @@
-import multer from 'multer'
-import path from 'path'
-import { promises as fs } from 'fs'
-import { fileURLToPath } from 'url'
-import { dirname } from 'path'
+const multer = require('multer')
+const path = require('path')
+const fs = require('fs').promises
 
-// Get __dirname equivalent in ES modules
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
+// Configure multer storage
+const storage = multer.memoryStorage()
 
 // Create upload directories if they don't exist
 const createUploadDirectories = async () => {
@@ -25,20 +22,15 @@ const createUploadDirectories = async () => {
 // Create upload directories on startup
 createUploadDirectories()
 
-// Configure multer storage
-const storage = multer.memoryStorage() // Use memory storage for flexibility
-
 // File filters
 const fileFilter = (req, file, cb) => {
   if (file.fieldname === 'profileImage') {
-    // Handle profile image
     if (file.mimetype.startsWith('image/')) {
       cb(null, true)
     } else {
       cb(new Error('Only image files are allowed for profile picture'), false)
     }
   } else if (file.fieldname === 'resume') {
-    // Handle resume
     if (file.mimetype === 'application/pdf') {
       cb(null, true)
     } else {
@@ -49,8 +41,7 @@ const fileFilter = (req, file, cb) => {
   }
 }
 
-// Create multer upload instance for multiple files
-export const upload = multer({
+const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
@@ -61,8 +52,7 @@ export const upload = multer({
   { name: 'resume', maxCount: 1 },
 ])
 
-// Helper function to save file
-export const saveFile = async (file, type) => {
+const saveFile = async (file, type) => {
   if (!file) return null
 
   const directory = type === 'profile' ? 'profiles' : 'resumes'
@@ -76,8 +66,7 @@ export const saveFile = async (file, type) => {
   return `uploads/main branch/${directory}/${filename}`
 }
 
-// Helper function to delete file
-export const deleteFile = async (filePath) => {
+const deleteFile = async (filePath) => {
   if (!filePath) return true
 
   try {
@@ -88,4 +77,10 @@ export const deleteFile = async (filePath) => {
     console.error('Error deleting file:', error)
     return false
   }
+}
+
+module.exports = {
+  upload,
+  saveFile,
+  deleteFile,
 }
