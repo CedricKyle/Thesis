@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
 import { useToast } from '@/composables/Admin Composables/Human Resource/useToast'
@@ -88,34 +88,46 @@ const availableJobs = computed(() => {
 })
 
 const hasPersonalInfoChanges = computed(() => {
-  if (!employeeToUpdate.value || !originalData.value) return false
+  if (!originalData?.value) return false
+
+  // Debug log to help track the comparison
+  console.log('Comparing personal info:', {
+    currentFirstName: employeeData.value.first_name,
+    originalFirstName: originalData.value.first_name,
+    isDifferent: employeeData.value.first_name !== originalData.value.first_name,
+  })
 
   return (
-    employeeToUpdate.value.firstName !== originalData.value.first_name ||
-    employeeToUpdate.value.middleName !== originalData.value.middle_name ||
-    employeeToUpdate.value.lastName !== originalData.value.last_name ||
-    employeeToUpdate.value.dateOfBirth !== originalData.value.date_of_birth ||
-    employeeToUpdate.value.gender !== originalData.value.gender ||
-    employeeToUpdate.value.contactNumber !== originalData.value.contact_number ||
-    employeeToUpdate.value.email !== originalData.value.email ||
-    employeeToUpdate.value.address !== originalData.value.address
+    employeeData.value.first_name !== originalData.value.first_name ||
+    employeeData.value.middle_name !== originalData.value.middle_name ||
+    employeeData.value.last_name !== originalData.value.last_name ||
+    employeeData.value.date_of_birth !== originalData.value.date_of_birth ||
+    employeeData.value.gender !== originalData.value.gender ||
+    employeeData.value.contact_number !== originalData.value.contact_number ||
+    employeeData.value.email !== originalData.value.email ||
+    employeeData.value.address !== originalData.value.address
   )
 })
 
 const hasEmergencyContactChanges = computed(() => {
-  if (!employeeToUpdate.value?.emergencyContact || !originalData.value?.emergency_contact)
-    return false
+  if (!originalData?.value?.emergency_contact) return false
+
+  // Debug log for emergency contact comparison
+  console.log('Comparing emergency contact:', {
+    current: employeeData.value.emergency_contact,
+    original: originalData.value.emergency_contact,
+  })
 
   return (
-    employeeToUpdate.value.emergencyContact.firstName !==
+    employeeData.value.emergency_contact.first_name !==
       originalData.value.emergency_contact.first_name ||
-    employeeToUpdate.value.emergencyContact.middleName !==
+    employeeData.value.emergency_contact.middle_name !==
       originalData.value.emergency_contact.middle_name ||
-    employeeToUpdate.value.emergencyContact.lastName !==
+    employeeData.value.emergency_contact.last_name !==
       originalData.value.emergency_contact.last_name ||
-    employeeToUpdate.value.emergencyContact.relationship !==
+    employeeData.value.emergency_contact.relationship !==
       originalData.value.emergency_contact.relationship ||
-    employeeToUpdate.value.emergencyContact.contactNumber !==
+    employeeData.value.emergency_contact.contact_number !==
       originalData.value.emergency_contact.contact_number
   )
 })
@@ -128,10 +140,13 @@ onMounted(async () => {
     const employeeId = route.params.id
     const response = await store.getEmployee(employeeId)
 
+    console.log('API Response:', response) // Debug log
+
     // Initialize employeeData with the response
     employeeData.value = {
       ...response,
-      emergency_contact: response.emergency_contact || {
+      // Make sure we properly handle the emergency contact data
+      emergency_contact: response.emergencyContact || {
         first_name: '',
         middle_name: '',
         last_name: '',
@@ -140,6 +155,7 @@ onMounted(async () => {
       },
     }
 
+    // Store original data for comparison
     originalData.value = JSON.parse(JSON.stringify(response))
 
     // Set profile image if exists
@@ -151,6 +167,12 @@ onMounted(async () => {
     if (response.resume_path) {
       resumeFileName.value = response.resume_path.split('/').pop()
     }
+
+    // Debug log to verify data
+    console.log('Loaded employee data:', {
+      employee: employeeData.value,
+      emergencyContact: employeeData.value.emergency_contact,
+    })
 
     isLoading.value = false
   } catch (error) {
@@ -171,6 +193,16 @@ const handleFieldChange = (fieldName, value) => {
 
 const handleUpdate = async () => {
   try {
+    // Add debug logging
+    console.log('Checking for changes:', {
+      current: employeeData.value,
+      original: originalData.value,
+      hasPersonalChanges: hasPersonalInfoChanges.value,
+      hasEmergencyChanges: hasEmergencyContactChanges.value,
+      profileImageChanged: !!profileImageFile.value,
+      resumeChanged: !!resumeFile.value,
+    })
+
     // Check if there are any changes
     const hasChanges =
       hasPersonalInfoChanges.value ||
@@ -204,13 +236,19 @@ const handleUpdate = async () => {
       email: employeeData.value.email.toLowerCase(),
       address: employeeData.value.address,
       emergencyContact: {
-        firstName: employeeData.value.emergency_contact.first_name,
-        middleName: employeeData.value.emergency_contact.middle_name || '',
-        lastName: employeeData.value.emergency_contact.last_name,
-        relationship: employeeData.value.emergency_contact.relationship,
-        contactNumber: employeeData.value.emergency_contact.contact_number,
+        firstName: employeeData.value.emergency_contact?.first_name || '',
+        middleName: employeeData.value.emergency_contact?.middle_name || '',
+        lastName: employeeData.value.emergency_contact?.last_name || '',
+        relationship: employeeData.value.emergency_contact?.relationship || '',
+        contactNumber: employeeData.value.emergency_contact?.contact_number || '',
       },
     }
+
+    // Log the data being prepared for update
+    console.log('Preparing update data:', {
+      updateData,
+      emergencyContact: updateData.emergencyContact,
+    })
 
     // Validate required fields
     const requiredFields = {
@@ -271,13 +309,6 @@ const handleUpdate = async () => {
       formData.append('resume', resumeFile.value)
     }
 
-    // Log the data being sent
-    console.log('Updating employee with data:', {
-      employeeData: JSON.parse(formData.get('employeeData')),
-      hasProfileImage: formData.has('profileImage'),
-      hasResume: formData.has('resume'),
-    })
-
     formDataToUpdate.value = formData
     employeeToUpdate.value = updateData
     confirmModal.value?.showModal()
@@ -333,6 +364,15 @@ const formatFieldName = (field) => {
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ')
 }
+
+// Add this watch for debugging emergency contact changes
+watch(
+  () => employeeData.value.emergency_contact,
+  (newVal) => {
+    console.log('Emergency contact data changed:', newVal)
+  },
+  { deep: true },
+)
 </script>
 
 <template>
