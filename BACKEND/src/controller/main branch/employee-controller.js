@@ -12,17 +12,63 @@ const createEmployee = async (req, res) => {
   const t = await sequelize.transaction()
 
   try {
-    // Accept JSON data directly
-    const employeeData = req.body
+    // Handle both raw JSON and form-data formats
+    let employeeData
 
-    if (!employeeData) {
-      throw new Error('Employee data is required')
+    // If the data comes as form-data with employeeData field
+    if (req.body.employeeData && typeof req.body.employeeData === 'string') {
+      try {
+        employeeData = JSON.parse(req.body.employeeData)
+      } catch (e) {
+        return res.status(400).json({
+          message: 'Invalid employee data format',
+          error: 'Failed to parse employeeData JSON',
+        })
+      }
+    } else {
+      // If the data comes as raw JSON
+      employeeData = req.body
     }
+
+    // Validate required fields
+    const requiredFields = [
+      'firstName',
+      'lastName',
+      'department',
+      'jobTitle',
+      'role',
+      'dateOfHire',
+      'dateOfBirth',
+      'gender',
+      'contactNumber',
+      'email',
+      'address',
+    ]
+
+    const missingFields = requiredFields.filter((field) => !employeeData[field])
+    if (missingFields.length > 0) {
+      return res.status(400).json({
+        message: 'Missing required fields',
+        fields: missingFields,
+      })
+    }
+
+    // Add after parsing employeeData
+    console.log('Parsed employeeData:', employeeData)
+    console.log('Missing fields:', missingFields)
 
     // Handle profile image file
     let profileImagePath = null
     if (req.files?.profileImage?.[0]) {
       const profileFile = req.files.profileImage[0]
+      // Validate file type
+      const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif']
+      if (!allowedImageTypes.includes(profileFile.mimetype)) {
+        return res.status(400).json({
+          message: 'Invalid file type for profile image',
+          allowedTypes: allowedImageTypes,
+        })
+      }
       profileImagePath = await saveFile(profileFile, 'profile')
     }
 
@@ -30,6 +76,13 @@ const createEmployee = async (req, res) => {
     let resumePath = null
     if (req.files?.resume?.[0]) {
       const resumeFile = req.files.resume[0]
+      // Validate file type
+      if (resumeFile.mimetype !== 'application/pdf') {
+        return res.status(400).json({
+          message: 'Invalid file type for resume',
+          allowedType: 'application/pdf',
+        })
+      }
       resumePath = await saveFile(resumeFile, 'resume')
     }
 
@@ -52,6 +105,25 @@ const createEmployee = async (req, res) => {
     const fullName = [employeeData.firstName, employeeData.middleName, employeeData.lastName]
       .filter(Boolean)
       .join(' ')
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(employeeData.email)) {
+      return res.status(400).json({
+        message: 'Invalid email format',
+      })
+    }
+
+    // Check if email already exists
+    const existingEmail = await Employee.findOne({
+      where: { email: employeeData.email },
+    })
+
+    if (existingEmail) {
+      return res.status(400).json({
+        message: 'Email already exists',
+      })
+    }
 
     // Create employee
     const employee = await Employee.create(
@@ -117,17 +189,42 @@ const createEmployee = async (req, res) => {
 
     res.status(201).json({
       message: 'Employee and user account created successfully',
-      employeeId,
-      profileImagePath,
-      resumePath,
-      userCredentials: {
-        username: employeeId,
-        defaultPassword: 'countryside123',
+      data: {
+        employeeId,
+        email: employeeData.email,
+        fullName,
+        profileImagePath,
+        resumePath,
+        userCredentials: {
+          username: employeeId,
+          defaultPassword: 'countryside123',
+        },
       },
     })
+
+    // Add these debug logs right after the try block in createEmployee
+    console.log('Request body:', req.body)
+    console.log('Request files:', req.files)
+    console.log('employeeData before parsing:', req.body.employeeData)
   } catch (error) {
     await t.rollback()
     console.error('Error creating employee:', error)
+
+    // Handle specific database errors
+    if (error.name === 'SequelizeUniqueConstraintError') {
+      return res.status(400).json({
+        message: 'Duplicate entry found',
+        error: error.errors[0].message,
+      })
+    }
+
+    if (error.name === 'SequelizeValidationError') {
+      return res.status(400).json({
+        message: 'Validation error',
+        error: error.errors.map((e) => e.message),
+      })
+    }
+
     res.status(500).json({
       message: 'Something went wrong!',
       error: error.message,
@@ -237,9 +334,28 @@ const updateEmployee = async (req, res) => {
   const t = await sequelize.transaction()
   try {
     const { id } = req.params
-    const employeeData = req.body
+
+    // Handle both raw JSON and form-data formats
+    let employeeData
+    if (req.body.employeeData && typeof req.body.employeeData === 'string') {
+      try {
+        employeeData = JSON.parse(req.body.employeeData)
+      } catch (e) {
+        return res.status(400).json({
+          message: 'Invalid employee data format',
+          error: 'Failed to parse employeeData JSON',
+        })
+      }
+    } else {
+      employeeData = req.body
+    }
 
     console.log('Update data received:', employeeData) // Debug log
+
+    // Generate full name
+    const fullName = [employeeData.firstName, employeeData.middleName, employeeData.lastName]
+      .filter(Boolean)
+      .join(' ')
 
     // Handle profile image file
     let profileImagePath = null
@@ -261,9 +377,7 @@ const updateEmployee = async (req, res) => {
         first_name: employeeData.firstName,
         middle_name: employeeData.middleName,
         last_name: employeeData.lastName,
-        full_name: [employeeData.firstName, employeeData.middleName, employeeData.lastName]
-          .filter(Boolean)
-          .join(' '),
+        full_name: fullName, // Use the generated fullName
         department: employeeData.department,
         job_title: employeeData.jobTitle,
         role: employeeData.role,
@@ -289,18 +403,20 @@ const updateEmployee = async (req, res) => {
 
     // Update emergency contact if provided
     if (employeeData.emergencyContact) {
+      const emergencyContactFullName = [
+        employeeData.emergencyContact.firstName,
+        employeeData.emergencyContact.middleName,
+        employeeData.emergencyContact.lastName,
+      ]
+        .filter(Boolean)
+        .join(' ')
+
       await EmergencyContact.update(
         {
           first_name: employeeData.emergencyContact.firstName,
           middle_name: employeeData.emergencyContact.middleName,
           last_name: employeeData.emergencyContact.lastName,
-          full_name: [
-            employeeData.emergencyContact.firstName,
-            employeeData.emergencyContact.middleName,
-            employeeData.emergencyContact.lastName,
-          ]
-            .filter(Boolean)
-            .join(' '),
+          full_name: emergencyContactFullName, // Use the generated emergency contact fullName
           relationship: employeeData.emergencyContact.relationship,
           contact_number: employeeData.emergencyContact.contactNumber,
         },

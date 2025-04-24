@@ -96,25 +96,45 @@ export const useEmployeeStore = defineStore('employee', () => {
   // Add employee
   const createEmployee = async (employeeData) => {
     try {
-      // Log the request URL and data for debugging
-      console.log('Sending request to:', `${employeeAPI.defaults?.baseURL}/employees`)
-      console.log('Employee data:', employeeData)
+      // Log the data being sent - but only log the parsed employeeData from FormData
+      console.log('Creating employee with data:', {
+        formDataContent: employeeData.get('employeeData')
+          ? JSON.parse(employeeData.get('employeeData'))
+          : null,
+        hasFiles: {
+          profileImage: employeeData.has('profileImage'),
+          resume: employeeData.has('resume'),
+        },
+      })
 
       const response = await employeeAPI.createEmployee(employeeData)
+      console.log('Create employee response:', response)
 
-      // After successful creation, immediately load the updated list
-      await loadEmployees()
-
+      await loadEmployees() // Refresh the employee list
       return response.data
     } catch (error) {
-      // Enhanced error logging
       console.error('Error creating employee:', {
         message: error.message,
         response: error.response?.data,
         status: error.response?.status,
-        config: error.config,
+        // Don't try to parse error.config.data as it's FormData
+        requestInfo: {
+          method: error.config?.method,
+          url: error.config?.url,
+        },
       })
-      throw error
+
+      // Handle specific error cases
+      if (error.code === 'ECONNABORTED') {
+        throw new Error('Request timed out. Please try again.')
+      }
+
+      if (!error.response) {
+        throw new Error('Network error. Please check your connection.')
+      }
+
+      // Re-throw the error with the response message if available
+      throw new Error(error.response?.data?.message || error.message)
     }
   }
 
