@@ -267,30 +267,61 @@ const getRoleById = async (req, res) => {
 
 // Add restore role function
 const restoreRole = async (req, res) => {
-  const t = await sequelize.transaction()
+  let t = null
   try {
+    t = await sequelize.transaction()
     const { id } = req.params
 
-    const restored = await Role.restore({
+    // Check if role exists and is deleted
+    const role = await Role.findOne({
       where: { id },
-      transaction: t,
+      paranoid: false,
     })
 
-    if (!restored) {
-      await t.rollback()
-      return res.status(404).json({ message: 'Role not found or already active' })
+    if (!role) {
+      return res.status(404).json({ message: 'Role not found' })
+    }
+
+    if (!role.deleted_at) {
+      return res.status(400).json({ message: 'Role is not deleted' })
+    }
+
+    // Restore using Sequelize's restore method
+    await role.restore({ transaction: t })
+
+    // Get fresh data after restore
+    const restoredRole = await Role.findByPk(id, {
+      transaction: t,
+      paranoid: false, // Make sure we can find it
+    })
+
+    if (!restoredRole) {
+      throw new Error('Role could not be restored')
     }
 
     await t.commit()
+
+    // Format the response
+    const roleData = restoredRole.toJSON()
+
     res.json({
       message: 'Role restored successfully',
-      roleId: id,
+      role: {
+        ...roleData,
+        permissions:
+          typeof roleData.permissions === 'string'
+            ? JSON.parse(roleData.permissions)
+            : roleData.permissions,
+        is_deleted: false,
+      },
     })
   } catch (error) {
-    await t.rollback()
+    if (t && !t.finished) {
+      await t.rollback()
+    }
     console.error('Error restoring role:', error)
     res.status(500).json({
-      message: 'Error restoring role',
+      message: 'Failed to restore role',
       error: error.message,
     })
   }

@@ -181,39 +181,25 @@ const getAllEmployees = async (req, res) => {
 //get all employees by id
 const getAllEmployeeById = async (req, res) => {
   try {
-    console.log('Getting employee by ID:', req.params.id)
-
-    // First, let's check if emergency contact exists with raw query
-    const [emergencyContacts] = await sequelize.query(
-      `SELECT * FROM emergency_contacts WHERE employee_id = ? AND deleted_at IS NULL`,
+    // Get emergency contact with raw query since it works reliably
+    const [emergencyContact] = await sequelize.query(
+      `SELECT 
+        id, employee_id, first_name, middle_name, last_name, 
+        full_name, relationship, contact_number 
+      FROM emergency_contacts 
+      WHERE employee_id = ? AND deleted_at IS NULL`,
       {
         replacements: [req.params.id],
         type: sequelize.QueryTypes.SELECT,
       },
     )
-    console.log('Raw emergency contact query:', JSON.stringify(emergencyContacts, null, 2))
 
+    // Get employee data
     const employee = await Employee.findOne({
       where: {
         employee_id: req.params.id,
       },
       include: [
-        {
-          model: EmergencyContact,
-          as: 'emergencyContact',
-          required: false,
-          attributes: [
-            'id',
-            'employee_id',
-            'first_name',
-            'middle_name',
-            'last_name',
-            'full_name',
-            'relationship',
-            'contact_number',
-            'deleted_at',
-          ],
-        },
         {
           model: Role,
           as: 'roleInfo',
@@ -222,27 +208,19 @@ const getAllEmployeeById = async (req, res) => {
       ],
     })
 
-    console.log('Raw employee data:', JSON.stringify(employee, null, 2))
-
     if (!employee) {
-      console.log('No employee found')
       return res.status(404).json({ message: 'Employee not found' })
     }
 
     const employeeData = employee.toJSON()
 
-    // Manually set emergency contact if it exists
-    if (emergencyContacts) {
-      employeeData.emergencyContact = emergencyContacts
-    }
-
+    // Format the response
     const formattedEmployee = {
       ...employeeData,
+      emergencyContact: emergencyContact || null,
       permissions: employeeData.roleInfo?.permissions || [],
       roleInfo: undefined,
     }
-
-    console.log('Final formatted response:', JSON.stringify(formattedEmployee, null, 2))
 
     res.json(formattedEmployee)
   } catch (error) {

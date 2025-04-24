@@ -51,7 +51,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
 
 // Routes
 app.use('/api/employees', employeeRoutes)
-app.use('/api', roleRoutes)
+app.use('/api/roles', roleRoutes)
 
 // Error handling middleware
 app.use((err, req, res, next) => {
