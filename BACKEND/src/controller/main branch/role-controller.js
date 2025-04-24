@@ -239,7 +239,6 @@ const getRoleById = async (req, res) => {
         {
           model: Employee,
           attributes: ['employee_id', 'first_name', 'last_name'],
-          as: 'employees',
         },
       ],
     })
