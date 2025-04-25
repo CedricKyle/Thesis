@@ -32,32 +32,33 @@ const isSuperAdmin = computed(() => {
 const filteredEmployees = computed(() => {
   if (!store.employees) return []
 
-  let employees = store.employees
-
-  // Filter based on archived status
-  if (!showArchived.value) {
-    employees = employees.filter((emp) => !emp.deleted_at)
-  }
+  let employees = [...store.employees] // Create a copy of the array
 
   // Filter out Super Admin users if current user is not Super Admin
   if (!isSuperAdmin.value) {
     employees = employees.filter((emp) => emp.role !== 'Super Admin')
   }
 
-  if (!searchQuery.value) {
-    return employees
+  // Apply search filter if there's a search query
+  if (searchQuery.value) {
+    const query = searchQuery.value.toLowerCase()
+    employees = employees.filter(
+      (employee) =>
+        employee.employee_id.toLowerCase().includes(query) ||
+        employee.full_name.toLowerCase().includes(query) ||
+        employee.department.toLowerCase().includes(query) ||
+        employee.job_title?.toLowerCase().includes(query) ||
+        employee.email.toLowerCase().includes(query) ||
+        employee.contact_number.toLowerCase().includes(query),
+    )
   }
 
-  const query = searchQuery.value.toLowerCase()
-  return employees.filter(
-    (employee) =>
-      employee.employee_id.toLowerCase().includes(query) ||
-      employee.full_name.toLowerCase().includes(query) ||
-      employee.department.toLowerCase().includes(query) ||
-      employee.job_title?.toLowerCase().includes(query) ||
-      employee.email.toLowerCase().includes(query) ||
-      employee.contact_number.toLowerCase().includes(query),
-  )
+  // Filter based on archived status
+  if (!showArchived.value) {
+    employees = employees.filter((emp) => !emp.deleted_at)
+  }
+
+  return employees
 })
 
 // Define columns for Tabulator
@@ -273,16 +274,6 @@ watch(
   () => {},
   { deep: true },
 )
-
-// Add a watch for showArchived to reload data when toggled
-watch(showArchived, async (newValue) => {
-  try {
-    await store.loadEmployees()
-  } catch (error) {
-    console.error('Error reloading employees:', error)
-    showToastMessage('Error reloading employees', 'error')
-  }
-})
 </script>
 
 <template>

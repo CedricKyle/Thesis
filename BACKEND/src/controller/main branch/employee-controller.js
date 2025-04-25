@@ -249,24 +249,20 @@ const getAllEmployees = async (req, res) => {
   try {
     const { includeDeleted } = req.query
 
+    // Set paranoid to false when includeDeleted is true to include soft-deleted records
     const employees = await Employee.findAll({
-      where: {
-        deleted_at: null,
-        role: {
-          [Sequelize.Op.ne]: 'Super Admin', // Exclude Super Admin
-        },
-      },
+      paranoid: false, // This will include soft-deleted records
       include: [
         {
           model: EmergencyContact,
           as: 'emergencyContact',
-          paranoid: includeDeleted === 'true' ? false : true,
+          paranoid: false,
         },
         {
           model: Role,
           as: 'roleInfo',
           attributes: ['permissions'],
-          paranoid: includeDeleted === 'true' ? false : true,
+          paranoid: false,
         },
       ],
       order: [['created_at', 'DESC']],
