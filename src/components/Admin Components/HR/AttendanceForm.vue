@@ -5,6 +5,7 @@ import { useAttendanceStore } from '@/stores/HR Management/attendanceStore'
 import { useAttendanceLogic } from '@/composables/Admin Composables/Human Resource/useAttendanceLogic'
 import { storeToRefs } from 'pinia'
 import { ref, computed, watch, onMounted } from 'vue'
+import axios from 'axios'
 
 const props = defineProps({
   departments: {
@@ -114,31 +115,32 @@ const handleSubmit = async () => {
     }
 
     try {
-      // Calculate overtime
-      const overtime = calculateOvertime(newAttendance.value.signIn, newAttendance.value.signOut)
+      // Format the date and times
+      const date = new Date(newAttendance.value.date)
+      const timeIn = new Date(`${newAttendance.value.date}T${newAttendance.value.signIn}`)
+      const timeOut = new Date(`${newAttendance.value.date}T${newAttendance.value.signOut}`)
 
       const attendanceData = {
-        full_name: selectedEmployee.full_name,
         employee_id: selectedEmployee.employee_id,
-        department: newAttendance.value.department,
-        date: newAttendance.value.date,
-        signIn: newAttendance.value.signIn,
-        signOut: newAttendance.value.signOut,
-        overtime: overtime, // Add overtime field
+        date: date.toISOString().split('T')[0],
+        time_in: newAttendance.value.signIn,
+        time_out: newAttendance.value.signOut,
       }
 
-      emit('showConfirm', attendanceData)
+      // Call the backend API
+      const response = await axios.post('/api/attendance/manual', attendanceData, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      })
 
-      formErrors.value = {
-        department: '',
-        employeeName: '',
-        date: '',
-        signIn: '',
-        signOut: '',
+      if (response.data.success) {
+        emit('showConfirm', response.data.data)
+        resetForm()
       }
     } catch (error) {
-      console.error('Error preparing attendance data:', error)
-      formErrors.value.employeeName = error.message || 'Error preparing attendance data'
+      console.error('Error submitting attendance:', error)
+      formErrors.value.general = error.response?.data?.message || 'Error submitting attendance'
     }
   }
 }

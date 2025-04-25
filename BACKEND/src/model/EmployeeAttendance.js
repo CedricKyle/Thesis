@@ -46,12 +46,8 @@ module.exports = (sequelize) => {
         defaultValue: 'Pending',
       },
       approved_by: {
-        type: DataTypes.STRING(20),
+        type: DataTypes.STRING(150),
         allowNull: true,
-        references: {
-          model: 'employees',
-          key: 'employee_id',
-        },
       },
       approved_at: {
         type: DataTypes.DATE,
@@ -80,14 +76,7 @@ module.exports = (sequelize) => {
   EmployeeAttendance.associate = (models) => {
     EmployeeAttendance.belongsTo(models.Employee, {
       foreignKey: 'employee_id',
-      targetKey: 'employee_id',
       as: 'employee',
-    })
-
-    EmployeeAttendance.belongsTo(models.Employee, {
-      foreignKey: 'approved_by',
-      targetKey: 'employee_id',
-      as: 'approver',
     })
   }
 

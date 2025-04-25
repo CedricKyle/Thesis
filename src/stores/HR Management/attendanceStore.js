@@ -2,6 +2,8 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
 import { useAttendanceLogic } from '@/composables/Admin Composables/Human Resource/useAttendanceLogic'
+import axios from 'axios'
+import { useAuthStore } from '@/stores/Authentication/authStore'
 
 export const useAttendanceStore = defineStore('attendance', () => {
   const { determineStatus, calculateHours } = useAttendanceLogic()
@@ -31,6 +33,9 @@ export const useAttendanceStore = defineStore('attendance', () => {
   const todayAttendance = ref(null)
   const isProcessing = ref(false)
 
+  // API base URL
+  const API_URL = '/api/attendance' // Add /api prefix
+
   // Getters
   const filteredRecords = computed(() => {
     let records = [...attendanceRecords.value]
@@ -45,13 +50,14 @@ export const useAttendanceStore = defineStore('attendance', () => {
       const query = searchQuery.value.toLowerCase()
       records = records.filter(
         (record) =>
-          record.name.toLowerCase().includes(query) ||
+          record.full_name.toLowerCase().includes(query) ||
           record.department.toLowerCase().includes(query),
       )
     }
 
     records.sort((a, b) => {
-      const comparison = sortBy.value === 'id' ? a.id - b.id : a.name.localeCompare(b.name)
+      const comparison =
+        sortBy.value === 'id' ? a.id - b.id : a.full_name.localeCompare(b.full_name)
       return sortDesc.value ? -comparison : comparison
     })
 
@@ -248,203 +254,76 @@ export const useAttendanceStore = defineStore('attendance', () => {
     return recordDate.toDateString() !== today.toDateString()
   }
 
-  // Add this function to handle daily reset
-  const resetDailyAttendance = () => {
-    try {
-      // Get today's date at midnight for comparison
-      const today = new Date()
-      today.setHours(0, 0, 0, 0)
-
-      // Check each record and mark as absent if it's pending from previous day
-      attendanceRecords.value = attendanceRecords.value.map((record) => {
-        const recordDate = new Date(record.date)
-        recordDate.setHours(0, 0, 0, 0)
-
-        // If record is from a previous day and still pending, mark as absent
-        if (recordDate < today && record.approvalStatus === 'Pending') {
-          return {
-            ...record,
-            status: 'Absent',
-            signIn: '-',
-            signOut: '-',
-            workingHours: '-',
-            approvalStatus: 'Approved', // Auto-approve as absent
-            approvedBy: 'System',
-            approvedAt: new Date().toISOString(),
-          }
-        }
-        return record
-      })
-
-      // Reset todayAttendance if it's from previous day
-      if (todayAttendance.value && isFromPreviousDay(todayAttendance.value.date)) {
-        todayAttendance.value = null
-      }
-
-      // Save the updated records
-      saveToLocalStorage()
-    } catch (error) {
-      console.error('Error resetting daily attendance:', error)
-    }
-  }
-
   // Actions
   const addRecord = async (attendanceData) => {
     try {
-      // Check for existing attendance
-      const existingRecord = checkExistingAttendance(
-        attendanceData.employee_id,
-        attendanceData.date,
-      )
+      const response = await axios.post('/api/attendance/manual', attendanceData, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      })
 
-      if (existingRecord && !existingRecord.id?.toString().startsWith('absent-')) {
-        throw new Error('Attendance record already exists for this employee on the selected date')
+      if (response.data.success) {
+        await loadRecords()
+        return response.data.data
       }
-
-      // Generate a new ID for the record
-      const newId = generateId()
-
-      // Calculate working hours and overtime
-      let workingHours = '-'
-      let overtime = 0
-
-      if (attendanceData.signIn && attendanceData.signOut) {
-        const [inHours, inMinutes] = attendanceData.signIn.split(':').map(Number)
-        const [outHours, outMinutes] = attendanceData.signOut.split(':').map(Number)
-
-        const inTotalMinutes = inHours * 60 + inMinutes
-        const outTotalMinutes = outHours * 60 + outMinutes
-        const diffMinutes = outTotalMinutes - inTotalMinutes
-
-        if (diffMinutes > 0) {
-          const hours = Math.floor(diffMinutes / 60)
-          const minutes = diffMinutes % 60
-          workingHours = `${hours}:${minutes.toString().padStart(2, '0')}`
-
-          // Calculate overtime if worked more than 8 hours
-          if (diffMinutes > 480) {
-            // 8 hours = 480 minutes
-            overtime = ((diffMinutes - 480) / 60).toFixed(2)
-          }
-        }
-      }
-
-      // Create the new record with all required fields
-      const newRecord = {
-        id: newId,
-        full_name: attendanceData.full_name,
-        employee_id: attendanceData.employee_id,
-        department: attendanceData.department,
-        date: new Date(attendanceData.date),
-        signIn: attendanceData.signIn || '-',
-        signOut: attendanceData.signOut || '-',
-        workingHours: workingHours,
-        overtime: overtime,
-        status: determineStatus(attendanceData.signIn),
-      }
-
-      // If there's an existing 'absent' record, remove it
-      if (existingRecord?.id?.toString().startsWith('absent-')) {
-        attendanceRecords.value = attendanceRecords.value.filter((r) => r.id !== existingRecord.id)
-      }
-
-      // Update the local state
-      attendanceRecords.value = [...attendanceRecords.value, newRecord]
-
-      // Save to localStorage
-      saveToLocalStorage()
-
-      return newRecord
     } catch (error) {
       console.error('Error adding attendance record:', error)
       throw error
     }
   }
 
-  // Helper functions
-  function generateId() {
-    return attendanceRecords.value.length > 0
-      ? Math.max(...attendanceRecords.value.map((r) => r.id)) + 1
-      : 1
-  }
-
-  function setError(message) {
-    error.value = message
-    setTimeout(() => {
-      error.value = null
-    }, 3000)
-  }
-
   const deleteRecord = async (recordId) => {
     try {
-      // Get current records
-      const currentRecords = attendanceRecords.value
+      const response = await axios.delete(`/api/attendance/attendance/${recordId}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      })
 
-      // Get the record before deletion
-      const recordToDelete = currentRecords.find((record) => record.id === recordId)
-      if (!recordToDelete) {
-        throw new Error('Record not found')
-      }
-
-      // Store employee info for re-entry
-      const employeeId = recordToDelete.employee_id
-      const recordDate = new Date(recordToDelete.date).toISOString().split('T')[0]
-
-      // Remove the record
-      attendanceRecords.value = currentRecords.filter((record) => record.id !== recordId)
-
-      // Reset today's attendance if needed
-      const today = new Date().toISOString().split('T')[0]
-      if (recordDate === today) {
-        todayAttendance.value = null
-      }
-
-      // Update localStorage
-      saveToLocalStorage()
-
-      return {
-        success: true,
-        employeeId,
-        date: recordDate,
-        message: 'Attendance record deleted successfully',
+      if (response.data.success) {
+        // Remove the record from the local state
+        attendanceRecords.value = attendanceRecords.value.filter((record) => record.id !== recordId)
+        return response.data
       }
     } catch (error) {
-      console.error('Error deleting attendance record:', error)
-      throw new Error('Failed to delete attendance record')
+      console.error('Error deleting record:', error)
+      if (error.response?.status === 404) {
+        throw new Error('Attendance record not found')
+      } else if (error.response?.data?.message) {
+        throw new Error(error.response.data.message)
+      } else {
+        throw new Error('Failed to delete attendance record')
+      }
     }
   }
 
-  function loadRecords() {
+  async function loadRecords() {
     try {
-      const savedRecords = localStorage.getItem('attendanceRecords')
-      if (savedRecords) {
-        const records = JSON.parse(savedRecords)
-        attendanceRecords.value = records.map((record) => ({
-          ...record,
-          date: new Date(record.date),
-          status: determineStatus(record.signIn),
-          workingHours: calculateHours(record.signIn, record.signOut),
-          // Ensure approval status is preserved
-          approvalStatus: record.approvalStatus || 'Pending',
-          approvedBy: record.approvedBy || null,
-          approvedAt: record.approvedAt || null,
+      const response = await axios.get('/api/attendance', {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      })
+
+      if (response.data.success) {
+        const employeeStore = useEmployeeStore()
+        await employeeStore.loadEmployees()
+
+        // Map the attendance records to include employee details
+        const records = response.data.data.map((record) => ({
+          id: record.id,
+          employee_id: record.employee_id,
+          full_name: record.employee?.full_name,
+          department: record.employee?.department,
+          signIn: record.time_in || '-',
+          signOut: record.time_out || '-',
+          workingHours: record.working_hours || 0,
+          status: record.status || 'Absent',
+          date: record.date,
+          approvalStatus: record.approval_status || 'Pending',
         }))
+
+        attendanceRecords.value = records
       }
     } catch (error) {
       console.error('Error loading records:', error)
-      attendanceRecords.value = []
-    }
-  }
-
-  function saveToLocalStorage() {
-    try {
-      const recordsToSave = attendanceRecords.value.map((record) => ({
-        ...record,
-        date: record.date instanceof Date ? record.date.toISOString() : record.date,
-      }))
-      localStorage.setItem('attendanceRecords', JSON.stringify(recordsToSave))
-    } catch (error) {
-      console.error('Error saving to localStorage:', error)
       throw error
     }
   }
@@ -466,7 +345,6 @@ export const useAttendanceStore = defineStore('attendance', () => {
           ...attendanceRecords.value[index],
           ...updates,
         }
-        saveToLocalStorage()
       }
     } catch (error) {
       setError('Failed to update record')
@@ -481,7 +359,6 @@ export const useAttendanceStore = defineStore('attendance', () => {
     sortBy.value = 'id'
     sortDesc.value = false
     selectedDate.value = new Date().toISOString().split('T')[0]
-    saveToLocalStorage()
   }
 
   // Add new actions for reports
@@ -514,174 +391,71 @@ export const useAttendanceStore = defineStore('attendance', () => {
   }
 
   // Add these new actions
-  const recordTimeIn = async (employeeId) => {
+  const recordTimeIn = async (employee_id) => {
     isProcessing.value = true
     try {
-      // Check and reset if needed
-      resetDailyAttendance()
+      const response = await axios.post(
+        '/api/attendance/time-in',
+        { employee_id },
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } },
+      )
 
-      const today = new Date().toISOString().split('T')[0]
-
-      // Check for existing attendance
-      const existingRecord = checkExistingAttendance(employeeId, new Date())
-      if (existingRecord && existingRecord.signIn !== '-') {
-        throw new Error('Already timed in for today')
+      if (response.data.success) {
+        todayAttendance.value = response.data.data
+        await loadRecords()
+        return response.data.data
       }
-
-      const currentTime = new Date().toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false,
-      })
-
-      // Get employee details
-      const employeeStore = useEmployeeStore()
-      const employee = employeeStore.employees.find((emp) => emp.employee_id === employeeId)
-
-      if (!employee) {
-        throw new Error('Employee not found')
-      }
-
-      // Create new attendance record
-      const newRecord = {
-        id: generateId(),
-        employee_id: employeeId,
-        full_name: employee.full_name,
-        department: employee.department,
-        date: new Date(),
-        signIn: currentTime,
-        signOut: '-',
-        workingHours: '-',
-        status: determineStatus(currentTime),
-        approvalStatus: 'Pending',
-        approvedBy: null,
-        approvedAt: null,
-      }
-
-      // Remove any existing records for today
-      attendanceRecords.value = attendanceRecords.value.filter((record) => {
-        const recordDate = new Date(record.date).toISOString().split('T')[0]
-        return !(recordDate === today && record.employee_id === employeeId)
-      })
-
-      // Add new record and update localStorage
-      attendanceRecords.value.push(newRecord)
-      todayAttendance.value = { ...newRecord }
-      saveToLocalStorage()
-
-      // Force a refresh of the attendance table
-      if (window.dispatchEvent) {
-        window.dispatchEvent(new CustomEvent('attendance-updated'))
-      }
-
-      return newRecord
     } catch (error) {
-      throw error
+      throw new Error(error.response?.data?.message || 'Failed to record time in')
     } finally {
       isProcessing.value = false
     }
   }
 
-  const recordTimeOut = async (employeeId) => {
+  const recordTimeOut = async (employee_id) => {
     isProcessing.value = true
     try {
-      // Check and reset if needed
-      resetDailyAttendance()
-
-      const today = new Date().toISOString().split('T')[0]
-      const currentTime = new Date().toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: false,
-      })
-
-      // Find today's attendance record
-      const recordIndex = attendanceRecords.value.findIndex(
-        (record) =>
-          record.employee_id === employeeId &&
-          new Date(record.date).toISOString().split('T')[0] === today,
+      const response = await axios.post(
+        '/api/attendance/time-out',
+        { employee_id },
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } },
       )
 
-      if (recordIndex === -1) {
-        throw new Error('No time in record found for today')
+      if (response.data.success) {
+        todayAttendance.value = response.data.data
+        await loadRecords()
+        return response.data.data
       }
-
-      const existingRecord = attendanceRecords.value[recordIndex]
-
-      if (existingRecord.signOut !== '-') {
-        throw new Error('Already timed out for today')
-      }
-
-      // Calculate working hours and overtime
-      const [inHours, inMinutes] = existingRecord.signIn.split(':').map(Number)
-      const [outHours, outMinutes] = currentTime.split(':').map(Number)
-
-      const inTotalMinutes = inHours * 60 + inMinutes
-      const outTotalMinutes = outHours * 60 + outMinutes
-      const workedMinutes = outTotalMinutes - inTotalMinutes
-
-      // Regular work day is 8 hours (480 minutes)
-      const regularMinutes = 480
-      const overtime =
-        workedMinutes > regularMinutes ? ((workedMinutes - regularMinutes) / 60).toFixed(2) : 0
-
-      // Format working hours
-      const hours = Math.floor(workedMinutes / 60)
-      const minutes = workedMinutes % 60
-      const workingHours = `${hours}:${minutes.toString().padStart(2, '0')}`
-
-      // Update the record
-      const updatedRecord = {
-        ...existingRecord,
-        signOut: currentTime,
-        workingHours: workingHours,
-        overtime: overtime,
-        status: determineStatus(existingRecord.signIn),
-        approvalStatus: 'Pending',
-      }
-
-      // Update in the array
-      attendanceRecords.value[recordIndex] = updatedRecord
-      todayAttendance.value = { ...updatedRecord }
-
-      // Save to localStorage
-      saveToLocalStorage()
-
-      return updatedRecord
     } catch (error) {
-      throw error
+      throw new Error(error.response?.data?.message || 'Failed to record time out')
     } finally {
       isProcessing.value = false
     }
   }
 
-  const getTodayAttendance = async (employeeId) => {
+  const getTodayAttendance = async (employee_id) => {
     try {
-      // Check and reset if needed
-      resetDailyAttendance()
+      const response = await axios.get('/api/attendance/today', {
+        params: { employee_id },
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      })
 
-      const today = new Date().toISOString().split('T')[0]
-      const record = attendanceRecords.value.find(
-        (record) =>
-          record.employee_id === employeeId &&
-          new Date(record.date).toISOString().split('T')[0] === today,
-      )
-
-      // Make sure we're including all approval details
-      todayAttendance.value = record
-        ? {
-            ...record,
-            approvalStatus: record.approvalStatus || 'Pending',
-            approvedBy: record.approvedBy || null,
-            approvedAt: record.approvedAt || null,
-          }
-        : null
-
-      return todayAttendance.value
+      if (response.data.success) {
+        const data = response.data.data
+        // Ensure consistent data structure
+        todayAttendance.value = data
+          ? {
+              ...data,
+              signIn: data.time_in || '-',
+              signOut: data.time_out || '-',
+              time_in: data.time_in || '-',
+              time_out: data.time_out || '-',
+            }
+          : null
+        return todayAttendance.value
+      }
     } catch (error) {
-      console.error("Error getting today's attendance:", error)
+      console.error("Error fetching today's attendance:", error)
       throw error
     }
   }
@@ -714,59 +488,8 @@ export const useAttendanceStore = defineStore('attendance', () => {
 
       // Reset today's attendance
       todayAttendance.value = null
-
-      // Save to localStorage
-      saveToLocalStorage()
     } catch (error) {
       console.error("Error clearing today's attendance:", error)
-      throw error
-    }
-  }
-
-  // Add new function for attendance approval
-  const approveAttendance = async (recordId, approverDetails) => {
-    try {
-      console.log('Received approver details (detailed):', {
-        name: approverDetails.name,
-        userId: approverDetails.userId,
-        timestamp: approverDetails.timestamp,
-      })
-
-      const index = attendanceRecords.value.findIndex((r) => r.id === recordId)
-      if (index === -1) {
-        throw new Error('Attendance record not found')
-      }
-
-      const updatedRecord = {
-        ...attendanceRecords.value[index],
-        approvalStatus: 'Approved',
-        approvedBy: approverDetails.name,
-        approvedAt: approverDetails.timestamp,
-      }
-      console.log('Record being saved (detailed):', {
-        id: updatedRecord.id,
-        approvalStatus: updatedRecord.approvalStatus,
-        approvedBy: updatedRecord.approvedBy,
-        approvedAt: updatedRecord.approvedAt,
-      })
-
-      // Update the state
-      attendanceRecords.value[index] = updatedRecord
-
-      // Update todayAttendance if this is today's record
-      if (todayAttendance.value && todayAttendance.value.id === recordId) {
-        todayAttendance.value = { ...updatedRecord }
-        console.log('Updated todayAttendance (detailed):', {
-          approvalStatus: todayAttendance.value.approvalStatus,
-          approvedBy: todayAttendance.value.approvedBy,
-          approvedAt: todayAttendance.value.approvedAt,
-        })
-      }
-
-      saveToLocalStorage()
-      return updatedRecord
-    } catch (error) {
-      console.error('Error approving attendance:', error)
       throw error
     }
   }
@@ -791,6 +514,105 @@ export const useAttendanceStore = defineStore('attendance', () => {
     })
 
     return !existingRecord
+  }
+
+  // Add this function before the return statement
+  const approveAttendance = async (attendanceId) => {
+    try {
+      const authStore = useAuthStore()
+      const currentUser = authStore.currentUser
+
+      if (!currentUser) {
+        throw new Error('No authenticated user found')
+      }
+
+      // Get the employee store to access employee details
+      const employeeStore = useEmployeeStore()
+      const currentEmployee = employeeStore.employees.find(
+        (emp) => emp.employee_id === currentUser.id,
+      )
+
+      if (!currentEmployee) {
+        throw new Error('Employee information not found')
+      }
+
+      const response = await axios.post(
+        `/api/attendance/${attendanceId}/approve`,
+        {
+          approved_by: currentEmployee.full_name, // Now storing full name
+        },
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } },
+      )
+
+      if (response.data.success) {
+        await loadRecords()
+        return response.data.data
+      }
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Failed to approve attendance')
+    }
+  }
+
+  // Also add these missing functions that were referenced in the return object
+  const fetchTodayAttendance = async (employeeId) => {
+    try {
+      const response = await axios.get('/api/attendance/today', {
+        params: { employee_id: employeeId },
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      })
+
+      if (response.data.success) {
+        todayAttendance.value = response.data.data
+        return response.data.data
+      }
+    } catch (error) {
+      console.error("Error fetching today's attendance:", error)
+      throw error
+    }
+  }
+
+  const getAttendanceHistory = async (employeeId) => {
+    try {
+      const response = await axios.get(`/api/attendance/history/${employeeId}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      })
+      return response.data.success ? response.data.data : []
+    } catch (error) {
+      console.error('Error fetching attendance history:', error)
+      throw error
+    }
+  }
+
+  const getDepartmentAttendance = async (department) => {
+    try {
+      const response = await axios.get(`/api/attendance/department/${department}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      })
+      return response.data.success ? response.data.data : []
+    } catch (error) {
+      console.error('Error fetching department attendance:', error)
+      throw error
+    }
+  }
+
+  const getMonthlyReport = async (employeeId) => {
+    try {
+      const response = await axios.get(`/api/attendance/monthly/${employeeId}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      })
+      return response.data.success ? response.data.data : null
+    } catch (error) {
+      console.error('Error fetching monthly report:', error)
+      throw error
+    }
+  }
+
+  // Add this function to your store
+  const resetDailyAttendance = () => {
+    // Reset any daily attendance-related state
+    todayAttendance.value = null
   }
 
   return {
@@ -839,10 +661,13 @@ export const useAttendanceStore = defineStore('attendance', () => {
     // Add new function for attendance approval
     approveAttendance,
 
-    // Add this new function to handle daily reset
-    resetDailyAttendance,
+    // Add these new actions
+    fetchTodayAttendance,
+    getAttendanceHistory,
+    getDepartmentAttendance,
+    getMonthlyReport,
 
-    // Add this new function to check if an employee can re-enter attendance
-    canReenterAttendance,
+    // Add this new function
+    resetDailyAttendance,
   }
 })

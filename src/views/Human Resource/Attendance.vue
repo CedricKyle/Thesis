@@ -8,10 +8,13 @@ import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
 import AttendanceTable from '@/components/Admin Components/HR/AttendanceTable.vue'
 import Toast from '@/components/Admin Components/HR/Toast.vue'
 import AttendanceForm from '@/components/Admin Components/HR/AttendanceForm.vue'
+import { useAuthStore } from '@/stores/Authentication/authStore'
+import { Clock } from 'lucide-vue-next'
 
 // Store initialization
 const attendanceStore = useAttendanceStore()
 const employeeStore = useEmployeeStore()
+const authStore = useAuthStore()
 const { attendanceRecords } = storeToRefs(attendanceStore)
 const { employees } = storeToRefs(employeeStore)
 const { addRecord, deleteRecord, loadRecords } = attendanceStore
@@ -41,6 +44,50 @@ const modalState = ref({
   delete: false,
   confirm: false,
   selectedRecord: null,
+})
+
+// Add these new refs for digital time in/out
+const currentDateTime = ref(new Date())
+const isProcessing = ref(false)
+
+// Update the time every second
+setInterval(() => {
+  currentDateTime.value = new Date()
+}, 1000)
+
+// Formatted date and time computed properties
+const formattedDate = computed(() => {
+  return currentDateTime.value.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+})
+
+const formattedTime = computed(() => {
+  return currentDateTime.value.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+  })
+})
+
+// Add these computed properties for time in/out button states
+const canTimeIn = computed(() => {
+  const attendance = attendanceStore.todayAttendance
+  return !attendance || attendance.signIn === '-' || attendance.id?.toString().startsWith('absent-')
+})
+
+const canTimeOut = computed(() => {
+  const attendance = attendanceStore.todayAttendance
+  return (
+    attendance &&
+    attendance.signIn !== '-' &&
+    attendance.signOut === '-' &&
+    !attendance.id?.toString().startsWith('absent-')
+  )
 })
 
 // Initialize data
@@ -294,13 +341,124 @@ const calculateWorkingHours = (record) => {
 }
 
 const tableRef = ref(null)
+
+const isHR = computed(() => {
+  return (
+    authStore.currentUser?.department === 'HR Department' ||
+    authStore.currentUser?.role === 'Super Admin'
+  )
+})
+
+// Add these methods for digital time in/out
+const handleTimeIn = async () => {
+  if (!authStore.currentUser?.id) {
+    showToast('User information not found', 'error')
+    return
+  }
+
+  isProcessing.value = true
+  try {
+    const result = await attendanceStore.recordTimeIn(authStore.currentUser.id)
+    showToast(`Time In recorded successfully at ${formattedTime.value}`)
+    await loadRecords() // Refresh the records
+  } catch (error) {
+    showToast(error.message || 'Failed to record Time In', 'error')
+  } finally {
+    isProcessing.value = false
+  }
+}
+
+const handleTimeOut = async () => {
+  if (!authStore.currentUser?.id) {
+    showToast('User information not found', 'error')
+    return
+  }
+
+  isProcessing.value = true
+  try {
+    const result = await attendanceStore.recordTimeOut(authStore.currentUser.id)
+    showToast(`Time Out recorded successfully at ${formattedTime.value}`)
+    await loadRecords() // Refresh the records
+  } catch (error) {
+    showToast(error.message || 'Failed to record Time Out', 'error')
+  } finally {
+    isProcessing.value = false
+  }
+}
 </script>
 
 <template>
   <div class="attendance-container">
     <Toast v-bind="state.toast" />
 
-    <div class="tabs tabs-border bg-primaryColor border border-gray-200/50 shadow-md">
+    <!-- Add Digital Time In/Out Section for Regular Employees -->
+    <div v-if="!isHR" class="mb-8 bg-white p-6 rounded-lg shadow-lg border border-gray-200/50">
+      <div class="flex flex-col items-center space-y-4">
+        <!-- Date and Time Display -->
+        <div class="text-center">
+          <div class="text-3xl font-bold text-primaryColor">{{ formattedTime }}</div>
+          <div class="text-gray-600">{{ formattedDate }}</div>
+        </div>
+
+        <!-- Time In/Out Buttons -->
+        <div class="flex gap-4 mt-4">
+          <button
+            @click="handleTimeIn"
+            :disabled="isProcessing || !canTimeIn"
+            class="btn-primaryStyle flex items-center gap-2"
+            :class="{ 'opacity-50 cursor-not-allowed': !canTimeIn }"
+          >
+            <Clock class="w-5 h-5" />
+            <span v-if="isProcessing">Processing...</span>
+            <span v-else>Time In</span>
+          </button>
+
+          <button
+            @click="handleTimeOut"
+            :disabled="isProcessing || !canTimeOut"
+            class="btn-errorStyle flex items-center gap-2"
+            :class="{ 'opacity-50 cursor-not-allowed': !canTimeOut }"
+          >
+            <Clock class="w-5 h-5" />
+            <span v-if="isProcessing">Processing...</span>
+            <span v-else>Time Out</span>
+          </button>
+        </div>
+
+        <!-- Today's Attendance Status -->
+        <div class="w-full max-w-md mt-6">
+          <div class="bg-gray-50 p-4 rounded-lg">
+            <h3 class="font-semibold mb-2">Today's Attendance</h3>
+            <div class="grid grid-cols-2 gap-2 text-sm">
+              <div class="text-gray-600">Time In:</div>
+              <div>{{ attendanceStore.todayAttendance?.signIn || '-' }}</div>
+
+              <div class="text-gray-600">Time Out:</div>
+              <div>{{ attendanceStore.todayAttendance?.signOut || '-' }}</div>
+
+              <div class="text-gray-600">Status:</div>
+              <div
+                :class="{
+                  'text-green-600': attendanceStore.todayAttendance?.status === 'Present',
+                  'text-yellow-600': attendanceStore.todayAttendance?.status === 'Late',
+                  'text-red-600':
+                    !attendanceStore.todayAttendance?.status ||
+                    attendanceStore.todayAttendance?.status === 'Absent',
+                }"
+              >
+                {{ attendanceStore.todayAttendance?.status || 'Not Recorded' }}
+              </div>
+
+              <div class="text-gray-600">Working Hours:</div>
+              <div>{{ attendanceStore.todayAttendance?.workingHours || '-' }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HR View -->
+    <div v-if="isHR" class="tabs tabs-border bg-primaryColor border border-gray-200/50 shadow-md">
       <!-- Attendance List Tab -->
       <input
         type="radio"
@@ -471,3 +629,14 @@ const tableRef = ref(null)
     </dialog>
   </div>
 </template>
+
+<style scoped>
+/* Add these styles */
+.btn-primaryStyle:disabled,
+.btn-errorStyle:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ... rest of your existing styles ... */
+</style>

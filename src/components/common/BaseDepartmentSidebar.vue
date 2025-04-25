@@ -224,7 +224,10 @@ const cancelLogout = () => {
   showLogoutModal.value = false
 }
 
-const handleAddAttendance = () => {
+const handleAddAttendance = async () => {
+  console.log('Opening attendance modal...')
+  console.log('Current user employee:', currentUserEmployee.value)
+  await loadTodayAttendance()
   showAddAttendanceModal.value = true
 }
 
@@ -255,28 +258,39 @@ const formattedTime = computed(() => {
 // Update the canTimeIn computed property
 const canTimeIn = computed(() => {
   const attendance = attendanceStore.todayAttendance
-  // Can time in if:
-  // 1. No attendance record exists
-  // 2. Or attendance record exists but no sign in (signIn is '-')
-  // 3. Or attendance record is an 'absent' record
-  // Cannot time in if already timed in for the day
-  return !attendance || attendance.signIn === '-' || attendance.id?.toString().startsWith('absent-')
+  const result =
+    !attendance || attendance.signIn === '-' || attendance.id?.toString().startsWith('absent-')
+  console.log('canTimeIn computed:', { attendance, result })
+  return result
 })
 
 // Update the canTimeOut computed property
 const canTimeOut = computed(() => {
   const attendance = attendanceStore.todayAttendance
-  // Can time out if:
-  // 1. Has a valid attendance record
-  // 2. Has signed in (signIn is not '-')
-  // 3. Has not signed out yet (signOut is '-')
-  // 4. Is not an 'absent' record
-  return (
-    attendance &&
-    attendance.signIn !== '-' &&
-    attendance.signOut === '-' &&
-    !attendance.id?.toString().startsWith('absent-')
+  if (!attendance) {
+    console.log('canTimeOut: No attendance found')
+    return false
+  }
+
+  // Check both time_in/time_out and signIn/signOut
+  const hasTimeIn = Boolean(
+    (attendance.time_in && attendance.time_in !== '-') ||
+      (attendance.signIn && attendance.signIn !== '-'),
   )
+
+  const hasTimeOut = Boolean(
+    (attendance.time_out && attendance.time_out !== '-') ||
+      (attendance.signOut && attendance.signOut !== '-'),
+  )
+
+  const result = hasTimeIn && !hasTimeOut
+  console.log('canTimeOut computed:', {
+    attendance,
+    hasTimeIn,
+    hasTimeOut,
+    result,
+  })
+  return result
 })
 
 // Toast function
@@ -338,12 +352,21 @@ const handleTimeOut = async () => {
   // Check for day change first
   await attendanceStore.resetDailyAttendance()
 
-  if (!attendanceStore.todayAttendance?.signIn) {
+  // Get latest attendance data
+  const currentAttendance = await attendanceStore.getTodayAttendance(
+    currentUserEmployee.value.employee_id,
+  )
+
+  if (!currentAttendance || !currentAttendance.signIn || currentAttendance.signIn === '-') {
     showToastMessage('You need to Time In first', 'error')
     return
   }
 
-  console.log('Current attendance before time out:', attendanceStore.todayAttendance)
+  if (currentAttendance.signOut && currentAttendance.signOut !== '-') {
+    showToastMessage('You have already Timed Out for today', 'error')
+    return
+  }
+
   isProcessing.value = true
   try {
     const result = await attendanceStore.recordTimeOut(currentUserEmployee.value.employee_id)
@@ -371,43 +394,84 @@ const handleTimeOut = async () => {
 const loadTodayAttendance = async () => {
   if (currentUserEmployee.value?.employee_id) {
     try {
-      // This will trigger the daily reset check in the store
-      await attendanceStore.resetDailyAttendance()
+      console.log('=== Starting loadTodayAttendance ===')
+      console.log('Employee ID:', currentUserEmployee.value.employee_id)
 
       const attendance = await attendanceStore.getTodayAttendance(
         currentUserEmployee.value.employee_id,
       )
 
-      // If attendance exists but no sign in, ensure status is Absent
-      if (attendance && (!attendance.signIn || attendance.signIn === '-')) {
-        attendance.status = 'Absent'
+      console.log('Raw attendance data from backend:', attendance)
+
+      if (attendance) {
+        console.log('Mapping attendance data...')
+        // Map the backend data structure to match frontend expectations
+        const mappedAttendance = {
+          id: attendance.id,
+          employee_id: attendance.employee_id,
+          full_name: attendance.employee?.full_name || currentUserEmployee.value.full_name,
+          department: attendance.employee?.department || currentUserEmployee.value.department,
+          signIn: attendance.time_in || '-',
+          signOut: attendance.time_out || '-',
+          status: attendance.status || 'Absent',
+          approvalStatus: attendance.approval_status || 'Not Submitted',
+          overtime: attendance.overtime_hours || 0,
+          workingHours: attendance.working_hours || 0,
+          approvedBy: attendance.approved_by || null,
+          approvedAt: attendance.approved_at || null,
+          // Add these to ensure consistency
+          time_in: attendance.time_in || '-',
+          time_out: attendance.time_out || '-',
+        }
+        console.log('Mapped attendance data:', mappedAttendance)
+        attendanceStore.todayAttendance = mappedAttendance
+      } else {
+        console.log('No attendance found, creating default record')
+        // Initialize default attendance if none exists
+        const defaultAttendance = {
+          employee_id: currentUserEmployee.value.employee_id,
+          full_name: currentUserEmployee.value.full_name,
+          department: currentUserEmployee.value.department,
+          signIn: '-',
+          signOut: '-',
+          time_in: '-',
+          time_out: '-',
+          status: 'Absent',
+          approvalStatus: 'Not Submitted',
+        }
+        attendanceStore.todayAttendance = defaultAttendance
       }
 
-      console.log("Loaded today's attendance:", attendance)
+      todayAttendance.value = attendanceStore.todayAttendance
+      console.log('Final todayAttendance value:', todayAttendance.value)
     } catch (error) {
-      console.error('Error loading attendance:', error)
+      console.error('Error in loadTodayAttendance:', error)
       showToastMessage('Error loading attendance data', 'error')
     }
   }
 }
 
-// Load attendance data when modal opens
-watch(showAddAttendanceModal, async (newValue) => {
-  if (newValue) {
-    // Check for day change and reset when modal opens
-    await attendanceStore.resetDailyAttendance()
-    await loadTodayAttendance()
-  }
-})
+// Watch for modal open/close
+watch(
+  showAddAttendanceModal,
+  async (newValue) => {
+    console.log('Modal visibility changed:', newValue)
+    if (newValue) {
+      console.log('Modal opened, loading attendance data')
+      await loadTodayAttendance()
+    }
+  },
+  { immediate: true },
+)
 
 // Add this watch effect after your existing watches
 watch(
   () => attendanceStore.todayAttendance,
   (newAttendance) => {
+    console.log('todayAttendance store updated:', newAttendance)
     if (newAttendance) {
-      console.log('Today attendance updated:', newAttendance)
-      // This will ensure the modal reflects any changes to the attendance record
       todayAttendance.value = { ...newAttendance }
+      console.log('Local todayAttendance updated:', todayAttendance.value)
     }
   },
   { deep: true },
@@ -593,7 +657,11 @@ watch(
             <div class="flex flex-row">
               <div class="w-40 text-gray-500">Employee:</div>
               <div class="text-primaryColor">
-                {{ attendanceStore.todayAttendance?.full_name || '-' }}
+                {{
+                  attendanceStore.todayAttendance?.full_name ||
+                  currentUserEmployee.value?.full_name ||
+                  '-'
+                }}
               </div>
             </div>
 
@@ -601,20 +669,36 @@ watch(
             <div class="flex flex-row">
               <div class="w-40 text-gray-500">Department:</div>
               <div class="text-primaryColor">
-                {{ attendanceStore.todayAttendance?.department || '-' }}
+                {{
+                  attendanceStore.todayAttendance?.department ||
+                  currentUserEmployee.value?.department ||
+                  '-'
+                }}
               </div>
             </div>
 
             <!-- Time In -->
             <div class="flex flex-row">
               <div class="w-40 text-gray-500">Time In:</div>
-              <div class="text-green-600">{{ attendanceStore.todayAttendance?.signIn || '-' }}</div>
+              <div class="text-green-600">
+                {{
+                  attendanceStore.todayAttendance?.signIn ||
+                  attendanceStore.todayAttendance?.time_in ||
+                  '-'
+                }}
+              </div>
             </div>
 
             <!-- Time Out -->
             <div class="flex flex-row">
               <div class="w-40 text-gray-500">Time Out:</div>
-              <div class="text-red-400">{{ attendanceStore.todayAttendance?.signOut || '-' }}</div>
+              <div class="text-red-400">
+                {{
+                  attendanceStore.todayAttendance?.signOut ||
+                  attendanceStore.todayAttendance?.time_out ||
+                  '-'
+                }}
+              </div>
             </div>
 
             <!-- Status -->
@@ -689,63 +773,28 @@ watch(
         <div class="bg-gray-50 px-4 py-3">
           <div class="flex flex-col gap-4">
             <div class="flex w-full gap-4">
-              <!-- Modify Time In Button to show disabled state when approved -->
+              <!-- Time In Button -->
               <button
                 class="btn-primaryStyle flex-1"
-                :disabled="
-                  isProcessing ||
-                  !canTimeIn ||
-                  attendanceStore.todayAttendance?.approvalStatus === 'Approved'
-                "
+                :disabled="isProcessing || !canTimeIn"
                 @click="handleTimeIn"
               >
                 <span v-if="isProcessing">Processing...</span>
-                <span v-else-if="attendanceStore.todayAttendance?.approvalStatus === 'Approved'">
-                  Attendance Approved
-                </span>
-                <span
-                  v-else-if="
-                    attendanceStore.todayAttendance?.signIn &&
-                    attendanceStore.todayAttendance.signIn !== '-'
-                  "
-                >
-                  Already Timed In
-                </span>
-                <span v-else>Time In</span>
+                <span v-else>{{ canTimeIn ? 'Time In' : 'Already Timed In' }}</span>
               </button>
 
-              <!-- Modify Time Out Button to show disabled state when approved -->
+              <!-- Time Out Button -->
               <button
-                class="btn-errorStyle flex-1"
-                :disabled="
-                  isProcessing ||
-                  !canTimeOut ||
-                  attendanceStore.todayAttendance?.signOut !== '-' ||
-                  attendanceStore.todayAttendance?.approvalStatus === 'Approved'
+                v-if="
+                  attendanceStore.todayAttendance?.signIn ||
+                  attendanceStore.todayAttendance?.time_in
                 "
+                class="btn-errorStyle flex-1"
+                :disabled="isProcessing || !canTimeOut"
                 @click="handleTimeOut"
               >
                 <span v-if="isProcessing">Processing...</span>
-                <span v-else-if="attendanceStore.todayAttendance?.approvalStatus === 'Approved'">
-                  Attendance Approved
-                </span>
-                <span
-                  v-else-if="
-                    !attendanceStore.todayAttendance?.signIn ||
-                    attendanceStore.todayAttendance.signIn === '-'
-                  "
-                >
-                  Time In First
-                </span>
-                <span
-                  v-else-if="
-                    attendanceStore.todayAttendance?.signOut &&
-                    attendanceStore.todayAttendance.signOut !== '-'
-                  "
-                >
-                  Already Timed Out
-                </span>
-                <span v-else>Time Out</span>
+                <span v-else>{{ canTimeOut ? 'Time Out' : 'Already Timed Out' }}</span>
               </button>
             </div>
 

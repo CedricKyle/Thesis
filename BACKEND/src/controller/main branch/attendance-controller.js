@@ -170,7 +170,7 @@ const attendanceController = {
       await attendance.update(
         {
           approval_status: 'Approved',
-          approved_by,
+          approved_by: approved_by,
           approved_at: new Date(),
         },
         { transaction: t },
@@ -457,6 +457,167 @@ const attendanceController = {
 
       res.json(report)
     } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      })
+    }
+  },
+
+  // Add this new controller method
+  async addManualAttendance(req, res) {
+    const t = await sequelize.transaction()
+    try {
+      const { employee_id, date, time_in, time_out } = req.body
+
+      // Validate if the user has permission to add manual attendance
+      const requester = await Employee.findOne({
+        where: { employee_id: req.user.id },
+      })
+
+      if (
+        !requester ||
+        (requester.department !== 'HR Department' && requester.role !== 'Super Admin')
+      ) {
+        await t.rollback()
+        return res.status(403).json({
+          success: false,
+          message: 'Unauthorized to add manual attendance',
+        })
+      }
+
+      // Check for existing attendance
+      let attendance = await EmployeeAttendance.findOne({
+        where: {
+          employee_id,
+          date,
+          deleted_at: null,
+        },
+        transaction: t,
+      })
+
+      if (attendance) {
+        await t.rollback()
+        return res.status(400).json({
+          success: false,
+          message: 'Attendance record already exists for this date',
+        })
+      }
+
+      // Determine status based on time in
+      const [hours, minutes] = time_in.split(':').map(Number)
+      const status = hours > 9 || (hours === 9 && minutes > 0) ? 'Late' : 'Present'
+
+      // Calculate working hours
+      const timeInDate = new Date(`${date}T${time_in}`)
+      const timeOutDate = new Date(`${date}T${time_out}`)
+      const workingHours = Number(((timeOutDate - timeInDate) / (1000 * 60 * 60)).toFixed(2))
+      const overtime = Math.max(0, workingHours - 8)
+
+      // Create attendance record
+      attendance = await EmployeeAttendance.create(
+        {
+          employee_id,
+          date,
+          time_in,
+          time_out,
+          status,
+          working_hours: workingHours,
+          overtime_hours: overtime,
+          approval_status: 'Pending',
+          created_at: new Date(),
+          created_by: req.user.id,
+        },
+        { transaction: t },
+      )
+
+      await t.commit()
+      res.json({
+        success: true,
+        data: attendance,
+      })
+    } catch (error) {
+      await t.rollback()
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      })
+    }
+  },
+
+  // Add this new method to your attendanceController object
+  async getAllAttendance(req, res) {
+    try {
+      const attendance = await EmployeeAttendance.findAll({
+        where: {
+          deleted_at: null,
+        },
+        include: [
+          {
+            model: Employee,
+            as: 'employee',
+            attributes: ['full_name', 'department'],
+          },
+          {
+            model: Employee,
+            as: 'approver',
+            attributes: ['full_name'],
+            foreignKey: 'approved_by',
+          },
+        ],
+        order: [['date', 'DESC']],
+      })
+
+      res.json({
+        success: true,
+        data: attendance,
+      })
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      })
+    }
+  },
+
+  // Add this to attendanceController
+  async deleteAttendance(req, res) {
+    const t = await sequelize.transaction()
+    try {
+      const { id } = req.params
+
+      // Find the attendance record
+      const attendance = await EmployeeAttendance.findOne({
+        where: {
+          id,
+          deleted_at: null,
+        },
+        transaction: t,
+      })
+
+      if (!attendance) {
+        await t.rollback()
+        return res.status(404).json({
+          success: false,
+          message: 'Attendance record not found',
+        })
+      }
+
+      // Soft delete the record by setting deleted_at
+      await attendance.update(
+        {
+          deleted_at: new Date(),
+        },
+        { transaction: t },
+      )
+
+      await t.commit()
+      res.json({
+        success: true,
+        message: 'Attendance record deleted successfully',
+      })
+    } catch (error) {
+      await t.rollback()
       res.status(500).json({
         success: false,
         message: error.message,

@@ -70,60 +70,14 @@ const getDefaultAttendanceData = (employees) => {
 
 // Simplify mergeAttendanceWithEmployees
 const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
-  // Filter out only soft-deleted employees
+  // Filter out only active employees
   const filteredEmployees = employees.filter((emp) => !emp.deleted_at)
 
+  // Create default records for all employees
   const defaultAttendance = getDefaultAttendanceData(filteredEmployees)
 
-  // Filter and format attendance records
-  const filteredAttendance = attendanceRecords
-    .filter((record) => {
-      const employee = employees.find((emp) => emp.employee_id === record.employee_id)
-      return employee && !employee.deleted_at
-    })
-    .map((record) => {
-      // Determine status based on signIn and signOut
-      let status = 'Absent'
-      if (record.signIn && record.signIn !== '-') {
-        status = record.status || 'Present' // Use existing status or default to Present if signed in
-      }
-
-      // Calculate working hours
-      let workingHours = '-'
-      if (record.signIn && record.signOut && record.signIn !== '-' && record.signOut !== '-') {
-        try {
-          const [inHours, inMinutes] = record.signIn.split(':').map(Number)
-          const [outHours, outMinutes] = record.signOut.split(':').map(Number)
-
-          let inTotalMinutes = inHours * 60 + inMinutes
-          let outTotalMinutes = outHours * 60 + outMinutes
-
-          if (outTotalMinutes < inTotalMinutes) {
-            outTotalMinutes += 24 * 60
-          }
-
-          const diffMinutes = outTotalMinutes - inTotalMinutes
-
-          if (diffMinutes >= 0) {
-            const hours = Math.floor(diffMinutes / 60)
-            const minutes = diffMinutes % 60
-            workingHours = `${hours}:${minutes.toString().padStart(2, '0')}`
-          }
-        } catch (error) {
-          console.error('Error calculating working hours:', error)
-          workingHours = '-'
-        }
-      }
-
-      return {
-        ...record,
-        workingHours,
-        status, // Use the determined status
-      }
-    })
-
   // Create a map of existing attendance records by employee_id
-  const attendanceMap = new Map(filteredAttendance.map((record) => [record.employee_id, record]))
+  const attendanceMap = new Map(attendanceRecords.map((record) => [record.employee_id, record]))
 
   // Return either the actual attendance record or the default one
   return defaultAttendance.map((defaultRecord) => {
@@ -131,15 +85,14 @@ const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
     if (actualRecord) {
       return {
         ...actualRecord,
+        full_name: defaultRecord.full_name, // Use employee name from employee data
+        department: defaultRecord.department, // Use department from employee data
         workingHours: actualRecord.workingHours || '-',
         status: actualRecord.status || 'Absent',
         approvalStatus: actualRecord.approvalStatus || 'Pending',
       }
     }
-    return {
-      ...defaultRecord,
-      approvalStatus: 'Pending',
-    }
+    return defaultRecord
   })
 }
 
@@ -200,28 +153,24 @@ const columns = [
     formatter: (cell) => {
       const value = cell.getValue()
 
-      // If no value or explicitly set to '-', return dash
-      if (!value || value === '-') return '-'
-
-      // If it's already in HH:MM format, return as is
-      if (typeof value === 'string' && value.includes(':')) {
-        return value
+      // If no value, return dash
+      if (value === null || value === undefined || value === '-') {
+        return '-'
       }
 
-      // If it's a number (in minutes), convert to HH:MM format
+      // If it's a number, format it with 2 decimal places
       if (typeof value === 'number') {
-        const hours = Math.floor(value / 60)
-        const minutes = value % 60
-        return `${hours}:${minutes.toString().padStart(2, '0')}`
+        return value.toFixed(2)
       }
 
-      return '-'
+      // If it's already a string, return as is
+      return value
     },
     headerSort: true,
     sorter: (a, b) => {
       if (a === '-') return 1
       if (b === '-') return -1
-      return a.localeCompare(b)
+      return parseFloat(a) - parseFloat(b)
     },
   },
   {
@@ -245,9 +194,22 @@ const columns = [
     title: 'Approval Status',
     field: 'approvalStatus',
     formatter: (cell) => {
+      const record = cell.getRow().getData()
       const status = cell.getValue()
       const statusClass = approvalStatusClasses[status] || ''
-      return `<span class="px-2 py-1 text-xs font-medium rounded-full ${statusClass}">${status}</span>`
+
+      return `
+        <div class="flex flex-col gap-1">
+          <span class="px-2 py-1 text-xs font-medium rounded-full ${statusClass}">
+            ${status}
+          </span>
+          ${
+            status === 'Approved' && record.approved_by
+              ? `<span class="text-xs text-gray-600">by ${record.approved_by}</span>`
+              : ''
+          }
+        </div>
+      `
     },
   },
   {
@@ -362,7 +324,11 @@ const initTable = async () => {
   if (tableRef.value) {
     try {
       await employeeStore.loadEmployees()
-      attendanceStore.resetDailyAttendance()
+
+      // Only call resetDailyAttendance if it exists
+      if (typeof attendanceStore.resetDailyAttendance === 'function') {
+        attendanceStore.resetDailyAttendance()
+      }
 
       const initialData = mergeAttendanceWithEmployees(props.records, employeeStore.employees)
 
