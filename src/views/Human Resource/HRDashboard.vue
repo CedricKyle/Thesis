@@ -47,37 +47,34 @@ const filteredStats = computed(() => {
   // Create a map of attendance records by employee_id
   const attendanceMap = new Map(recordsForDate.map((record) => [record.employee_id, record]))
 
-  // Initialize counters
-  let present = 0
-  let absent = 0
-  let late = 0
-
   // Only count active employees (not soft-deleted) and exclude Super Admin
   const activeEmployees = employees.value.filter(
     (employee) => !employee.deleted_at && employee.role !== 'Super Admin',
   )
 
+  // Initialize counters
+  let present = 0
+  let absent = activeEmployees.length // Start with all employees as absent
+  let late = 0
+
   // Check each employee's attendance status
   activeEmployees.forEach((employee) => {
     const record = attendanceMap.get(employee.employee_id)
 
-    if (record) {
-      // Employee has an attendance record for this date
+    if (record && record.signIn !== '-') {
+      // Only count as present/late if they have signed in
       switch (record.status) {
         case 'Present':
         case 'Present + OT':
           present++
+          absent-- // Reduce absent count for each present employee
           break
         case 'Late':
         case 'Late + OT':
           late++
+          absent-- // Reduce absent count for each late employee
           break
-        default:
-          absent++
       }
-    } else {
-      // No attendance record means absent
-      absent++
     }
   })
 

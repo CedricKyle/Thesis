@@ -59,7 +59,7 @@ const showToast = (message, type = 'success') => {
 
 // Form handlers
 const handleFormSubmit = (formData) => {
-  newAttendance.value = formData
+  modalState.value.selectedRecord = formData
   modalState.value.confirm = true
 }
 
@@ -98,19 +98,36 @@ const viewRecord = (record) => {
   modalState.value.view = true
 }
 
-const handleDelete = (record) => {
+const handleDelete = async (record) => {
+  // Set the selected record and show the delete modal
   modalState.value.selectedRecord = record
   modalState.value.delete = true
 }
 
+// Add a confirmDelete function
 const confirmDelete = async () => {
   try {
-    await deleteRecord(modalState.value.selectedRecord.id)
+    const record = modalState.value.selectedRecord
+    if (!record) return
+
+    // Delete the record
+    await attendanceStore.deleteRecord(record.id)
+
+    // Update the local records
+    attendanceRecords.value = attendanceRecords.value.filter((r) => r.id !== record.id)
+
+    // Refresh the table
+    if (tableRef.value) {
+      await tableRef.value.refreshTableData()
+    }
+
+    // Show success message and close modal
+    showToast('Attendance record deleted successfully', 'success')
     modalState.value.delete = false
     modalState.value.selectedRecord = null
-    showToast('Record deleted successfully')
   } catch (error) {
-    showToast('Failed to delete record', 'error')
+    console.error('Error deleting record:', error)
+    showToast('Failed to delete attendance record', 'error')
   }
 }
 
@@ -185,43 +202,62 @@ const totalPages = computed(() =>
 
 const handleAttendanceSubmit = async (attendanceData) => {
   try {
-    console.log('Submitting attendance data:', attendanceData)
+    // Convert Proxy to plain object and ensure all properties are present
+    const plainData = {
+      full_name: attendanceData.full_name,
+      employee_id: attendanceData.employee_id,
+      department: attendanceData.department,
+      date: attendanceData.date,
+      signIn: attendanceData.signIn,
+      signOut: attendanceData.signOut,
+    }
+
+    console.log('Plain attendance data:', plainData)
+
+    // Calculate working hours
+    let workingHours = '-'
+    if (plainData.signIn && plainData.signOut) {
+      // Split hours and minutes for both times
+      const [inHours, inMinutes] = plainData.signIn.split(':').map(Number)
+      const [outHours, outMinutes] = plainData.signOut.split(':').map(Number)
+
+      // Convert to total minutes
+      const inTotalMinutes = inHours * 60 + inMinutes
+      const outTotalMinutes = outHours * 60 + outMinutes
+
+      // Calculate the difference in minutes
+      const diffMinutes = outTotalMinutes - inTotalMinutes
+
+      if (diffMinutes > 0) {
+        // Format the working hours
+        const hours = Math.floor(diffMinutes / 60)
+        const minutes = diffMinutes % 60
+        workingHours = `${hours}:${minutes.toString().padStart(2, '0')}`
+      }
+    }
 
     const record = {
       id: Date.now(),
-      full_name: attendanceData.employeeName,
-      employee_id: attendanceData.employeeId,
-      department: attendanceData.department,
-      date: new Date(attendanceData.date),
-      signIn: attendanceData.signIn || '-',
-      signOut: attendanceData.signOut || '-',
-      workingHours: calculateHours(attendanceData.signIn, attendanceData.signOut),
-      status: determineStatus(attendanceData.signIn),
+      full_name: plainData.full_name,
+      employee_id: plainData.employee_id,
+      department: plainData.department,
+      date: new Date(plainData.date),
+      signIn: plainData.signIn,
+      signOut: plainData.signOut,
+      workingHours: workingHours,
+      status: determineStatus(plainData.signIn),
     }
+
+    console.log('Final record to be added:', record)
 
     await addRecord(record)
-
-    // Clear the form by resetting newAttendance
-    newAttendance.value = {
-      employeeName: '',
-      employeeId: '',
-      department: '',
-      date: '',
-      signIn: '',
-      signOut: '',
-    }
-
-    // Close the confirmation modal
     modalState.value.confirm = false
-
-    // Show success message
     showToast('Attendance added successfully')
-
-    // Refresh the records
     await loadRecords()
+    resetForm()
   } catch (error) {
     console.error('Error saving attendance:', error)
-    showToast('Failed to add attendance', 'error')
+    showToast(error.message || 'Failed to add attendance', 'error')
   }
 }
 
@@ -236,6 +272,32 @@ const fetchAttendanceRecords = async () => {
     // Handle error
   }
 }
+
+// Add this helper function
+const calculateWorkingHours = (record) => {
+  if (!record) return '-'
+
+  // Convert Proxy to plain object if needed
+  const data = record.toJSON ? record.toJSON() : record
+
+  if (!data.signIn || !data.signOut) return '-'
+
+  const [inHours, inMinutes] = data.signIn.split(':').map(Number)
+  const [outHours, outMinutes] = data.signOut.split(':').map(Number)
+
+  const inTotalMinutes = inHours * 60 + inMinutes
+  const outTotalMinutes = outHours * 60 + outMinutes
+
+  const diffMinutes = outTotalMinutes - inTotalMinutes
+
+  if (diffMinutes <= 0) return '-'
+
+  const hours = Math.floor(diffMinutes / 60)
+  const minutes = diffMinutes % 60
+  return `${hours}:${minutes.toString().padStart(2, '0')}`
+}
+
+const tableRef = ref(null)
 </script>
 
 <template>
@@ -277,6 +339,7 @@ const fetchAttendanceRecords = async () => {
         </div>
 
         <AttendanceTable
+          ref="tableRef"
           :records="paginatedRecords"
           :sort-by="state.sortBy"
           :sort-desc="state.sortDesc"
@@ -335,7 +398,31 @@ const fetchAttendanceRecords = async () => {
     <dialog :open="modalState.delete" class="modal">
       <div class="modal-box bg-white text-black">
         <h3 class="font-bold text-lg">Confirm Delete</h3>
-        <p class="py-4">Are you sure you want to delete this record?</p>
+        <div
+          class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
+        />
+
+        <div class="py-4">
+          <p class="mb-4">Are you sure you want to delete this attendance record?</p>
+
+          <!-- Show record details -->
+          <div v-if="modalState.selectedRecord" class="bg-gray-50 p-4 rounded-md">
+            <div class="grid grid-cols-2 gap-2 text-sm">
+              <div class="text-gray-500">Employee:</div>
+              <div>{{ modalState.selectedRecord.full_name }}</div>
+
+              <div class="text-gray-500">Date:</div>
+              <div>{{ formatDate(modalState.selectedRecord.date) }}</div>
+
+              <div class="text-gray-500">Department:</div>
+              <div>{{ modalState.selectedRecord.department }}</div>
+
+              <div class="text-gray-500">Status:</div>
+              <div>{{ modalState.selectedRecord.status }}</div>
+            </div>
+          </div>
+        </div>
+
         <div class="modal-action">
           <button class="btn-errorStyle" @click="confirmDelete">Delete</button>
           <button class="btn-secondaryStyle" @click="modalState.delete = false">Cancel</button>
@@ -352,19 +439,37 @@ const fetchAttendanceRecords = async () => {
         />
 
         <div class="pt-4 flex flex-col gap-2">
-          <template
-            v-for="(key, index) in ['employeeName', 'department', 'date', 'signIn', 'signOut']"
-            :key="index"
-          >
-            <div class="flex flex-row">
-              <div class="w-40 text-gray-500">{{ key.charAt(0).toUpperCase() + key.slice(1) }}</div>
-              <div>{{ newAttendance?.[key] || '-' }}</div>
-            </div>
-          </template>
+          <div class="flex flex-row">
+            <div class="w-40 text-gray-500">Employee</div>
+            <div>{{ modalState.selectedRecord?.full_name || '-' }}</div>
+          </div>
+          <div class="flex flex-row">
+            <div class="w-40 text-gray-500">Department</div>
+            <div>{{ modalState.selectedRecord?.department || '-' }}</div>
+          </div>
+          <div class="flex flex-row">
+            <div class="w-40 text-gray-500">Date</div>
+            <div>{{ modalState.selectedRecord?.date || '-' }}</div>
+          </div>
+          <div class="flex flex-row">
+            <div class="w-40 text-gray-500">Time In</div>
+            <div>{{ modalState.selectedRecord?.signIn || '-' }}</div>
+          </div>
+          <div class="flex flex-row">
+            <div class="w-40 text-gray-500">Time Out</div>
+            <div>{{ modalState.selectedRecord?.signOut || '-' }}</div>
+          </div>
+          <div class="flex flex-row">
+            <div class="w-40 text-gray-500">Working Hours</div>
+            <div>{{ calculateWorkingHours(modalState.selectedRecord) }}</div>
+          </div>
         </div>
 
         <div class="modal-action">
-          <button @click="handleAttendanceSubmit(newAttendance)" class="btn-primaryStyle">
+          <button
+            @click="handleAttendanceSubmit(modalState.selectedRecord)"
+            class="btn-primaryStyle"
+          >
             Confirm
           </button>
           <button class="btn-secondaryStyle" @click="modalState.confirm = false">Cancel</button>

@@ -27,6 +27,10 @@ export const useAttendanceStore = defineStore('attendance', () => {
   // Add a new state property for report data
   const reportData = ref([])
 
+  // Add these new state properties after the existing ones
+  const todayAttendance = ref(null)
+  const isProcessing = ref(false)
+
   // Getters
   const filteredRecords = computed(() => {
     let records = [...attendanceRecords.value]
@@ -215,11 +219,57 @@ export const useAttendanceStore = defineStore('attendance', () => {
     }
   })
 
+  // Add this helper function at the top of the store
+  const checkExistingAttendance = (employeeId, date) => {
+    // Convert both dates to YYYY-MM-DD format for comparison
+    const targetDate = new Date(date).toISOString().split('T')[0]
+
+    return attendanceRecords.value.find((record) => {
+      const recordDate = new Date(record.date).toISOString().split('T')[0]
+      return record.employee_id === employeeId && recordDate === targetDate
+    })
+  }
+
   // Actions
   const addRecord = async (attendanceData) => {
     try {
+      // Check for existing attendance
+      const existingRecord = checkExistingAttendance(
+        attendanceData.employee_id,
+        attendanceData.date,
+      )
+
+      if (existingRecord && !existingRecord.id?.toString().startsWith('absent-')) {
+        throw new Error('Attendance record already exists for this employee on the selected date')
+      }
+
       // Generate a new ID for the record
       const newId = generateId()
+
+      // Calculate working hours and overtime
+      let workingHours = '-'
+      let overtime = 0
+
+      if (attendanceData.signIn && attendanceData.signOut) {
+        const [inHours, inMinutes] = attendanceData.signIn.split(':').map(Number)
+        const [outHours, outMinutes] = attendanceData.signOut.split(':').map(Number)
+
+        const inTotalMinutes = inHours * 60 + inMinutes
+        const outTotalMinutes = outHours * 60 + outMinutes
+        const diffMinutes = outTotalMinutes - inTotalMinutes
+
+        if (diffMinutes > 0) {
+          const hours = Math.floor(diffMinutes / 60)
+          const minutes = diffMinutes % 60
+          workingHours = `${hours}:${minutes.toString().padStart(2, '0')}`
+
+          // Calculate overtime if worked more than 8 hours
+          if (diffMinutes > 480) {
+            // 8 hours = 480 minutes
+            overtime = ((diffMinutes - 480) / 60).toFixed(2)
+          }
+        }
+      }
 
       // Create the new record with all required fields
       const newRecord = {
@@ -230,8 +280,14 @@ export const useAttendanceStore = defineStore('attendance', () => {
         date: new Date(attendanceData.date),
         signIn: attendanceData.signIn || '-',
         signOut: attendanceData.signOut || '-',
-        workingHours: calculateHours(attendanceData.signIn, attendanceData.signOut) || '-',
+        workingHours: workingHours,
+        overtime: overtime,
         status: determineStatus(attendanceData.signIn),
+      }
+
+      // If there's an existing 'absent' record, remove it
+      if (existingRecord?.id?.toString().startsWith('absent-')) {
+        attendanceRecords.value = attendanceRecords.value.filter((r) => r.id !== existingRecord.id)
       }
 
       // Update the local state
@@ -263,8 +319,18 @@ export const useAttendanceStore = defineStore('attendance', () => {
 
   async function deleteRecord(id) {
     try {
+      // Remove the record from the store
       attendanceRecords.value = attendanceRecords.value.filter((r) => r.id !== id)
+
+      // If this was today's attendance, clear it
+      if (todayAttendance.value?.id === id) {
+        todayAttendance.value = null
+      }
+
+      // Save the updated records to localStorage
       saveToLocalStorage()
+
+      return true
     } catch (error) {
       console.error('Error deleting record:', error)
       throw error
@@ -357,6 +423,195 @@ export const useAttendanceStore = defineStore('attendance', () => {
     }
   }
 
+  // Add these new actions
+  const recordTimeIn = async (employeeId) => {
+    isProcessing.value = true
+    try {
+      const today = new Date().toISOString().split('T')[0]
+
+      // Check for existing attendance using the helper function
+      const existingRecord = checkExistingAttendance(employeeId, new Date())
+      if (
+        existingRecord &&
+        existingRecord.signIn !== '-' &&
+        !existingRecord.id?.toString().startsWith('absent-')
+      ) {
+        throw new Error('Already timed in for today')
+      }
+
+      const currentTime = new Date().toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      })
+
+      // Get employee details from employee store
+      const employeeStore = useEmployeeStore()
+      const employee = employeeStore.employees.find((emp) => emp.employee_id === employeeId)
+
+      if (!employee) {
+        throw new Error('Employee not found')
+      }
+
+      // Create new attendance record
+      const newRecord = {
+        id: generateId(),
+        employee_id: employeeId,
+        full_name: employee.full_name,
+        department: employee.department,
+        date: new Date(),
+        signIn: currentTime,
+        signOut: '-',
+        workingHours: '-',
+        status: determineStatus(currentTime),
+      }
+
+      // Remove any existing attendance record for today
+      attendanceRecords.value = attendanceRecords.value.filter((record) => {
+        const recordDate = new Date(record.date).toISOString().split('T')[0]
+        return !(recordDate === today && record.employee_id === employeeId)
+      })
+
+      // Add to records array
+      attendanceRecords.value.push(newRecord)
+      todayAttendance.value = { ...newRecord }
+
+      // Save to localStorage
+      saveToLocalStorage()
+
+      return newRecord
+    } catch (error) {
+      throw error
+    } finally {
+      isProcessing.value = false
+    }
+  }
+
+  const recordTimeOut = async (employeeId) => {
+    isProcessing.value = true
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      const currentTime = new Date().toLocaleTimeString('en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      })
+
+      // Find today's attendance record
+      const recordIndex = attendanceRecords.value.findIndex(
+        (record) =>
+          record.employee_id === employeeId &&
+          new Date(record.date).toISOString().split('T')[0] === today,
+      )
+
+      if (recordIndex === -1) {
+        throw new Error('No time in record found for today')
+      }
+
+      const existingRecord = attendanceRecords.value[recordIndex]
+
+      if (existingRecord.signOut !== '-') {
+        throw new Error('Already timed out for today')
+      }
+
+      // Calculate working hours and overtime
+      const [inHours, inMinutes] = existingRecord.signIn.split(':').map(Number)
+      const [outHours, outMinutes] = currentTime.split(':').map(Number)
+
+      const inTotalMinutes = inHours * 60 + inMinutes
+      const outTotalMinutes = outHours * 60 + outMinutes
+      const workedMinutes = outTotalMinutes - inTotalMinutes
+
+      // Regular work day is 8 hours (480 minutes)
+      const regularMinutes = 480
+      const overtime =
+        workedMinutes > regularMinutes ? ((workedMinutes - regularMinutes) / 60).toFixed(2) : 0
+
+      // Format working hours
+      const hours = Math.floor(workedMinutes / 60)
+      const minutes = workedMinutes % 60
+      const workingHours = `${hours}:${minutes.toString().padStart(2, '0')}`
+
+      // Update the record
+      const updatedRecord = {
+        ...existingRecord,
+        signOut: currentTime,
+        workingHours: workingHours,
+        overtime: overtime,
+        status: determineStatus(existingRecord.signIn),
+      }
+
+      // Update in the array
+      attendanceRecords.value[recordIndex] = updatedRecord
+      todayAttendance.value = { ...updatedRecord }
+
+      // Save to localStorage
+      saveToLocalStorage()
+
+      return updatedRecord
+    } catch (error) {
+      throw error
+    } finally {
+      isProcessing.value = false
+    }
+  }
+
+  const getTodayAttendance = async (employeeId) => {
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      const record = attendanceRecords.value.find(
+        (record) =>
+          record.employee_id === employeeId &&
+          new Date(record.date).toISOString().split('T')[0] === today,
+      )
+
+      todayAttendance.value = record ? { ...record } : null // Create a new object to ensure reactivity
+      return todayAttendance.value
+    } catch (error) {
+      console.error("Error getting today's attendance:", error)
+      throw error
+    }
+  }
+
+  const getEmployeeAttendanceLogs = async (employeeId, limit = 30) => {
+    try {
+      // Get records for the employee, sorted by date descending
+      const logs = attendanceRecords.value
+        .filter((record) => record.employee_id === employeeId)
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, limit)
+
+      return logs
+    } catch (error) {
+      console.error('Error getting attendance logs:', error)
+      throw error
+    }
+  }
+
+  // Add this new function in the store
+  const clearTodayAttendance = async (employeeId) => {
+    try {
+      const today = new Date().toISOString().split('T')[0]
+
+      // Filter out today's attendance for the specific employee
+      attendanceRecords.value = attendanceRecords.value.filter((record) => {
+        const recordDate = new Date(record.date).toISOString().split('T')[0]
+        return !(recordDate === today && record.employee_id === employeeId)
+      })
+
+      // Reset today's attendance
+      todayAttendance.value = null
+
+      // Save to localStorage
+      saveToLocalStorage()
+    } catch (error) {
+      console.error("Error clearing today's attendance:", error)
+      throw error
+    }
+  }
+
   return {
     // State
     attendanceRecords,
@@ -390,5 +645,14 @@ export const useAttendanceStore = defineStore('attendance', () => {
     setReportFilters,
     getAttendanceByDateRange,
     resetReportFilters,
+
+    // Add these new returns
+    todayAttendance,
+    isProcessing,
+    recordTimeIn,
+    recordTimeOut,
+    getTodayAttendance,
+    getEmployeeAttendanceLogs,
+    clearTodayAttendance,
   }
 })

@@ -1,6 +1,7 @@
 <script setup>
 import { useAttendanceForm } from '@/composables/Admin Composables/Human Resource/useAttendanceForm'
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
+import { useAttendanceStore } from '@/stores/HR Management/attendanceStore'
 import { useAttendanceLogic } from '@/composables/Admin Composables/Human Resource/useAttendanceLogic'
 import { storeToRefs } from 'pinia'
 import { ref, computed, watch, onMounted } from 'vue'
@@ -19,6 +20,9 @@ const { newAttendance, formErrors, validateForm, resetForm } = useAttendanceForm
 // Get employees from employee store
 const employeeStore = useEmployeeStore()
 const { employees } = storeToRefs(employeeStore)
+
+// Initialize attendance store
+const attendanceStore = useAttendanceStore()
 
 // Map department names to match the employee store format
 const departmentMap = {
@@ -61,21 +65,45 @@ onMounted(async () => {
   isLoading.value = true
   try {
     await employeeStore.loadEmployees()
+    attendanceStore.loadRecords()
   } catch (error) {
-    console.error('Error loading employees:', error)
+    console.error('Error loading data:', error)
   } finally {
     isLoading.value = false
   }
 })
 
-const handleSubmit = () => {
+// Add this computed property
+const calculateOvertime = (signIn, signOut) => {
+  if (!signIn || !signOut) return 0
+
+  const [inHours, inMinutes] = signIn.split(':').map(Number)
+  const [outHours, outMinutes] = signOut.split(':').map(Number)
+
+  const inTime = inHours * 60 + inMinutes
+  const outTime = outHours * 60 + outMinutes
+
+  // Regular work hours (8 hours = 480 minutes)
+  const regularHours = 480
+
+  // Calculate total worked minutes
+  const workedMinutes = outTime - inTime
+
+  // If worked more than regular hours, calculate overtime
+  if (workedMinutes > regularHours) {
+    return ((workedMinutes - regularHours) / 60).toFixed(2)
+  }
+
+  return 0
+}
+
+const handleSubmit = async () => {
   if (!hasAvailableEmployees.value) {
     formErrors.value.employeeName = 'No employees available in selected department'
     return
   }
 
   if (validateForm()) {
-    // Find the selected employee from filteredEmployees
     const selectedEmployee = filteredEmployees.value.find(
       (emp) => emp.full_name === newAttendance.value.employeeName,
     )
@@ -85,18 +113,33 @@ const handleSubmit = () => {
       return
     }
 
-    // Important: Pass the complete data including employee_id
-    const attendanceData = {
-      employeeName: selectedEmployee.full_name,
-      employeeId: selectedEmployee.employee_id,
-      department: newAttendance.value.department,
-      date: newAttendance.value.date,
-      signIn: newAttendance.value.signIn,
-      signOut: newAttendance.value.signOut,
-      status: calculateStatus(newAttendance.value.signIn),
-    }
+    try {
+      // Calculate overtime
+      const overtime = calculateOvertime(newAttendance.value.signIn, newAttendance.value.signOut)
 
-    emit('showConfirm', attendanceData)
+      const attendanceData = {
+        full_name: selectedEmployee.full_name,
+        employee_id: selectedEmployee.employee_id,
+        department: newAttendance.value.department,
+        date: newAttendance.value.date,
+        signIn: newAttendance.value.signIn,
+        signOut: newAttendance.value.signOut,
+        overtime: overtime, // Add overtime field
+      }
+
+      emit('showConfirm', attendanceData)
+
+      formErrors.value = {
+        department: '',
+        employeeName: '',
+        date: '',
+        signIn: '',
+        signOut: '',
+      }
+    } catch (error) {
+      console.error('Error preparing attendance data:', error)
+      formErrors.value.employeeName = error.message || 'Error preparing attendance data'
+    }
   }
 }
 
@@ -114,6 +157,16 @@ function calculateStatus(signIn) {
 }
 
 const { calculateHours } = useAttendanceLogic() // Import if you need to calculate hours in this component
+
+const handleFormSubmit = async (attendanceData) => {
+  try {
+    // The record has already been added by the form component
+    // Just handle any UI updates or notifications here
+    showToastMessage('Attendance record added successfully', 'success')
+  } catch (error) {
+    showToastMessage(error.message || 'Failed to add attendance record', 'error')
+  }
+}
 </script>
 
 <template>
@@ -241,6 +294,16 @@ const { calculateHours } = useAttendanceLogic() // Import if you need to calcula
             <span v-if="formErrors.date" class="text-red-500 text-xs mt-1">
               {{ formErrors.date }}
             </span>
+          </div>
+
+          <!-- Overtime -->
+          <div v-if="newAttendance.signIn && newAttendance.signOut" class="form-control">
+            <legend class="fieldset-legend text-black !m-0 !text-xs justify-start">
+              Overtime Hours
+            </legend>
+            <div class="text-sm text-gray-600">
+              {{ calculateOvertime(newAttendance.signIn, newAttendance.signOut) }} hours
+            </div>
           </div>
         </fieldset>
       </div>

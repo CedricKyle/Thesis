@@ -36,15 +36,18 @@ const getDefaultAttendanceData = (employees) => {
   // Filter out soft-deleted employees and Super Admin
   const filteredEmployees = employees.filter((emp) => !emp.deleted_at && emp.role !== 'Super Admin')
 
+  const currentDate = new Date()
+
   return filteredEmployees.map((employee) => ({
-    id: `absent-${employee.employee_id}`,
+    id: employee.employee_id ? `absent-${employee.employee_id}` : `absent-${Date.now()}`, // Ensure id is always set
     employee_id: employee.employee_id,
     full_name: employee.full_name,
     department: employee.department,
     signIn: '-',
     signOut: '-',
     workingHours: '-',
-    status: 'Absent',
+    status: 'Absent', // Always default to Absent if no time in
+    date: currentDate,
   }))
 }
 
@@ -55,11 +58,52 @@ const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
 
   const defaultAttendance = getDefaultAttendanceData(filteredEmployees)
 
-  // Filter attendance records
-  const filteredAttendance = attendanceRecords.filter((record) => {
-    const employee = employees.find((emp) => emp.employee_id === record.employee_id)
-    return employee && !employee.deleted_at && employee.role !== 'Super Admin'
-  })
+  // Filter and format attendance records
+  const filteredAttendance = attendanceRecords
+    .filter((record) => {
+      const employee = employees.find((emp) => emp.employee_id === record.employee_id)
+      return employee && !employee.deleted_at && employee.role !== 'Super Admin'
+    })
+    .map((record) => {
+      // Determine status based on signIn and signOut
+      let status = 'Absent'
+      if (record.signIn && record.signIn !== '-') {
+        status = record.status || 'Present' // Use existing status or default to Present if signed in
+      }
+
+      // Calculate working hours
+      let workingHours = '-'
+      if (record.signIn && record.signOut && record.signIn !== '-' && record.signOut !== '-') {
+        try {
+          const [inHours, inMinutes] = record.signIn.split(':').map(Number)
+          const [outHours, outMinutes] = record.signOut.split(':').map(Number)
+
+          let inTotalMinutes = inHours * 60 + inMinutes
+          let outTotalMinutes = outHours * 60 + outMinutes
+
+          if (outTotalMinutes < inTotalMinutes) {
+            outTotalMinutes += 24 * 60
+          }
+
+          const diffMinutes = outTotalMinutes - inTotalMinutes
+
+          if (diffMinutes >= 0) {
+            const hours = Math.floor(diffMinutes / 60)
+            const minutes = diffMinutes % 60
+            workingHours = `${hours}:${minutes.toString().padStart(2, '0')}`
+          }
+        } catch (error) {
+          console.error('Error calculating working hours:', error)
+          workingHours = '-'
+        }
+      }
+
+      return {
+        ...record,
+        workingHours,
+        status, // Use the determined status
+      }
+    })
 
   // Create a map of existing attendance records by employee_id
   const attendanceMap = new Map(filteredAttendance.map((record) => [record.employee_id, record]))
@@ -94,22 +138,52 @@ const columns = [
   {
     title: 'Working Hours',
     field: 'workingHours',
-    formatter: (cell) => cell.getValue() || '-',
+    formatter: (cell) => {
+      const value = cell.getValue()
+
+      // If no value or explicitly set to '-', return dash
+      if (!value || value === '-') return '-'
+
+      // If it's already in HH:MM format, return as is
+      if (typeof value === 'string' && value.includes(':')) {
+        return value
+      }
+
+      // If it's a number (in minutes), convert to HH:MM format
+      if (typeof value === 'number') {
+        const hours = Math.floor(value / 60)
+        const minutes = value % 60
+        return `${hours}:${minutes.toString().padStart(2, '0')}`
+      }
+
+      return '-'
+    },
   },
   {
     title: 'Status',
     field: 'status',
     formatter: (cell) => {
       const status = cell.getValue()
-      const statusClass = statusClasses[status] || ''
-      return `<span class="px-2 py-1 text-xs font-medium rounded-full ${statusClass}">${status}</span>`
+      const record = cell.getRow().getData()
+
+      // Default to Absent if no sign in
+      let displayStatus = status
+      if (record.signIn === '-') {
+        displayStatus = 'Absent'
+      }
+
+      const statusClass = statusClasses[displayStatus] || ''
+      return `<span class="px-2 py-1 text-xs font-medium rounded-full ${statusClass}">${displayStatus}</span>`
     },
   },
   {
     title: 'Action',
     formatter: (cell) => {
       const record = cell.getRow().getData()
-      if (record.id.toString().startsWith('absent-')) {
+      // Check if id exists and is a string or can be converted to string
+      const isAbsentRecord = record.id && record.id.toString().startsWith('absent-')
+
+      if (isAbsentRecord) {
         // Only show check-in button for absent employees
         return `
           `
@@ -139,12 +213,18 @@ const columns = [
         </div>`
     },
     headerSort: false,
-    cellClick: (e, cell) => {
+    cellClick: async (e, cell) => {
       const record = cell.getRow().getData()
       if (e.target.closest('.view-button')) {
         emit('view', record)
       } else if (e.target.closest('.delete-button')) {
-        emit('delete', record)
+        try {
+          await emit('delete', record)
+          // Refresh the table after successful deletion
+          await refreshTableData()
+        } catch (error) {
+          console.error('Error deleting record:', error)
+        }
       } else if (e.target.closest('.check-in-button')) {
         emit('checkIn', record)
       }
@@ -152,54 +232,109 @@ const columns = [
   },
 ]
 
-const initTable = async () => {
-  if (tableRef.value) {
-    // Load employees first
-    await employeeStore.loadEmployees()
-
-    // Merge attendance records with employee data
-    const mergedData = mergeAttendanceWithEmployees(props.records, employeeStore.employees)
-
-    table = new Tabulator(tableRef.value, {
-      data: mergedData,
-      columns,
-      layout: 'fitColumns',
-      responsiveLayout: 'collapse',
-      height: '100%',
-      pagination: true,
-      paginationSize: 10,
-      paginationSizeSelector: [10, 25, 50],
-      placeholder: 'No attendance records available',
-      cssClass: 'custom-tabulator',
-    })
-
-    table.on('tableBuilt', () => {
-      isTableBuilt.value = true
-    })
+// Add a function to update localStorage when data changes
+const updateLocalStorage = (mergedData) => {
+  try {
+    localStorage.setItem('attendanceRecords', JSON.stringify(mergedData))
+  } catch (error) {
+    console.error('Error saving to localStorage:', error)
   }
 }
 
-onMounted(() => {
-  initTable()
-})
-
-// Update watch to handle merged data
+// Update the watch handler to include localStorage update
 watch(
   [() => props.records, () => employeeStore.employees],
   ([newRecords, employees]) => {
-    if (isTableBuilt.value && table && employees) {
-      const mergedData = mergeAttendanceWithEmployees(newRecords, employees)
-      table.setData(mergedData)
+    if (isTableBuilt.value && table) {
+      try {
+        const mergedData = mergeAttendanceWithEmployees(newRecords, employees)
+        table.setData(mergedData)
+        updateLocalStorage(mergedData) // Save to localStorage after updating table
+      } catch (error) {
+        console.error('Error updating table data:', error)
+      }
     }
   },
   { deep: true },
 )
 
+// Update initTable to load from localStorage if available
+const initTable = async () => {
+  if (tableRef.value) {
+    try {
+      await employeeStore.loadEmployees()
+
+      // Try to load from localStorage first
+      let initialData = []
+      const savedData = localStorage.getItem('attendanceRecords')
+      if (savedData) {
+        try {
+          initialData = JSON.parse(savedData)
+        } catch (error) {
+          console.error('Error parsing localStorage data:', error)
+        }
+      }
+
+      // If no saved data or error parsing, merge with current records
+      if (!initialData.length) {
+        initialData = mergeAttendanceWithEmployees(props.records, employeeStore.employees)
+      }
+
+      table = new Tabulator(tableRef.value, {
+        data: initialData,
+        columns,
+        layout: 'fitColumns',
+        responsiveLayout: 'collapse',
+        height: '100%',
+        pagination: true,
+        paginationSize: 10,
+        paginationSizeSelector: [10, 25, 50],
+        placeholder: 'No attendance records available',
+        cssClass: 'custom-tabulator',
+        dataLoaded: function () {
+          this.redraw(true)
+        },
+      })
+
+      table.on('tableBuilt', () => {
+        isTableBuilt.value = true
+      })
+    } catch (error) {
+      console.error('Error initializing table:', error)
+    }
+  }
+}
+
+// Simplify the mounted hook
+onMounted(() => {
+  initTable()
+})
+
+// Clean up on unmount
 onBeforeUnmount(() => {
   if (table) {
     table.destroy()
     table = null
+    isTableBuilt.value = false
   }
+})
+
+// Add this function to refresh the table data
+const refreshTableData = async () => {
+  if (isTableBuilt.value && table) {
+    try {
+      const mergedData = mergeAttendanceWithEmployees(props.records, employeeStore.employees)
+      table.setData(mergedData)
+      updateLocalStorage(mergedData)
+    } catch (error) {
+      console.error('Error refreshing table data:', error)
+    }
+  }
+}
+
+// Expose refreshTableData to parent components
+defineExpose({
+  refreshTableData,
 })
 </script>
 
