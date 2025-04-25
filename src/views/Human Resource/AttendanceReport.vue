@@ -8,7 +8,6 @@ import AttendanceReportSummary from '@/components/Admin Components/HR/Attendance
 import AttendanceReportTable from '@/components/Admin Components/HR/Attendance Report/AttendanceReportTable.vue'
 import { usePDFGenerator } from '@/composables/Admin Composables/Human Resource/usePDFGenerator'
 
-// Add this import for environment variables
 const isDevelopment = import.meta.env.MODE === 'development'
 
 // Store setup
@@ -31,37 +30,16 @@ const hasGeneratedReport = ref(false)
 onMounted(async () => {
   await employeeStore.loadEmployees()
   await attendanceStore.loadRecords()
-  // Reset report data on mount
   attendanceStore.resetReportFilters()
   hasGeneratedReport.value = false
-
-  console.log('Initial store state:', {
-    employees: employeeStore.employees,
-    attendanceRecords: attendanceStore.records,
-  })
 })
 
 const handleFormSubmit = (employeeId) => {
-  console.log('Form submitted with:', {
-    startDate: formData.value.startDate,
-    endDate: formData.value.endDate,
-    department: formData.value.department,
-    employeeId,
-  })
-
   attendanceStore.setReportFilters({
     startDate: formData.value.startDate,
     endDate: formData.value.endDate,
     department: formData.value.department,
     employeeId,
-  })
-
-  // Add logs to check the state after setting filters
-  console.log('After setting filters:', {
-    hasReport: hasGeneratedReport.value,
-    reportSummary: reportSummary.value,
-    reportLength: getAttendanceReport.value?.length,
-    attendanceReport: getAttendanceReport.value,
   })
 
   hasGeneratedReport.value = true
@@ -79,19 +57,6 @@ watch(
   { deep: true },
 )
 
-// Add a watch to monitor the reactive properties
-watch(
-  [reportSummary, getAttendanceReport],
-  ([newSummary, newReport]) => {
-    console.log('Report data updated:', {
-      summary: newSummary,
-      reportLength: newReport?.length,
-      report: newReport,
-    })
-  },
-  { deep: true },
-)
-
 const { generatePDF } = usePDFGenerator()
 </script>
 
@@ -99,12 +64,6 @@ const { generatePDF } = usePDFGenerator()
   <div class="attendance-report-container min-h-screen overflow-y-auto">
     <div class="report-container w-full flex flex-col justify-between gap-4 text-black">
       <AttendanceReportForm v-model:formData="formData" @submit="handleFormSubmit" />
-
-      <!-- Change process.env to use isDevelopment -->
-      <div v-if="isDevelopment" class="text-sm text-gray-500">
-        Has Generated Report: {{ hasGeneratedReport }} Has Summary: {{ !!reportSummary }} Report
-        Length: {{ getAttendanceReport?.length }}
-      </div>
 
       <AttendanceReportSummary
         v-if="hasGeneratedReport && reportSummary"

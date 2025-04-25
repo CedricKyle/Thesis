@@ -288,7 +288,7 @@ const cancelLogout = () => {
       </div>
 
       <div class="p-4 border-t border-gray-700/50">
-        <div class="dropdown dropdown-top dropdown-end w-full">
+        <div class="dropdown dropdown-top dropdown-hover dropdown-end w-full">
           <label
             tabindex="0"
             class="cursor-pointer flex items-center gap-3 p-4 hover:bg-gray-300/5 w-full"
@@ -314,34 +314,34 @@ const cancelLogout = () => {
           <!-- Dropdown Menu -->
           <ul
             tabindex="0"
-            class="dropdown-content menu menu-sm shadow-lg bg-white rounded-box w-52"
+            class="dropdown-content menu menu-sm shadow-lg bg-white rounded-box w-full mb-2"
           >
             <li>
-              <a
+              <button
                 class="flex items-center gap-2 text-black hover:bg-[rgba(217,217,217,0.15)]"
                 @click="router.push('/profile')"
               >
                 <User class="w-4 h-4" />
                 Profile
-              </a>
+              </button>
             </li>
             <li>
-              <a
+              <button
                 class="flex items-center gap-2 text-black hover:bg-[rgba(217,217,217,0.15)]"
                 @click="router.push('/settings')"
               >
                 <Settings class="w-4 h-4" />
                 Settings
-              </a>
+              </button>
             </li>
             <li>
-              <a
+              <button
                 class="flex items-center gap-2 text-red-400 hover:bg-[rgba(217,217,217,0.15)]"
                 @click="handleLogout"
               >
                 <LogOut class="w-4 h-4" />
                 Log out
-              </a>
+              </button>
             </li>
           </ul>
         </div>

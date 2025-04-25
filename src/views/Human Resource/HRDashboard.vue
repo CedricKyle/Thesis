@@ -198,6 +198,21 @@ const chartOptions = ref({
   },
 })
 
+// Add this computed property for task completion percentage
+const taskCompletionPercentage = computed(() => {
+  if (todoList.value.length === 0) return 0
+  const completedTasks = todoList.value.filter((task) => task.completed).length
+  return Math.round((completedTasks / todoList.value.length) * 100)
+})
+
+// Add this computed property for the progress color
+const progressColor = computed(() => {
+  const percentage = taskCompletionPercentage.value
+  if (percentage >= 80) return 'text-success'
+  if (percentage >= 50) return 'text-warning'
+  return 'text-error'
+})
+
 // Load data on component mount
 onMounted(() => {
   loadRecords()
@@ -308,14 +323,13 @@ onMounted(() => {
       <!--Todo Grid-->
       <div class="row-span-2 col-start-4">
         <div class="chart-todo-container flex w-full justify-between h-full">
-          <!--todo list container-->
           <div
             class="todo glass flex flex-col rounded-md shadow-md border border-black bg-white w-full h-full"
           >
             <div
               class="todo-content flex flex-col justify-center items-center max-h-[600px] overflow-y-auto mt-5 text-sm"
             >
-              <div class="todo-input w-[80%]">
+              <div class="todo-input w-[90%]">
                 <input
                   v-model="newTask"
                   @keyup.enter="addTask"
@@ -323,7 +337,24 @@ onMounted(() => {
                   placeholder="Add a new todo"
                   class="w-full border-1 rounded-md text-black border-gray-300 focus:outline-none p-2 placeholder:text-gray-500"
                 />
+                <div v-if="todoList.length > 0" class="flex items-center justify-start mt-2 gap-2">
+                  <div
+                    class="radial-progress"
+                    :class="progressColor"
+                    :style="`--value: ${taskCompletionPercentage}; --size: 3rem;`"
+                  >
+                    {{ taskCompletionPercentage }}%
+                  </div>
+                  <div class="text-xs text-gray-600">
+                    <p>
+                      Task Completed: {{ todoList.filter((t) => t.completed).length }}/{{
+                        todoList.length
+                      }}
+                    </p>
+                  </div>
+                </div>
               </div>
+
               <div class="todo-list w-[80%] flex flex-col overflow-y-auto">
                 <ul class="mt-5">
                   <li
@@ -336,14 +367,24 @@ onMounted(() => {
                         type="checkbox"
                         :checked="task.completed"
                         @change="toggleTask(index)"
-                        class="checkbox checkbox-xs checkbox-neutral"
+                        class="checkbox checkbox-xs"
+                        :class="task.completed ? 'checkbox-success' : 'checkbox-neutral'"
                       />
-                      <span :class="{ 'line-through': task.completed }" class="text-black">
+                      <span
+                        :class="{
+                          'line-through text-gray-400': task.completed,
+                          'text-black': !task.completed,
+                        }"
+                      >
                         {{ task.text }}
                       </span>
                     </div>
                     <div class="">
-                      <X class="w-4 h-4 text-black cursor-pointer" @click="removeTask(index)" />
+                      <X
+                        class="w-4 h-4 cursor-pointer"
+                        :class="task.completed ? 'text-gray-400' : 'text-black'"
+                        @click="removeTask(index)"
+                      />
                     </div>
                   </li>
                 </ul>
@@ -419,5 +460,14 @@ input[type='date']::-webkit-calendar-picker-indicator {
 .todo-list {
   scrollbar-width: thin;
   scrollbar-color: #888 #f1f1f1;
+}
+
+.radial-progress {
+  transition: all 0.3s ease;
+}
+
+/* Optional: Add hover effect */
+.radial-progress:hover {
+  transform: scale(1.05);
 }
 </style>

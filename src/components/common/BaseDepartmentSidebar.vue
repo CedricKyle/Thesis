@@ -3,7 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/Authentication/authStore'
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
-import { LogOut, User, Settings } from 'lucide-vue-next'
+import { LogOut, User, Settings, Timer, X } from 'lucide-vue-next'
 import profilePlaceholder from '@/assets/Images/profile-placeholder.png'
 
 const props = defineProps({
@@ -28,6 +28,8 @@ const currentTab = ref(null)
 const isLoading = ref(true)
 const currentUserEmployee = ref(null)
 const showLogoutModal = ref(false)
+const showAddAttendanceModal = ref(false)
+const currentDateTime = ref(new Date())
 
 const loadCurrentUserData = async () => {
   try {
@@ -179,13 +181,41 @@ const confirmLogout = async () => {
 const cancelLogout = () => {
   showLogoutModal.value = false
 }
+
+const handleAddAttendance = () => {
+  showAddAttendanceModal.value = true
+}
+
+// Update time every second
+setInterval(() => {
+  currentDateTime.value = new Date()
+}, 1000)
+
+// Computed properties for formatted date and time
+const formattedDate = computed(() => {
+  return currentDateTime.value.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  })
+})
+
+const formattedTime = computed(() => {
+  return currentDateTime.value.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+  })
+})
 </script>
 
 <template>
-  <div class="flex">
+  <div class="flex h-screen">
     <!-- Sidebar -->
-    <div class="w-80 h-screen p-4 bg-primaryColor flex flex-col justify-between">
-      <div>
+    <div class="w-80 bg-primaryColor flex flex-col overflow-hidden">
+      <div class="flex-1 overflow-y-auto scrollbar-hide">
         <!-- Logo Section -->
         <div class="logo-section flex items-center mb-5 gap-4">
           <div class="logo-content">
@@ -206,11 +236,11 @@ const cancelLogout = () => {
           <li v-for="item in visibleMenuItems" :key="item.name">
             <router-link
               :to="item.route"
-              class="flex items-center gap-3 p-3 hover:bg-primaryColor/20 rounded-md text-white"
+              class="flex items-center gap-3 p-3 hover:bg-primaryColor/20 rounded-xs text-white"
               :class="{ 'active-menu': currentTab === item.name }"
               @click="currentTab = item.name"
             >
-              <component :is="item.icon" class="w-5 h-5" />
+              <component :is="item.icon" class="w-6 h-6 mr-3" />
               {{ item.name }}
             </router-link>
           </li>
@@ -219,10 +249,11 @@ const cancelLogout = () => {
 
       <!-- User Profile Section at Bottom -->
       <div class="p-4 border-t border-gray-700/50">
-        <div class="dropdown dropdown-top dropdown-end">
+        <div class="dropdown dropdown-top dropdown-hover dropdown-end w-full">
+          <!-- Profile Button -->
           <label
             tabindex="0"
-            class="cursor-pointer flex items-center gap-3 p-4 hover:bg-gray-300/5 w-full"
+            class="cursor-pointer flex items-center gap-3 p-4 hover:bg-gray-300/15 hover:rounded-md"
           >
             <!-- Employee Image -->
             <div class="w-10 h-10 rounded-full overflow-hidden ring ring-gray-300">
@@ -243,43 +274,49 @@ const cancelLogout = () => {
               </p>
             </div>
           </label>
-          <!-- Dropdown Menu - Now appears above the profile -->
-          <ul
+
+          <!-- Menu Items -->
+          <div
             tabindex="0"
-            class="dropdown-content menu menu-sm shadow-lg bg-white rounded-box w-52 mb-2"
+            class="dropdown-content menu menu-sm shadow-lg bg-white rounded-box w-full mb-2"
           >
-            <!-- <li class="menu-title px-4 py-2">
-              <span class="text-xs font-thin text-black">Signed in as</span>
-              <span class="font-thin text-sm text-black">{{ navbarDisplayData.email }}</span>
-            </li> -->
             <li>
-              <a
-                class="flex items-center gap-2 text-black hover:bg-[rgba(217,217,217,0.15)]"
+              <button
                 @click="router.push('/profile')"
+                class="flex items-center gap-2 text-black hover:bg-[rgba(217,217,217,0.15)]"
               >
                 <User class="w-4 h-4" />
                 Profile
-              </a>
+              </button>
             </li>
             <li>
-              <a
-                class="flex items-center gap-2 text-black hover:bg-[rgba(217,217,217,0.15)]"
+              <button
                 @click="router.push('/settings')"
+                class="flex items-center gap-2 text-black hover:bg-[rgba(217,217,217,0.15)]"
               >
                 <Settings class="w-4 h-4" />
                 Settings
-              </a>
+              </button>
             </li>
             <li>
-              <a
-                class="flex items-center gap-2 text-red-400 hover:bg-[rgba(217,217,217,0.15)]"
+              <button
+                @click="handleAddAttendance"
+                class="flex items-center gap-2 text-black hover:bg-[rgba(217,217,217,0.15)]"
+              >
+                <Timer class="w-4 h-4" />
+                Add Attendance
+              </button>
+            </li>
+            <li>
+              <button
                 @click="handleLogout"
+                class="flex items-center gap-2 text-red-400 hover:bg-[rgba(217,217,217,0.15)]"
               >
                 <LogOut class="w-4 h-4" />
                 Log out
-              </a>
+              </button>
             </li>
-          </ul>
+          </div>
         </div>
       </div>
     </div>
@@ -315,6 +352,50 @@ const cancelLogout = () => {
             <LogOut class="h-4 w-4 text-white" />Logout
           </button>
           <button type="button" class="btn-secondaryStyle" @click="cancelLogout">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Attendance Modal -->
+  <div
+    v-if="showAddAttendanceModal"
+    class="fixed inset-0 z-[9999] overflow-y-auto backdrop-blur-sm"
+  >
+    <!-- Modal -->
+    <div class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0">
+      <div
+        class="relative transform overflow-hidden rounded-lg bg-white/80 backdrop-blur-md text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg"
+      >
+        <!-- Updated close button with Lucide icon -->
+        <button
+          @click="showAddAttendanceModal = false"
+          class="btn-secondaryStyle bg-transparent text-black hover:text-gray-500 absolute right-2 top-2"
+        >
+          <X class="h-5 w-5" />
+        </button>
+
+        <div class="bg-white/80 px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+          <div class="sm:flex sm:items-start">
+            <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
+              <h3 class="text-base font-semibold leading-6 text-gray-900">Add Attendance</h3>
+              <div class="flex items-center gap-2 text-gray-500">
+                <div class="stat-value text-sm font-thin">{{ formattedDate }}</div>
+                <div class="stat-value text-sm font-thin">{{ formattedTime }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="backdrop-blur-md px-4 py-3 sm:flex sm:px-6">
+          <div class="flex w-full flex-col lg:flex-row">
+            <div class="card rounded-box grid h-32 grow place-items-center">
+              <button class="btn-primaryStyle w-full h-20">Time In</button>
+            </div>
+            <div class="divider lg:divider-horizontal text-gray-900">OR</div>
+            <div class="card rounded-box grid h-32 grow place-items-center">
+              <button class="btn-errorStyle w-full h-20">Time Out</button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
