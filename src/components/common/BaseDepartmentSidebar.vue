@@ -399,6 +399,19 @@ watch(showAddAttendanceModal, async (newValue) => {
     await loadTodayAttendance()
   }
 })
+
+// Add this watch effect after your existing watches
+watch(
+  () => attendanceStore.todayAttendance,
+  (newAttendance) => {
+    if (newAttendance) {
+      console.log('Today attendance updated:', newAttendance)
+      // This will ensure the modal reflects any changes to the attendance record
+      todayAttendance.value = { ...newAttendance }
+    }
+  },
+  { deep: true },
+)
 </script>
 
 <template>
@@ -629,6 +642,46 @@ watch(showAddAttendanceModal, async (newValue) => {
               <div class="w-40 text-gray-500">Overtime:</div>
               <div class="text-blue-600">{{ attendanceStore.todayAttendance.overtime }} hours</div>
             </div>
+
+            <!-- Add Approval Status -->
+            <div class="flex flex-row">
+              <div class="w-40 text-gray-500">Approval Status:</div>
+              <div
+                :class="{
+                  'text-green-600': attendanceStore.todayAttendance?.approvalStatus === 'Approved',
+                  'text-yellow-600': attendanceStore.todayAttendance?.approvalStatus === 'Pending',
+                  'text-red-600': !attendanceStore.todayAttendance?.approvalStatus,
+                }"
+              >
+                {{ attendanceStore.todayAttendance?.approvalStatus || 'Not Submitted' }}
+              </div>
+            </div>
+
+            <!-- Add Approved By (if approved) -->
+            <div
+              class="flex flex-row"
+              v-if="attendanceStore.todayAttendance?.approvalStatus === 'Approved'"
+            >
+              <div class="w-40 text-gray-500">Approved By:</div>
+              <div class="text-gray-700">
+                {{ attendanceStore.todayAttendance?.approvedBy || '-' }}
+              </div>
+            </div>
+
+            <!-- Add Approval Time (if approved) -->
+            <div
+              class="flex flex-row"
+              v-if="attendanceStore.todayAttendance?.approvalStatus === 'Approved'"
+            >
+              <div class="w-40 text-gray-500">Approved At:</div>
+              <div class="text-gray-700">
+                {{
+                  attendanceStore.todayAttendance?.approvedAt
+                    ? new Date(attendanceStore.todayAttendance.approvedAt).toLocaleString()
+                    : '-'
+                }}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -636,13 +689,20 @@ watch(showAddAttendanceModal, async (newValue) => {
         <div class="bg-gray-50 px-4 py-3">
           <div class="flex flex-col gap-4">
             <div class="flex w-full gap-4">
-              <!-- Time In Button -->
+              <!-- Modify Time In Button to show disabled state when approved -->
               <button
                 class="btn-primaryStyle flex-1"
-                :disabled="isProcessing || !canTimeIn"
+                :disabled="
+                  isProcessing ||
+                  !canTimeIn ||
+                  attendanceStore.todayAttendance?.approvalStatus === 'Approved'
+                "
                 @click="handleTimeIn"
               >
                 <span v-if="isProcessing">Processing...</span>
+                <span v-else-if="attendanceStore.todayAttendance?.approvalStatus === 'Approved'">
+                  Attendance Approved
+                </span>
                 <span
                   v-else-if="
                     attendanceStore.todayAttendance?.signIn &&
@@ -654,15 +714,21 @@ watch(showAddAttendanceModal, async (newValue) => {
                 <span v-else>Time In</span>
               </button>
 
-              <!-- Time Out Button -->
+              <!-- Modify Time Out Button to show disabled state when approved -->
               <button
                 class="btn-errorStyle flex-1"
                 :disabled="
-                  isProcessing || !canTimeOut || attendanceStore.todayAttendance?.signOut !== '-'
+                  isProcessing ||
+                  !canTimeOut ||
+                  attendanceStore.todayAttendance?.signOut !== '-' ||
+                  attendanceStore.todayAttendance?.approvalStatus === 'Approved'
                 "
                 @click="handleTimeOut"
               >
                 <span v-if="isProcessing">Processing...</span>
+                <span v-else-if="attendanceStore.todayAttendance?.approvalStatus === 'Approved'">
+                  Attendance Approved
+                </span>
                 <span
                   v-else-if="
                     !attendanceStore.todayAttendance?.signIn ||

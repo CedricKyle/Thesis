@@ -669,7 +669,16 @@ export const useAttendanceStore = defineStore('attendance', () => {
           new Date(record.date).toISOString().split('T')[0] === today,
       )
 
-      todayAttendance.value = record ? { ...record } : null
+      // Make sure we're including all approval details
+      todayAttendance.value = record
+        ? {
+            ...record,
+            approvalStatus: record.approvalStatus || 'Pending',
+            approvedBy: record.approvedBy || null,
+            approvedAt: record.approvedAt || null,
+          }
+        : null
+
       return todayAttendance.value
     } catch (error) {
       console.error("Error getting today's attendance:", error)
@@ -717,25 +726,44 @@ export const useAttendanceStore = defineStore('attendance', () => {
   // Add new function for attendance approval
   const approveAttendance = async (recordId, approverDetails) => {
     try {
+      console.log('Received approver details (detailed):', {
+        name: approverDetails.name,
+        userId: approverDetails.userId,
+        timestamp: approverDetails.timestamp,
+      })
+
       const index = attendanceRecords.value.findIndex((r) => r.id === recordId)
       if (index === -1) {
         throw new Error('Attendance record not found')
       }
 
-      // Create the updated record
       const updatedRecord = {
         ...attendanceRecords.value[index],
         approvalStatus: 'Approved',
         approvedBy: approverDetails.name,
         approvedAt: approverDetails.timestamp,
       }
+      console.log('Record being saved (detailed):', {
+        id: updatedRecord.id,
+        approvalStatus: updatedRecord.approvalStatus,
+        approvedBy: updatedRecord.approvedBy,
+        approvedAt: updatedRecord.approvedAt,
+      })
 
       // Update the state
       attendanceRecords.value[index] = updatedRecord
 
-      // Save to localStorage
-      saveToLocalStorage()
+      // Update todayAttendance if this is today's record
+      if (todayAttendance.value && todayAttendance.value.id === recordId) {
+        todayAttendance.value = { ...updatedRecord }
+        console.log('Updated todayAttendance (detailed):', {
+          approvalStatus: todayAttendance.value.approvalStatus,
+          approvedBy: todayAttendance.value.approvedBy,
+          approvedAt: todayAttendance.value.approvedAt,
+        })
+      }
 
+      saveToLocalStorage()
       return updatedRecord
     } catch (error) {
       console.error('Error approving attendance:', error)

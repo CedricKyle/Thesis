@@ -404,11 +404,9 @@ const initTable = async () => {
 
 // Simplify the mounted hook
 onMounted(() => {
-  // Load records when component mounts
+  console.log('Auth store current user:', authStore.currentUser)
   attendanceStore.loadRecords()
   initTable()
-
-  // Add event listener for attendance updates
   window.addEventListener('attendance-updated', refreshTableData)
 })
 
@@ -471,33 +469,56 @@ const closeApprovalModal = () => {
 
 const confirmApproval = async () => {
   try {
+    // Get the current user's employee record from employeeStore
+    const currentEmployee = employeeStore.employees.find(
+      (emp) => emp.employee_id === authStore.currentUser.id,
+    )
+
+    if (!currentEmployee) {
+      throw new Error('Employee information not found')
+    }
+
     const approverDetails = {
-      name: authStore.currentUser.full_name,
+      name: currentEmployee.full_name, // Use the full name from employee store
       userId: authStore.currentUser.id,
       timestamp: new Date().toISOString(),
     }
+    console.log('Approver details before approval (detailed):', {
+      name: approverDetails.name,
+      userId: approverDetails.userId,
+      timestamp: approverDetails.timestamp,
+    })
 
     // Update the store
     const updatedRecord = await attendanceStore.approveAttendance(
       selectedRecord.value.id,
       approverDetails,
     )
-
-    // Refresh the entire table data to ensure consistency
-    await refreshTableData()
+    console.log('Updated record after approval (detailed):', {
+      id: updatedRecord.id,
+      approvalStatus: updatedRecord.approvalStatus,
+      approvedBy: updatedRecord.approvedBy,
+      approvedAt: updatedRecord.approvedAt,
+    })
 
     // Find the row after refresh
     const row = table.getRow(selectedRecord.value.id)
     if (row) {
-      row.update({
+      const rowData = {
         ...updatedRecord,
         approvalStatus: 'Approved',
         approvedBy: approverDetails.name,
         approvedAt: approverDetails.timestamp,
+      }
+      console.log('Row data being updated (detailed):', {
+        approvalStatus: rowData.approvalStatus,
+        approvedBy: rowData.approvedBy,
+        approvedAt: rowData.approvedAt,
       })
+      row.update(rowData)
     }
 
-    // Match the exact format used in the delete modal
+    await refreshTableData()
     showToast('Attendance record approved successfully', 'success')
     closeApprovalModal()
   } catch (error) {
