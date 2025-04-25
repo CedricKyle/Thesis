@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
-import { Plus, RefreshCw } from 'lucide-vue-next'
+import { Plus, RefreshCw, UndoDot } from 'lucide-vue-next'
 import { useRouter, useRoute } from 'vue-router'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import { storeToRefs } from 'pinia'
@@ -93,7 +93,7 @@ const columns = [
     field: 'deleted_at',
     formatter: function (cell) {
       const isDeleted = cell.getValue() !== null
-      return `<span class="badge ${isDeleted ? 'badge-error' : 'badge-success'}">${isDeleted ? 'Archived' : 'Active'}</span>`
+      return `<span class="badge ${isDeleted ? 'badge-outline badge-error h-5 text-xs' : 'badge-outline badge-success h-5 text-xs'}">${isDeleted ? 'Archived' : 'Active'}</span>`
     },
     width: 100,
   },
@@ -109,7 +109,8 @@ const columns = [
               ? `
             <button class="btn btn-sm btn-circle hover:bg-green-500 border-none btn-ghost restore-button" title="Restore Role">
               <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 12h18M12 3v18" />
+                <path d="M9 14l-4-4 4-4"/>
+                <path d="M5 10h11a4 4 0 1 1 0 8h-1"/>
               </svg>
             </button>
           `

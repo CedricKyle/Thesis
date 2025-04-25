@@ -33,16 +33,16 @@ const departmentMap = {
 const filteredEmployees = computed(() => {
   if (!newAttendance.value.department) return []
 
-  console.log('Selected Department:', newAttendance.value.department)
-  console.log('All Employees:', employees.value) // Debug log
-
-  return employees.value.filter((emp) => {
-    const matchesDepartment = emp.department === newAttendance.value.department
-    console.log(
-      `Employee ${emp.full_name}: Department ${emp.department} matches ${newAttendance.value.department}? ${matchesDepartment}`,
-    )
-    return matchesDepartment
-  })
+  return employees.value.filter(
+    (emp) =>
+      // Only include employees that:
+      // 1. Match the selected department
+      // 2. Are not soft-deleted (deleted_at is null)
+      // 3. Are not Super Admin
+      emp.department === newAttendance.value.department &&
+      !emp.deleted_at &&
+      emp.role !== 'Super Admin',
+  )
 })
 
 // Watch for department changes to reset selected employee
@@ -61,7 +61,6 @@ onMounted(async () => {
   isLoading.value = true
   try {
     await employeeStore.loadEmployees()
-    console.log('Loaded employees:', employees.value) // Debug log
   } catch (error) {
     console.error('Error loading employees:', error)
   } finally {

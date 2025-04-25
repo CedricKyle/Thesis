@@ -23,10 +23,10 @@ let table = null
 
 // Status styling configuration
 const statusClasses = {
-  Present: 'bg-green-100 text-green-800',
-  Absent: 'bg-red-100 text-red-800',
-  Late: 'bg-yellow-100 text-yellow-800',
-  'On Leave': 'bg-blue-100 text-blue-800',
+  Present: 'badge badge-outline badge-success',
+  Absent: 'badge badge-outline badge-error',
+  Late: 'badge badge-outline badge-warning',
+  'On Leave': 'badge badge-outline badge-info',
 }
 
 const commonButtonClasses = 'btn btn-sm btn-circle border-none btn-ghost'

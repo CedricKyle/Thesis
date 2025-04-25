@@ -7,6 +7,7 @@ import { useRouter } from 'vue-router'
 import { useToast } from '@/composables/Admin Composables/Human Resource/useToast'
 import Toast from '@/components/Admin Components/HR/Toast.vue'
 import { useAuthStore } from '@/stores/Authentication/authStore'
+import { UndoDot } from 'lucide-vue-next'
 
 const router = useRouter()
 const store = useEmployeeStore()
@@ -99,8 +100,8 @@ const columns = [
     formatter: function (cell) {
       const deleted_at = cell.getValue()
       return deleted_at
-        ? `<span class="badge badge-ghost">Archived</span>`
-        : `<span class="badge badge-success">Active</span>`
+        ? `<span class="badge badge-outline badge-error h-5  text-xs">Archived</span>`
+        : `<span class="badge badge-outline badge-success h-5 text-xs">Active</span>`
     },
     width: 100,
   },
@@ -121,7 +122,8 @@ const columns = [
             </button>
             <button class="btn btn-sm btn-circle hover:bg-green-500 border-none btn-ghost restore-button" title='Restore Employee'>
               <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 12h1m8-9v1m8 8h1M5.6 5.6l.7.7m12.1-.7-.7.7M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                <path d="M9 14l-4-4 4-4"/>
+                <path d="M5 10h11a4 4 0 1 1 0 8h-1"/>
               </svg>
             </button>
           </div>`
