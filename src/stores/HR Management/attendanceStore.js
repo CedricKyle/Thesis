@@ -300,6 +300,18 @@ export const useAttendanceStore = defineStore('attendance', () => {
       if (response.data.success) {
         // Remove the record from the local state
         attendanceRecords.value = attendanceRecords.value.filter((record) => record.id !== recordId)
+
+        // Clear today's attendance for the specific employee
+        const deletedRecord = attendanceRecords.value.find((record) => record.id === recordId)
+        if (deletedRecord) {
+          await clearTodayAttendance(deletedRecord.employee_id)
+        }
+
+        // Reset the todayAttendance state for this employee
+        if (todayAttendance.value?.id === recordId) {
+          todayAttendance.value = null
+        }
+
         return response.data
       }
     } catch (error) {
@@ -412,12 +424,6 @@ export const useAttendanceStore = defineStore('attendance', () => {
   const recordTimeIn = async (employee_id) => {
     isProcessing.value = true
     try {
-      // Check for existing attendance first
-      const todayAttendance = await getTodayAttendance(employee_id)
-      if (todayAttendance) {
-        throw new Error('Employee already has an attendance record for today')
-      }
-
       const response = await axios.post(
         '/api/attendance/time-in',
         { employee_id },
@@ -510,8 +516,17 @@ export const useAttendanceStore = defineStore('attendance', () => {
         return !(recordDate === today && record.employee_id === employeeId)
       })
 
-      // Reset today's attendance
-      todayAttendance.value = null
+      // Reset today's attendance if it belongs to this employee
+      if (todayAttendance.value?.employee_id === employeeId) {
+        todayAttendance.value = null
+      }
+
+      // Emit an event to notify components about the attendance change
+      window.dispatchEvent(
+        new CustomEvent('attendance-updated', {
+          detail: { employeeId },
+        }),
+      )
     } catch (error) {
       console.error("Error clearing today's attendance:", error)
       throw error
@@ -693,5 +708,8 @@ export const useAttendanceStore = defineStore('attendance', () => {
 
     // Add this new function
     resetDailyAttendance,
+
+    // Add this new function
+    canReenterAttendance,
   }
 })

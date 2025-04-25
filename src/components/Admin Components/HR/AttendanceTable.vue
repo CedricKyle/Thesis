@@ -31,6 +31,8 @@ let table = null
 // Add these refs after other refs
 const showApprovalModal = ref(false)
 const selectedRecord = ref(null)
+const showDeleteModal = ref(false)
+const recordToDelete = ref(null)
 
 // Status styling configuration
 const statusClasses = {
@@ -283,10 +285,10 @@ const columns = [
             showToast('Cannot delete an approved attendance record', 'error')
             return
           }
-          await emit('delete', record)
-          await refreshTableData()
+          openDeleteModal(record)
         } catch (error) {
-          console.error('Error deleting record:', error)
+          console.error('Error preparing deletion:', error)
+          showToast(error.message || 'Failed to prepare deletion', 'error')
         }
       }
     },
@@ -391,26 +393,20 @@ onBeforeUnmount(() => {
 const refreshTableData = async () => {
   if (isTableBuilt.value && table) {
     try {
-      // Reset daily attendance before refreshing
-      attendanceStore.resetDailyAttendance()
+      // Load fresh data
+      await attendanceStore.loadRecords()
 
-      // Get the current table data
-      const currentData = table.getData()
+      // Get fresh employee data
+      await employeeStore.loadEmployees()
 
-      // Update only the specific record in the current data
-      const updatedData = currentData.map((record) => {
-        const storeRecord = attendanceStore.attendanceRecords.find((r) => r.id === record.id)
-        if (storeRecord) {
-          return {
-            ...record,
-            ...storeRecord,
-          }
-        }
-        return record
-      })
+      // Merge attendance with employees to show correct status
+      const mergedData = mergeAttendanceWithEmployees(
+        attendanceStore.attendanceRecords,
+        employeeStore.employees,
+      )
 
-      // Update the table with the modified data
-      table.setData(updatedData)
+      // Update the table with the merged data
+      table.setData(mergedData)
     } catch (error) {
       console.error('Error refreshing table data:', error)
     }
@@ -493,42 +489,53 @@ const confirmApproval = async () => {
   }
 }
 
-const confirmDelete = async () => {
-  try {
-    const record = selectedRecord.value
-    if (!record) return
+const openDeleteModal = (record) => {
+  recordToDelete.value = record
+  showDeleteModal.value = true
+}
 
-    // Set the last action before deletion
-    authStore.setLastAction('ATTENDANCE_DELETE')
+const closeDeleteModal = () => {
+  showDeleteModal.value = false
+  recordToDelete.value = null
+}
+
+const handleDelete = async () => {
+  try {
+    const record = recordToDelete.value
+    if (!record) return
 
     // Delete the record
     const result = await attendanceStore.deleteRecord(record.id)
 
     if (result.success) {
+      // Clear today's attendance for this employee
+      await attendanceStore.clearTodayAttendance(record.employee_id)
+
       // Refresh the table data
       await refreshTableData()
 
       // Show success message
-      showToast('Attendance record deleted successfully', 'success')
+      showToast(
+        'Attendance record deleted successfully. Employee can now re-enter attendance.',
+        'success',
+      )
 
-      // Close modal if open
-      showApprovalModal.value = false
-      selectedRecord.value = null
+      // Close modal
+      closeDeleteModal()
 
-      // Dispatch update event
-      window.dispatchEvent(new CustomEvent('attendance-updated'))
+      // Dispatch custom event with employee details
+      window.dispatchEvent(
+        new CustomEvent('attendance-deleted', {
+          detail: {
+            employeeId: record.employee_id,
+            date: record.date,
+          },
+        }),
+      )
     }
-
-    // Reset the last action after a delay
-    setTimeout(() => {
-      authStore.setLastAction(null)
-    }, 1000)
-
-    return true
   } catch (error) {
     console.error('Error deleting record:', error)
     showToast('Failed to delete attendance record', 'error')
-    return false
   }
 }
 </script>
@@ -601,6 +608,51 @@ const confirmDelete = async () => {
       <div class="modal-action justify-center mt-6">
         <button class="btn-secondaryStyle" @click="closeApprovalModal">Cancel</button>
         <button class="btn-primaryStyle" @click="confirmApproval">Approve</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <input type="checkbox" :checked="showDeleteModal" class="modal-toggle" />
+  <div class="modal backdrop-blur-sm">
+    <div class="modal-box bg-white">
+      <!-- Header -->
+      <div class="text-center mb-5">
+        <h3 class="font-bold text-lg text-gray-800">Delete Attendance Record</h3>
+        <p class="text-sm text-gray-600">Are you sure you want to delete this attendance record?</p>
+      </div>
+
+      <!-- Content -->
+      <div v-if="selectedRecord" class="space-y-4">
+        <!-- Employee Info Section -->
+        <div class="bg-gray-50 rounded-lg p-4 space-y-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <p class="text-xs text-gray-600">Employee Name</p>
+              <p class="font-medium text-gray-800">{{ selectedRecord.full_name }}</p>
+            </div>
+            <div>
+              <p class="text-xs text-gray-600">Department</p>
+              <p class="font-medium text-gray-800">{{ selectedRecord.department }}</p>
+            </div>
+          </div>
+
+          <!-- Warning Message -->
+          <div class="text-sm text-red-600 text-center flex items-center justify-center gap-2">
+            <span class="flex items-center gap-2">
+              <TriangleAlert class="w-4 h-4" />
+              After deletion, the employee will be able to re-enter their attendance for today.
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer Actions -->
+      <div class="modal-action justify-center mt-6">
+        <button class="btn-secondaryStyle" @click="closeDeleteModal">Cancel</button>
+        <button class="btn-primaryStyle bg-red-500 hover:bg-red-600" @click="handleDelete">
+          Delete
+        </button>
       </div>
     </div>
   </div>
