@@ -101,7 +101,7 @@ export const useAttendanceStore = defineStore('attendance', () => {
     // Create a map of existing attendance records
     const attendanceMap = new Map(
       attendanceRecords.value
-        .filter((record) => record.employeeId === reportFilters.value.employeeId)
+        .filter((record) => record.employee_id === reportFilters.value.employeeId)
         .map((record) => [new Date(record.date).toDateString(), record]),
     )
 
@@ -120,19 +120,19 @@ export const useAttendanceStore = defineStore('attendance', () => {
           const [inHours, inMinutes] = existingRecord.signIn.split(':').map(Number)
           const [outHours, outMinutes] = existingRecord.signOut.split(':').map(Number)
 
-          const inTime = parseInt(inHours) * 60 + parseInt(inMinutes)
-          const outTime = parseInt(outHours) * 60 + parseInt(outMinutes)
+          const inTime = inHours * 60 + inMinutes
+          const outTime = outHours * 60 + outMinutes
 
           // Only calculate hours if sign out is after sign in
           if (outTime > inTime) {
-            workingHours = (outTime - inTime) / 60
+            workingHours = ((outTime - inTime) / 60).toFixed(2)
           }
         }
 
         allDates.push({
           ...existingRecord,
           date: new Date(currentDate).toLocaleDateString(),
-          workingHours: parseFloat(workingHours.toFixed(2)),
+          workingHours: workingHours || 0,
           status: existingRecord.status || determineStatus(existingRecord.signIn),
         })
       } else {
@@ -143,7 +143,7 @@ export const useAttendanceStore = defineStore('attendance', () => {
           signOut: '-',
           workingHours: 0,
           status: 'Absent',
-          employeeId: reportFilters.value.employeeId,
+          employee_id: reportFilters.value.employeeId,
         })
       }
 
@@ -159,41 +159,51 @@ export const useAttendanceStore = defineStore('attendance', () => {
 
     const records = getAttendanceReport.value
     const totalDays = records.length
-    const totalHours = records.reduce((sum, record) => {
-      return sum + (Number(record.workingHours) || 0)
-    }, 0)
-
-    // Initialize counters
+    let totalHours = 0
     let presentDays = 0
     let lateDays = 0
     let absentDays = 0
     let onLeaveDays = 0
     let totalOvertime = 0
 
-    // Count each record only once
     records.forEach((record) => {
-      // Count attendance status
-      if (record.status === 'Present') presentDays++
-      else if (record.status === 'Late') lateDays++
-      else if (record.status === 'Absent') absentDays++
-      else if (record.status === 'On Leave') onLeaveDays++
+      // Calculate total hours and count days
+      if (record.signIn !== '-' && record.signOut !== '-') {
+        const [inHours, inMinutes] = record.signIn.split(':').map(Number)
+        const [outHours, outMinutes] = record.signOut.split(':').map(Number)
 
-      // Calculate overtime
-      if (record.signOut) {
-        const [hours, minutes] = record.signOut.split(':')
-        const signOutTime = parseInt(hours) * 60 + parseInt(minutes)
-        const standardEndTime = 17 * 60
-        const overtimeThreshold = 17 * 60 + 20
+        const inTime = inHours * 60 + inMinutes
+        const outTime = outHours * 60 + outMinutes
 
-        if (signOutTime > overtimeThreshold) {
-          const overtimeMinutes = signOutTime - standardEndTime
-          totalOvertime += Math.round((overtimeMinutes / 60) * 10) / 10
+        if (outTime > inTime) {
+          const hours = (outTime - inTime) / 60
+          totalHours += hours
+
+          // Calculate overtime (if worked more than 8 hours)
+          if (hours > 8) {
+            totalOvertime += hours - 8
+          }
         }
+      }
+
+      // Count status
+      switch (record.status) {
+        case 'Present':
+          presentDays++
+          break
+        case 'Late':
+          lateDays++
+          break
+        case 'Absent':
+          absentDays++
+          break
+        case 'On Leave':
+          onLeaveDays++
+          break
       }
     })
 
-    // Create summary object
-    const summary = {
+    return {
       'Total Days': totalDays,
       'Total Hours': totalHours.toFixed(2),
       'Present Days': presentDays,
@@ -203,8 +213,6 @@ export const useAttendanceStore = defineStore('attendance', () => {
       'Average Hours/Day': (totalHours / (presentDays + lateDays) || 0).toFixed(2),
       'Total Overtime': Math.round(totalOvertime * 10) / 10,
     }
-
-    return summary
   })
 
   // Actions
@@ -334,7 +342,7 @@ export const useAttendanceStore = defineStore('attendance', () => {
       return (
         recordDate >= new Date(startDate) &&
         recordDate <= new Date(endDate) &&
-        record.employeeId === employeeId
+        record.employee_id === employeeId
       )
     })
   }

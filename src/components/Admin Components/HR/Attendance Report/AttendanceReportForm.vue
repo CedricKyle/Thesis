@@ -32,7 +32,9 @@ const filteredEmployees = computed(() => {
     employees: employees.value,
   })
 
-  return employees.value.filter((emp) => emp.department === props.formData.department)
+  return employees.value.filter(
+    (emp) => emp.department === props.formData.department && !emp.deleted_at,
+  )
 })
 
 const departments = [
