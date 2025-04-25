@@ -11,6 +11,10 @@ import Toast from '@/components/Admin Components/HR/Toast.vue'
 import { useResumeUpload } from '@/composables/Admin Composables/Human Resource/useResumeUpload'
 import { useToast } from '@/composables/Admin Composables/Human Resource/useToast'
 import { useRoute } from 'vue-router'
+import {
+  DEPARTMENTS,
+  permissionGroups,
+} from '@/composables/Admin Composables/User & Role/role/permissionsId'
 
 // Store and composable setup
 const store = useEmployeeStore()
@@ -61,24 +65,82 @@ const newEmployee = ref({
   },
 })
 
-const departmentJobs = {
-  'HR Department': ['HR Manager', 'HR Assistant', 'HR Specialist'],
-  'Finance Department': ['Accountant', 'Financial Analyst', 'Bookkeeper'],
-  'Sales Department': ['Sales Manager', 'Sales Representative', 'Sales Coordinator'],
-  'Customer Service Department': ['Customer Service Representative', 'Customer Service Manager'],
-  'Supply Chain Department': [
-    'Supply Chain Manager',
-    'Inventory Specialist',
-    'Logistics Coordinator',
-  ],
+// Define department-specific roles based on permissions
+const getDepartmentRoles = (department) => {
+  if (department === DEPARTMENTS.ADMIN) return ['Admin']
+
+  const departmentGroup = permissionGroups.find((group) => group.department === department)
+  if (!departmentGroup) return []
+
+  // Create roles based on permissions
+  const roles = []
+  if (departmentGroup.permissions.some((p) => p.name === 'Full Access')) {
+    roles.push(`${departmentGroup.name.replace(' Department', '')} Manager`)
+  }
+  roles.push(`${departmentGroup.name.replace(' Department', '')} Staff`)
+
+  return roles
 }
 
-const availableJobs = computed(() => {
-  if (newEmployee.value.department === 'Admin Department') {
-    return ['Administrator']
+// Define job titles based on roles
+const getJobTitles = (department, role) => {
+  if (department === DEPARTMENTS.ADMIN) return ['Administrator']
+
+  const departmentName = department.replace(' Department', '')
+
+  if (role?.includes('Manager')) {
+    return [`${departmentName} Manager`]
   }
-  return departmentJobs[newEmployee.value.department] || []
+
+  // Staff-level job titles
+  const staffTitles = {
+    [DEPARTMENTS.HR]: ['HR Assistant'],
+    [DEPARTMENTS.FINANCE]: ['Accountant', 'Accounting Assistant'],
+    [DEPARTMENTS.SALES]: ['Sales Representative', 'Sales Assistant'],
+    [DEPARTMENTS.CRM]: ['Customer Service Representative', 'Customer Service Assistant'],
+    [DEPARTMENTS.SCM]: ['Inventory Specialist'],
+  }
+
+  return staffTitles[department] || []
+}
+
+// Add computed properties for available roles and jobs
+const availableRoles = computed(() => {
+  if (!newEmployee.value.department) return []
+  return getDepartmentRoles(newEmployee.value.department)
 })
+
+// Update the availableJobs computed property
+const availableJobs = computed(() => {
+  if (!newEmployee.value.department || !newEmployee.value.role) return []
+  return getJobTitles(newEmployee.value.department, newEmployee.value.role)
+})
+
+// Update the department watcher
+watch(
+  () => newEmployee.value.department,
+  (newDepartment) => {
+    if (newDepartment === DEPARTMENTS.ADMIN) {
+      newEmployee.value.jobTitle = 'Administrator'
+      newEmployee.value.role = 'Admin'
+    } else {
+      // Reset role and job title when department changes
+      newEmployee.value.role = ''
+      newEmployee.value.jobTitle = ''
+    }
+  },
+)
+
+// Add watch for role changes
+watch(
+  () => newEmployee.value.role,
+  (newRole) => {
+    // Reset job title when role changes
+    if (newRole && newEmployee.value.department !== DEPARTMENTS.ADMIN) {
+      newEmployee.value.jobTitle = ''
+    }
+  },
+)
 
 // Add this computed property in the script setup
 const departments = computed(() => {
@@ -99,19 +161,6 @@ const departments = computed(() => {
 })
 
 // Watchers
-watch(
-  () => newEmployee.value.department,
-  (newDepartment) => {
-    if (newDepartment === 'Admin Department') {
-      newEmployee.value.jobTitle = 'Administrator'
-      newEmployee.value.role = 'Admin'
-    } else {
-      newEmployee.value.jobTitle = ''
-      newEmployee.value.role = 'Employee'
-    }
-  },
-)
-
 watch(profileImage, (newValue) => {
   // We don't need to store the base64 in newEmployee anymore
   console.log('Profile image updated')
@@ -201,7 +250,7 @@ const handleFormSubmit = async () => {
     if (!newEmployee.value.department) {
       formErrors.value.professional.department = 'Department is required'
     }
-    if (!newEmployee.value.jobTitle && newEmployee.value.department !== 'Admin Department') {
+    if (!newEmployee.value.jobTitle && newEmployee.value.department !== DEPARTMENTS.ADMIN) {
       formErrors.value.professional.jobTitle = 'Job Title is required'
     }
     if (!newEmployee.value.role) {
@@ -333,7 +382,7 @@ const createEmployeeData = (employee) => {
       lastName: employee.lastName.trim(),
       department: employee.department.trim(),
       jobTitle:
-        employee.department === 'Admin Department' ? 'Administrator' : employee.jobTitle.trim(),
+        employee.department === DEPARTMENTS.ADMIN ? 'Administrator' : employee.jobTitle.trim(),
       role: employee.role.trim(),
       dateOfHire: formatDate(employee.dateOfHire),
       dateOfBirth: formatDate(employee.dateOfBirth),
@@ -486,7 +535,8 @@ onMounted(async () => {
         <div class="title font-bold text-md">Professional Information</div>
 
         <div class="form-control flex flex-col gap-5">
-          <div class="">
+          <!-- Department -->
+          <div>
             <legend class="fieldset-legend text-black text-xs justify-start">
               Department <span class="text-red-500">*</span>
             </legend>
@@ -505,8 +555,29 @@ onMounted(async () => {
             </span>
           </div>
 
+          <!-- Role -->
+          <div>
+            <legend class="fieldset-legend text-black text-xs justify-start">
+              Role <span class="text-red-500">*</span>
+            </legend>
+            <select
+              v-model="newEmployee.role"
+              class="select focus:outline-none bg-white border-black text-black"
+              :class="{ 'border-red-500': formErrors.professional.role }"
+              :disabled="!newEmployee.department"
+            >
+              <option disabled value="">Select Role</option>
+              <option v-for="role in availableRoles" :key="role" :value="role">
+                {{ role }}
+              </option>
+            </select>
+            <span v-if="formErrors.professional.role" class="text-red-500 text-xs mt-1">
+              {{ formErrors.professional.role }}
+            </span>
+          </div>
+
           <!-- Job Title field - Only show if not Admin Department -->
-          <div v-if="newEmployee.department !== 'Admin Department'">
+          <div v-if="newEmployee.department !== DEPARTMENTS.ADMIN">
             <legend class="fieldset-legend text-black text-xs justify-start">
               Job Title <span class="text-red-500">*</span>
             </legend>
@@ -514,7 +585,7 @@ onMounted(async () => {
               v-model="newEmployee.jobTitle"
               class="select focus:outline-none bg-white border-black text-black"
               :class="{ 'border-red-500': formErrors.professional.jobTitle }"
-              :disabled="!newEmployee.department"
+              :disabled="!newEmployee.department || !newEmployee.role"
             >
               <option disabled value="">Select Job Title</option>
               <option v-for="job in availableJobs" :key="job" :value="job">
@@ -523,25 +594,6 @@ onMounted(async () => {
             </select>
             <span v-if="formErrors.professional.jobTitle" class="text-red-500 text-xs mt-1">
               {{ formErrors.professional.jobTitle }}
-            </span>
-          </div>
-
-          <div class="">
-            <legend class="fieldset-legend text-black text-xs justify-start">
-              Role <span class="text-red-500">*</span>
-            </legend>
-            <select
-              v-model="newEmployee.role"
-              class="select focus:outline-none bg-white border-black text-black"
-              :class="{ 'border-red-500': formErrors.professional.role }"
-            >
-              <option disabled value="">Select Role</option>
-              <option v-for="role in roles" :key="role.id" :value="role.role_name">
-                {{ role.role_name }}
-              </option>
-            </select>
-            <span v-if="formErrors.professional.role" class="text-red-500 text-xs mt-1">
-              {{ formErrors.professional.role }}
             </span>
           </div>
 

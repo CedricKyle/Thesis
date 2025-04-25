@@ -10,6 +10,10 @@ import { storeToRefs } from 'pinia'
 import { Upload } from 'lucide-vue-next'
 import Toast from '@/components/Admin Components/HR/Toast.vue'
 import profilePlaceholder from '@/assets/Images/profile-placeholder.png'
+import {
+  DEPARTMENTS,
+  permissionGroups,
+} from '@/composables/Admin Composables/User & Role/role/permissionsId'
 
 const router = useRouter()
 const route = useRoute()
@@ -74,17 +78,62 @@ const departments = computed(() => {
   return isAdminRoute ? ['Admin Department', ...baseDepartments] : baseDepartments
 })
 
-// Add availableJobs computed property
-const availableJobs = computed(() => {
-  if (employeeData.value.department === 'Admin Department') {
-    return []
+// Define department-specific roles based on permissions
+const getDepartmentRoles = (department) => {
+  if (department === DEPARTMENTS.ADMIN) return ['Admin']
+
+  const departmentGroup = permissionGroups.find((group) => group.department === department)
+  if (!departmentGroup) return []
+
+  // Create roles based on permissions
+  const roles = []
+  if (departmentGroup.permissions.some((p) => p.name === 'Full Access')) {
+    roles.push(`${departmentGroup.name.replace(' Department', '')} Manager`)
   }
+  roles.push(`${departmentGroup.name.replace(' Department', '')} Staff`)
+
+  return roles
+}
+
+// Define job titles based on roles
+const getJobTitles = (department, role) => {
+  if (department === DEPARTMENTS.ADMIN) return ['Administrator']
+
+  const departmentName = department.replace(' Department', '')
+
+  if (role?.includes('Manager')) {
+    return [`${departmentName} Manager`]
+  }
+
+  // Staff-level job titles
+  const staffTitles = {
+    [DEPARTMENTS.HR]: ['HR Assistant'],
+    [DEPARTMENTS.FINANCE]: ['Accountant', 'Accounting Assistant'],
+    [DEPARTMENTS.SALES]: ['Sales Representative', 'Sales Assistant'],
+    [DEPARTMENTS.CRM]: ['Customer Service Representative', 'Customer Service Assistant'],
+    [DEPARTMENTS.SCM]: ['SCM Manager', 'Inventory Specialist'],
+  }
+
+  return staffTitles[department] || []
+}
+
+// Update computed properties
+const availableRoles = computed(() => {
   if (!employeeData.value.department) return []
-  const jobs = departmentJobs[employeeData.value.department] || []
-  if (employeeData.value.job_title && !jobs.includes(employeeData.value.job_title)) {
-    jobs.push(employeeData.value.job_title)
+  return getDepartmentRoles(employeeData.value.department)
+})
+
+const availableJobs = computed(() => {
+  if (!employeeData.value.department || !employeeData.value.role) return []
+
+  const jobTitles = getJobTitles(employeeData.value.department, employeeData.value.role)
+
+  // If current job title exists but isn't in the list, add it
+  if (employeeData.value.job_title && !jobTitles.includes(employeeData.value.job_title)) {
+    jobTitles.push(employeeData.value.job_title)
   }
-  return jobs
+
+  return jobTitles
 })
 
 const hasPersonalInfoChanges = computed(() => {
@@ -396,6 +445,32 @@ watch(
   },
   { deep: true },
 )
+
+// Update watch for department changes
+watch(
+  () => employeeData.value.department,
+  (newDepartment) => {
+    if (newDepartment === DEPARTMENTS.ADMIN) {
+      employeeData.value.job_title = 'Administrator'
+      employeeData.value.role = 'Admin'
+    } else {
+      // Reset role and job title when department changes
+      employeeData.value.role = ''
+      employeeData.value.job_title = ''
+    }
+  },
+)
+
+// Update watch for role changes
+watch(
+  () => employeeData.value.role,
+  (newRole) => {
+    // Reset job title when role changes
+    if (newRole && employeeData.value.department !== DEPARTMENTS.ADMIN) {
+      employeeData.value.job_title = ''
+    }
+  },
+)
 </script>
 
 <template>
@@ -473,20 +548,6 @@ watch(
               </select>
             </div>
 
-            <!-- Job Title -->
-            <div v-if="employeeData.department !== 'Admin Department'">
-              <legend class="fieldset-legend text-black text-xs justify-start">Job Title</legend>
-              <select
-                v-model="employeeData.job_title"
-                class="select focus:outline-none bg-white border-black text-black"
-                :disabled="!employeeData.department"
-                @change="handleFieldChange('job_title', employeeData.job_title)"
-              >
-                <option disabled value="">Select Job Title</option>
-                <option v-for="job in availableJobs" :key="job" :value="job">{{ job }}</option>
-              </select>
-            </div>
-
             <!-- Role -->
             <div>
               <legend class="fieldset-legend text-black text-xs justify-start">Role</legend>
@@ -494,10 +555,27 @@ watch(
                 v-model="employeeData.role"
                 class="select focus:outline-none bg-white border-black text-black"
                 @change="handleFieldChange('role', employeeData.role)"
+                :disabled="!employeeData.department"
               >
                 <option disabled value="">Select Role</option>
-                <option v-for="role in roles" :key="role.id" :value="role.role_name">
-                  {{ role.role_name }}
+                <option v-for="role in availableRoles" :key="role" :value="role">
+                  {{ role }}
+                </option>
+              </select>
+            </div>
+
+            <!-- Job Title -->
+            <div v-if="employeeData.department !== DEPARTMENTS.ADMIN">
+              <legend class="fieldset-legend text-black text-xs justify-start">Job Title</legend>
+              <select
+                v-model="employeeData.job_title"
+                class="select focus:outline-none bg-white border-black text-black"
+                :disabled="!employeeData.department || !employeeData.role"
+                @change="handleFieldChange('job_title', employeeData.job_title)"
+              >
+                <option disabled value="">Select Job Title</option>
+                <option v-for="job in availableJobs" :key="job" :value="job">
+                  {{ job }}
                 </option>
               </select>
             </div>

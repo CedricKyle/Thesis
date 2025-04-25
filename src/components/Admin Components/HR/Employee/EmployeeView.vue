@@ -100,9 +100,6 @@ const formatDisplayDate = (dateString) => {
               {{ store.selectedEmployee.job_title }}
             </p>
             <br />
-            <span class="text-gray-500 text-xs">
-              {{ store.selectedEmployee.role }}
-            </span>
           </div>
         </div>
 
