@@ -102,11 +102,15 @@ export const useAttendanceStore = defineStore('attendance', () => {
     const startDate = new Date(reportFilters.value.startDate)
     const endDate = new Date(reportFilters.value.endDate)
 
-    // Create a map of existing attendance records
+    // Filter to only include approved records
+    const approvedRecords = attendanceRecords.value.filter(
+      (record) =>
+        record.approvalStatus === 'Approved' &&
+        record.employee_id === reportFilters.value.employeeId,
+    )
+
     const attendanceMap = new Map(
-      attendanceRecords.value
-        .filter((record) => record.employee_id === reportFilters.value.employeeId)
-        .map((record) => [new Date(record.date).toDateString(), record]),
+      approvedRecords.map((record) => [new Date(record.date).toDateString(), record]),
     )
 
     // Generate array of all dates in range
@@ -224,10 +228,64 @@ export const useAttendanceStore = defineStore('attendance', () => {
     // Convert both dates to YYYY-MM-DD format for comparison
     const targetDate = new Date(date).toISOString().split('T')[0]
 
-    return attendanceRecords.value.find((record) => {
+    const existingRecord = attendanceRecords.value.find((record) => {
       const recordDate = new Date(record.date).toISOString().split('T')[0]
-      return record.employee_id === employeeId && recordDate === targetDate
+      return (
+        record.employee_id === employeeId &&
+        recordDate === targetDate &&
+        !record.id.toString().startsWith('absent-')
+      )
     })
+
+    // If no record exists or only an 'absent' record exists, allow new entry
+    return existingRecord || null
+  }
+
+  // Add this helper function to check if a date is from a previous day
+  const isFromPreviousDay = (date) => {
+    const today = new Date()
+    const recordDate = new Date(date)
+    return recordDate.toDateString() !== today.toDateString()
+  }
+
+  // Add this function to handle daily reset
+  const resetDailyAttendance = () => {
+    try {
+      // Get today's date at midnight for comparison
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+
+      // Check each record and mark as absent if it's pending from previous day
+      attendanceRecords.value = attendanceRecords.value.map((record) => {
+        const recordDate = new Date(record.date)
+        recordDate.setHours(0, 0, 0, 0)
+
+        // If record is from a previous day and still pending, mark as absent
+        if (recordDate < today && record.approvalStatus === 'Pending') {
+          return {
+            ...record,
+            status: 'Absent',
+            signIn: '-',
+            signOut: '-',
+            workingHours: '-',
+            approvalStatus: 'Approved', // Auto-approve as absent
+            approvedBy: 'System',
+            approvedAt: new Date().toISOString(),
+          }
+        }
+        return record
+      })
+
+      // Reset todayAttendance if it's from previous day
+      if (todayAttendance.value && isFromPreviousDay(todayAttendance.value.date)) {
+        todayAttendance.value = null
+      }
+
+      // Save the updated records
+      saveToLocalStorage()
+    } catch (error) {
+      console.error('Error resetting daily attendance:', error)
+    }
   }
 
   // Actions
@@ -317,42 +375,74 @@ export const useAttendanceStore = defineStore('attendance', () => {
     }, 3000)
   }
 
-  async function deleteRecord(id) {
+  const deleteRecord = async (recordId) => {
     try {
-      // Remove the record from the store
-      attendanceRecords.value = attendanceRecords.value.filter((r) => r.id !== id)
+      // Get current records
+      const currentRecords = attendanceRecords.value
 
-      // If this was today's attendance, clear it
-      if (todayAttendance.value?.id === id) {
+      // Get the record before deletion
+      const recordToDelete = currentRecords.find((record) => record.id === recordId)
+      if (!recordToDelete) {
+        throw new Error('Record not found')
+      }
+
+      // Store employee info for re-entry
+      const employeeId = recordToDelete.employee_id
+      const recordDate = new Date(recordToDelete.date).toISOString().split('T')[0]
+
+      // Remove the record
+      attendanceRecords.value = currentRecords.filter((record) => record.id !== recordId)
+
+      // Reset today's attendance if needed
+      const today = new Date().toISOString().split('T')[0]
+      if (recordDate === today) {
         todayAttendance.value = null
       }
 
-      // Save the updated records to localStorage
+      // Update localStorage
       saveToLocalStorage()
 
-      return true
+      return {
+        success: true,
+        employeeId,
+        date: recordDate,
+        message: 'Attendance record deleted successfully',
+      }
     } catch (error) {
-      console.error('Error deleting record:', error)
-      throw error
+      console.error('Error deleting attendance record:', error)
+      throw new Error('Failed to delete attendance record')
     }
   }
 
   function loadRecords() {
-    const savedRecords = localStorage.getItem('attendanceRecords')
-    if (savedRecords) {
-      const records = JSON.parse(savedRecords)
-      attendanceRecords.value = records.map((record) => ({
-        ...record,
-        date: new Date(record.date),
-        status: determineStatus(record.signIn),
-        workingHours: calculateHours(record.signIn, record.signOut),
-      }))
+    try {
+      const savedRecords = localStorage.getItem('attendanceRecords')
+      if (savedRecords) {
+        const records = JSON.parse(savedRecords)
+        attendanceRecords.value = records.map((record) => ({
+          ...record,
+          date: new Date(record.date),
+          status: determineStatus(record.signIn),
+          workingHours: calculateHours(record.signIn, record.signOut),
+          // Ensure approval status is preserved
+          approvalStatus: record.approvalStatus || 'Pending',
+          approvedBy: record.approvedBy || null,
+          approvedAt: record.approvedAt || null,
+        }))
+      }
+    } catch (error) {
+      console.error('Error loading records:', error)
+      attendanceRecords.value = []
     }
   }
 
   function saveToLocalStorage() {
     try {
-      localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords.value))
+      const recordsToSave = attendanceRecords.value.map((record) => ({
+        ...record,
+        date: record.date instanceof Date ? record.date.toISOString() : record.date,
+      }))
+      localStorage.setItem('attendanceRecords', JSON.stringify(recordsToSave))
     } catch (error) {
       console.error('Error saving to localStorage:', error)
       throw error
@@ -427,15 +517,14 @@ export const useAttendanceStore = defineStore('attendance', () => {
   const recordTimeIn = async (employeeId) => {
     isProcessing.value = true
     try {
+      // Check and reset if needed
+      resetDailyAttendance()
+
       const today = new Date().toISOString().split('T')[0]
 
-      // Check for existing attendance using the helper function
+      // Check for existing attendance
       const existingRecord = checkExistingAttendance(employeeId, new Date())
-      if (
-        existingRecord &&
-        existingRecord.signIn !== '-' &&
-        !existingRecord.id?.toString().startsWith('absent-')
-      ) {
+      if (existingRecord && existingRecord.signIn !== '-') {
         throw new Error('Already timed in for today')
       }
 
@@ -446,7 +535,7 @@ export const useAttendanceStore = defineStore('attendance', () => {
         hour12: false,
       })
 
-      // Get employee details from employee store
+      // Get employee details
       const employeeStore = useEmployeeStore()
       const employee = employeeStore.employees.find((emp) => emp.employee_id === employeeId)
 
@@ -465,20 +554,26 @@ export const useAttendanceStore = defineStore('attendance', () => {
         signOut: '-',
         workingHours: '-',
         status: determineStatus(currentTime),
+        approvalStatus: 'Pending',
+        approvedBy: null,
+        approvedAt: null,
       }
 
-      // Remove any existing attendance record for today
+      // Remove any existing records for today
       attendanceRecords.value = attendanceRecords.value.filter((record) => {
         const recordDate = new Date(record.date).toISOString().split('T')[0]
         return !(recordDate === today && record.employee_id === employeeId)
       })
 
-      // Add to records array
+      // Add new record and update localStorage
       attendanceRecords.value.push(newRecord)
       todayAttendance.value = { ...newRecord }
-
-      // Save to localStorage
       saveToLocalStorage()
+
+      // Force a refresh of the attendance table
+      if (window.dispatchEvent) {
+        window.dispatchEvent(new CustomEvent('attendance-updated'))
+      }
 
       return newRecord
     } catch (error) {
@@ -491,6 +586,9 @@ export const useAttendanceStore = defineStore('attendance', () => {
   const recordTimeOut = async (employeeId) => {
     isProcessing.value = true
     try {
+      // Check and reset if needed
+      resetDailyAttendance()
+
       const today = new Date().toISOString().split('T')[0]
       const currentTime = new Date().toLocaleTimeString('en-US', {
         hour: '2-digit',
@@ -541,6 +639,7 @@ export const useAttendanceStore = defineStore('attendance', () => {
         workingHours: workingHours,
         overtime: overtime,
         status: determineStatus(existingRecord.signIn),
+        approvalStatus: 'Pending',
       }
 
       // Update in the array
@@ -560,6 +659,9 @@ export const useAttendanceStore = defineStore('attendance', () => {
 
   const getTodayAttendance = async (employeeId) => {
     try {
+      // Check and reset if needed
+      resetDailyAttendance()
+
       const today = new Date().toISOString().split('T')[0]
       const record = attendanceRecords.value.find(
         (record) =>
@@ -567,7 +669,7 @@ export const useAttendanceStore = defineStore('attendance', () => {
           new Date(record.date).toISOString().split('T')[0] === today,
       )
 
-      todayAttendance.value = record ? { ...record } : null // Create a new object to ensure reactivity
+      todayAttendance.value = record ? { ...record } : null
       return todayAttendance.value
     } catch (error) {
       console.error("Error getting today's attendance:", error)
@@ -612,6 +714,57 @@ export const useAttendanceStore = defineStore('attendance', () => {
     }
   }
 
+  // Add new function for attendance approval
+  const approveAttendance = async (recordId, approverDetails) => {
+    try {
+      const index = attendanceRecords.value.findIndex((r) => r.id === recordId)
+      if (index === -1) {
+        throw new Error('Attendance record not found')
+      }
+
+      // Create the updated record
+      const updatedRecord = {
+        ...attendanceRecords.value[index],
+        approvalStatus: 'Approved',
+        approvedBy: approverDetails.name,
+        approvedAt: approverDetails.timestamp,
+      }
+
+      // Update the state
+      attendanceRecords.value[index] = updatedRecord
+
+      // Save to localStorage
+      saveToLocalStorage()
+
+      return updatedRecord
+    } catch (error) {
+      console.error('Error approving attendance:', error)
+      throw error
+    }
+  }
+
+  const canReenterAttendance = (employeeId, date) => {
+    const targetDate = new Date(date).toISOString().split('T')[0]
+    const today = new Date().toISOString().split('T')[0]
+
+    // Only allow re-entry for today's attendance
+    if (targetDate !== today) {
+      return false
+    }
+
+    // Check if there's no existing active record
+    const existingRecord = attendanceRecords.value.find((record) => {
+      const recordDate = new Date(record.date).toISOString().split('T')[0]
+      return (
+        record.employee_id === employeeId &&
+        recordDate === targetDate &&
+        !record.id.toString().startsWith('absent-')
+      )
+    })
+
+    return !existingRecord
+  }
+
   return {
     // State
     attendanceRecords,
@@ -654,5 +807,14 @@ export const useAttendanceStore = defineStore('attendance', () => {
     getTodayAttendance,
     getEmployeeAttendanceLogs,
     clearTodayAttendance,
+
+    // Add new function for attendance approval
+    approveAttendance,
+
+    // Add this new function to handle daily reset
+    resetDailyAttendance,
+
+    // Add this new function to check if an employee can re-enter attendance
+    canReenterAttendance,
   }
 })

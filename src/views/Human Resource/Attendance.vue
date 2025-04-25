@@ -99,29 +99,25 @@ const viewRecord = (record) => {
 }
 
 const handleDelete = async (record) => {
-  // Set the selected record and show the delete modal
-  modalState.value.selectedRecord = record
-  modalState.value.delete = true
+  try {
+    modalState.value.selectedRecord = record
+    modalState.value.delete = true
+  } catch (error) {
+    console.error('Error preparing delete:', error)
+    showToast('Failed to prepare delete operation', 'error')
+  }
 }
 
-// Add a confirmDelete function
 const confirmDelete = async () => {
   try {
     const record = modalState.value.selectedRecord
     if (!record) return
 
-    // Delete the record
     await attendanceStore.deleteRecord(record.id)
 
-    // Update the local records
-    attendanceRecords.value = attendanceRecords.value.filter((r) => r.id !== record.id)
+    // Refresh the table data
+    await tableRef.value?.refreshTableData()
 
-    // Refresh the table
-    if (tableRef.value) {
-      await tableRef.value.refreshTableData()
-    }
-
-    // Show success message and close modal
     showToast('Attendance record deleted successfully', 'success')
     modalState.value.delete = false
     modalState.value.selectedRecord = null
@@ -341,9 +337,6 @@ const tableRef = ref(null)
         <AttendanceTable
           ref="tableRef"
           :records="paginatedRecords"
-          :sort-by="state.sortBy"
-          :sort-desc="state.sortDesc"
-          @sort="handleSort"
           @view="viewRecord"
           @delete="handleDelete"
         />

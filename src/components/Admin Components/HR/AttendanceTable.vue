@@ -3,11 +3,16 @@ import { ref, onMounted, watch, onBeforeUnmount, computed } from 'vue'
 import { useAttendanceLogic } from '@/composables/Admin Composables/Human Resource/useAttendanceLogic'
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
 import { useAuthStore } from '@/stores/Authentication/authStore'
+import { useAttendanceStore } from '@/stores/HR Management/attendanceStore'
+import { useToast } from '@/composables/Admin Composables/User & Role/role/useToast'
 import { TabulatorFull as Tabulator } from 'tabulator-tables'
-
+import { PERMISSION_IDS } from '@/composables/Admin Composables/User & Role/role/permissionsId'
+import { TriangleAlert } from 'lucide-vue-next'
 const { formatDate, calculateOvertime } = useAttendanceLogic()
 const employeeStore = useEmployeeStore()
 const authStore = useAuthStore()
+const attendanceStore = useAttendanceStore()
+const { showToast } = useToast()
 
 const props = defineProps({
   records: {
@@ -16,10 +21,16 @@ const props = defineProps({
   },
 })
 
+// Remove the sort-related emits since we'll handle sorting internally
 const emit = defineEmits(['view', 'delete'])
+
 const tableRef = ref(null)
 const isTableBuilt = ref(false)
 let table = null
+
+// Add these refs after other refs
+const showApprovalModal = ref(false)
+const selectedRecord = ref(null)
 
 // Status styling configuration
 const statusClasses = {
@@ -27,6 +38,12 @@ const statusClasses = {
   Absent: 'badge badge-outline badge-error',
   Late: 'badge badge-outline badge-warning',
   'On Leave': 'badge badge-outline badge-info',
+}
+
+const approvalStatusClasses = {
+  Pending: 'badge badge-outline badge-warning',
+  Approved: 'badge badge-outline badge-success',
+  Rejected: 'badge badge-outline badge-error',
 }
 
 const commonButtonClasses = 'btn btn-sm btn-circle border-none btn-ghost'
@@ -39,22 +56,22 @@ const getDefaultAttendanceData = (employees) => {
   const currentDate = new Date()
 
   return filteredEmployees.map((employee) => ({
-    id: employee.employee_id ? `absent-${employee.employee_id}` : `absent-${Date.now()}`, // Ensure id is always set
+    id: employee.employee_id ? `absent-${employee.employee_id}` : `absent-${Date.now()}`,
     employee_id: employee.employee_id,
     full_name: employee.full_name,
     department: employee.department,
     signIn: '-',
     signOut: '-',
     workingHours: '-',
-    status: 'Absent', // Always default to Absent if no time in
+    status: 'Absent',
     date: currentDate,
   }))
 }
 
 // Simplify mergeAttendanceWithEmployees
 const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
-  // Filter out soft-deleted employees and Super Admin
-  const filteredEmployees = employees.filter((emp) => !emp.deleted_at && emp.role !== 'Super Admin')
+  // Filter out only soft-deleted employees
+  const filteredEmployees = employees.filter((emp) => !emp.deleted_at)
 
   const defaultAttendance = getDefaultAttendanceData(filteredEmployees)
 
@@ -62,7 +79,7 @@ const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
   const filteredAttendance = attendanceRecords
     .filter((record) => {
       const employee = employees.find((emp) => emp.employee_id === record.employee_id)
-      return employee && !employee.deleted_at && employee.role !== 'Super Admin'
+      return employee && !employee.deleted_at
     })
     .map((record) => {
       // Determine status based on signIn and signOut
@@ -110,30 +127,72 @@ const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
 
   // Return either the actual attendance record or the default one
   return defaultAttendance.map((defaultRecord) => {
-    return attendanceMap.get(defaultRecord.employee_id) || defaultRecord
+    const actualRecord = attendanceMap.get(defaultRecord.employee_id)
+    if (actualRecord) {
+      return {
+        ...actualRecord,
+        workingHours: actualRecord.workingHours || '-',
+        status: actualRecord.status || 'Absent',
+        approvalStatus: actualRecord.approvalStatus || 'Pending',
+      }
+    }
+    return {
+      ...defaultRecord,
+      approvalStatus: 'Pending',
+    }
   })
 }
+
+// Update the permission check to use HR_MANAGE_ATTENDANCE
+const canManageAttendance = computed(() => {
+  const userRole = authStore.currentUser?.role
+  const userPermissions = authStore.currentUser?.permissions || []
+
+  // Allow Super Admin or users with specific permissions
+  return (
+    userRole === 'Super Admin' ||
+    userPermissions.some(
+      (permission) =>
+        permission === PERMISSION_IDS.HR_MANAGE_ATTENDANCE ||
+        permission === PERMISSION_IDS.HR_FULL_ACCESS,
+    )
+  )
+})
 
 const columns = [
   {
     title: 'Full Name',
     field: 'full_name',
     sorter: 'string',
+    headerSort: true,
   },
   {
     title: 'Department',
     field: 'department',
     sorter: 'string',
+    headerSort: true,
   },
   {
     title: 'Time In',
     field: 'signIn',
     formatter: (cell) => cell.getValue() || '-',
+    headerSort: true,
+    sorter: (a, b) => {
+      if (a === '-') return 1
+      if (b === '-') return -1
+      return a.localeCompare(b)
+    },
   },
   {
     title: 'Time Out',
     field: 'signOut',
     formatter: (cell) => cell.getValue() || '-',
+    headerSort: true,
+    sorter: (a, b) => {
+      if (a === '-') return 1
+      if (b === '-') return -1
+      return a.localeCompare(b)
+    },
   },
   {
     title: 'Working Hours',
@@ -158,6 +217,12 @@ const columns = [
 
       return '-'
     },
+    headerSort: true,
+    sorter: (a, b) => {
+      if (a === '-') return 1
+      if (b === '-') return -1
+      return a.localeCompare(b)
+    },
   },
   {
     title: 'Status',
@@ -177,16 +242,25 @@ const columns = [
     },
   },
   {
+    title: 'Approval Status',
+    field: 'approvalStatus',
+    formatter: (cell) => {
+      const status = cell.getValue()
+      const statusClass = approvalStatusClasses[status] || ''
+      return `<span class="px-2 py-1 text-xs font-medium rounded-full ${statusClass}">${status}</span>`
+    },
+  },
+  {
     title: 'Action',
     formatter: (cell) => {
       const record = cell.getRow().getData()
-      // Check if id exists and is a string or can be converted to string
       const isAbsentRecord = record.id && record.id.toString().startsWith('absent-')
+      const isPending = record.approvalStatus === 'Pending'
+      const isApproved = record.approvalStatus === 'Approved'
 
+      // Don't show actions for absent records
       if (isAbsentRecord) {
-        // Only show check-in button for absent employees
-        return `
-          `
+        return ''
       }
 
       return `
@@ -198,35 +272,60 @@ const columns = [
             </svg>
           </button>
 
-          <div class="flex gap-2">
-            <button class="${commonButtonClasses} hover:bg-secondaryColor/80 check-in-button">
+          ${
+            isPending
+              ? `
+            <button class="${commonButtonClasses} hover:bg-green-500 approve-button" 
+                    title="Approve Attendance">
               <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M20 6L9 17l-5-5" />
               </svg>
             </button>
-          </div>
-          <button class="${commonButtonClasses} hover:bg-red-400 delete-button">
-            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M18 6 6 18M6 6l12 12" />
-            </svg>
-          </button>
+          `
+              : ''
+          }
+
+          ${
+            !isApproved
+              ? `
+            <button class="${commonButtonClasses} hover:bg-red-400 delete-button">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          `
+              : ''
+          }
         </div>`
     },
     headerSort: false,
     cellClick: async (e, cell) => {
       const record = cell.getRow().getData()
+
       if (e.target.closest('.view-button')) {
         emit('view', record)
-      } else if (e.target.closest('.delete-button')) {
+      } else if (e.target.closest('.approve-button') && canManageAttendance.value) {
         try {
+          if (record.id?.toString().startsWith('absent-')) {
+            showToast('Cannot approve an absent record', 'error')
+            return
+          }
+          openApprovalModal(record)
+        } catch (error) {
+          console.error('Error preparing approval:', error)
+          showToast(error.message || 'Failed to prepare approval', 'error')
+        }
+      } else if (e.target.closest('.delete-button') && canManageAttendance.value) {
+        try {
+          if (record.approvalStatus === 'Approved') {
+            showToast('Cannot delete an approved attendance record', 'error')
+            return
+          }
           await emit('delete', record)
-          // Refresh the table after successful deletion
           await refreshTableData()
         } catch (error) {
           console.error('Error deleting record:', error)
         }
-      } else if (e.target.closest('.check-in-button')) {
-        emit('checkIn', record)
       }
     },
   },
@@ -241,15 +340,15 @@ const updateLocalStorage = (mergedData) => {
   }
 }
 
-// Update the watch handler to include localStorage update
+// Modify the watch handler to prevent recursive updates
 watch(
   [() => props.records, () => employeeStore.employees],
-  ([newRecords, employees]) => {
+  async ([newRecords, employees]) => {
     if (isTableBuilt.value && table) {
       try {
+        // Only use the props records, don't merge with store records here
         const mergedData = mergeAttendanceWithEmployees(newRecords, employees)
         table.setData(mergedData)
-        updateLocalStorage(mergedData) // Save to localStorage after updating table
       } catch (error) {
         console.error('Error updating table data:', error)
       }
@@ -258,27 +357,14 @@ watch(
   { deep: true },
 )
 
-// Update initTable to load from localStorage if available
+// Update the initTable function
 const initTable = async () => {
   if (tableRef.value) {
     try {
       await employeeStore.loadEmployees()
+      attendanceStore.resetDailyAttendance()
 
-      // Try to load from localStorage first
-      let initialData = []
-      const savedData = localStorage.getItem('attendanceRecords')
-      if (savedData) {
-        try {
-          initialData = JSON.parse(savedData)
-        } catch (error) {
-          console.error('Error parsing localStorage data:', error)
-        }
-      }
-
-      // If no saved data or error parsing, merge with current records
-      if (!initialData.length) {
-        initialData = mergeAttendanceWithEmployees(props.records, employeeStore.employees)
-      }
+      const initialData = mergeAttendanceWithEmployees(props.records, employeeStore.employees)
 
       table = new Tabulator(tableRef.value, {
         data: initialData,
@@ -291,9 +377,20 @@ const initTable = async () => {
         paginationSizeSelector: [10, 25, 50],
         placeholder: 'No attendance records available',
         cssClass: 'custom-tabulator',
+        initialSort: [
+          {
+            column: 'full_name',
+            dir: 'asc',
+          },
+        ],
         dataLoaded: function () {
           this.redraw(true)
         },
+      })
+
+      // Add sort event listener if needed
+      table.on('sorterChanged', function (column, dir) {
+        console.log('Sort changed:', column.getField(), dir)
       })
 
       table.on('tableBuilt', () => {
@@ -307,7 +404,12 @@ const initTable = async () => {
 
 // Simplify the mounted hook
 onMounted(() => {
+  // Load records when component mounts
+  attendanceStore.loadRecords()
   initTable()
+
+  // Add event listener for attendance updates
+  window.addEventListener('attendance-updated', refreshTableData)
 })
 
 // Clean up on unmount
@@ -317,15 +419,34 @@ onBeforeUnmount(() => {
     table = null
     isTableBuilt.value = false
   }
+  // Remove event listener
+  window.removeEventListener('attendance-updated', refreshTableData)
 })
 
-// Add this function to refresh the table data
+// Update the refreshTableData function
 const refreshTableData = async () => {
   if (isTableBuilt.value && table) {
     try {
-      const mergedData = mergeAttendanceWithEmployees(props.records, employeeStore.employees)
-      table.setData(mergedData)
-      updateLocalStorage(mergedData)
+      // Reset daily attendance before refreshing
+      attendanceStore.resetDailyAttendance()
+
+      // Get the current table data
+      const currentData = table.getData()
+
+      // Update only the specific record in the current data
+      const updatedData = currentData.map((record) => {
+        const storeRecord = attendanceStore.attendanceRecords.find((r) => r.id === record.id)
+        if (storeRecord) {
+          return {
+            ...record,
+            ...storeRecord,
+          }
+        }
+        return record
+      })
+
+      // Update the table with the modified data
+      table.setData(updatedData)
     } catch (error) {
       console.error('Error refreshing table data:', error)
     }
@@ -336,10 +457,164 @@ const refreshTableData = async () => {
 defineExpose({
   refreshTableData,
 })
+
+// Add these methods after your existing code but before the end of the script setup
+const openApprovalModal = (record) => {
+  selectedRecord.value = record
+  showApprovalModal.value = true
+}
+
+const closeApprovalModal = () => {
+  showApprovalModal.value = false
+  selectedRecord.value = null
+}
+
+const confirmApproval = async () => {
+  try {
+    const approverDetails = {
+      name: authStore.currentUser.full_name,
+      userId: authStore.currentUser.id,
+      timestamp: new Date().toISOString(),
+    }
+
+    // Update the store
+    const updatedRecord = await attendanceStore.approveAttendance(
+      selectedRecord.value.id,
+      approverDetails,
+    )
+
+    // Refresh the entire table data to ensure consistency
+    await refreshTableData()
+
+    // Find the row after refresh
+    const row = table.getRow(selectedRecord.value.id)
+    if (row) {
+      row.update({
+        ...updatedRecord,
+        approvalStatus: 'Approved',
+        approvedBy: approverDetails.name,
+        approvedAt: approverDetails.timestamp,
+      })
+    }
+
+    // Match the exact format used in the delete modal
+    showToast('Attendance record approved successfully', 'success')
+    closeApprovalModal()
+  } catch (error) {
+    console.error('Error approving record:', error)
+    showToast('Failed to approve attendance record', 'error')
+  }
+}
+
+const confirmDelete = async () => {
+  try {
+    const record = selectedRecord.value
+    if (!record) return
+
+    // Set the last action before deletion
+    authStore.setLastAction('ATTENDANCE_DELETE')
+
+    // Delete the record
+    const result = await attendanceStore.deleteRecord(record.id)
+
+    if (result.success) {
+      // Refresh the table data
+      await refreshTableData()
+
+      // Show success message
+      showToast('Attendance record deleted successfully', 'success')
+
+      // Close modal if open
+      showApprovalModal.value = false
+      selectedRecord.value = null
+
+      // Dispatch update event
+      window.dispatchEvent(new CustomEvent('attendance-updated'))
+    }
+
+    // Reset the last action after a delay
+    setTimeout(() => {
+      authStore.setLastAction(null)
+    }, 1000)
+
+    return true
+  } catch (error) {
+    console.error('Error deleting record:', error)
+    showToast('Failed to delete attendance record', 'error')
+    return false
+  }
+}
 </script>
 
 <template>
   <div class="w-full bg-white shadow-md rounded-md">
     <div ref="tableRef"></div>
+  </div>
+
+  <!-- Approval Confirmation Modal -->
+  <input type="checkbox" :checked="showApprovalModal" class="modal-toggle" />
+  <div class="modal backdrop-blur-sm">
+    <div class="modal-box bg-white">
+      <!-- Header -->
+      <div class="text-center mb-5">
+        <h3 class="font-bold text-lg text-gray-800">Approve Attendance Record</h3>
+        <p class="text-sm text-gray-600">Are you sure you want to approve this record?</p>
+      </div>
+
+      <!-- Content -->
+      <div v-if="selectedRecord" class="space-y-4">
+        <!-- Employee Info Section -->
+        <div class="bg-gray-50 rounded-lg p-4 space-y-3">
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <p class="text-xs text-gray-600">Employee Name</p>
+              <p class="font-medium text-gray-800">{{ selectedRecord.full_name }}</p>
+            </div>
+            <div>
+              <p class="text-xs text-gray-600">Department</p>
+              <p class="font-medium text-gray-800">{{ selectedRecord.department }}</p>
+            </div>
+          </div>
+
+          <!-- Attendance Details -->
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <p class="text-xs text-gray-600">Time In</p>
+              <p class="font-medium text-gray-800">{{ selectedRecord.signIn }}</p>
+            </div>
+            <div>
+              <p class="text-xs text-gray-600">Time Out</p>
+              <p class="font-medium text-gray-800">{{ selectedRecord.signOut }}</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <p class="text-xs text-gray-600">Date</p>
+              <p class="font-medium text-gray-800">
+                {{ new Date(selectedRecord.date).toLocaleDateString() }}
+              </p>
+            </div>
+            <div>
+              <p class="text-xs text-gray-600">Status</p>
+              <p class="font-medium text-gray-800">{{ selectedRecord.status }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Warning Message -->
+        <div class="text-sm text-gray-600 text-center flex items-center justify-center gap-2">
+          <span class="text-warning flex items-center gap-2 text-sm"
+            ><TriangleAlert class="w-4 h-4" />This action cannot be undone.</span
+          >
+        </div>
+      </div>
+
+      <!-- Footer Actions -->
+      <div class="modal-action justify-center mt-6">
+        <button class="btn-secondaryStyle" @click="closeApprovalModal">Cancel</button>
+        <button class="btn-primaryStyle" @click="confirmApproval">Approve</button>
+      </div>
+    </div>
   </div>
 </template>

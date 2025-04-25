@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/Authentication/authStore'
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
@@ -38,6 +38,33 @@ const isProcessing = ref(false)
 const showToast = ref(false)
 const toastMessage = ref('')
 const toastType = ref('success') // 'success', 'error', 'warning'
+const lastCheckedDay = ref(new Date().getDate())
+
+// Add this before onMounted
+let dayCheckInterval = null
+
+const setupDayCheck = () => {
+  // Set up an interval to check for day change
+  const checkDayChange = () => {
+    const now = new Date()
+    const currentDay = now.getDate()
+
+    if (lastCheckedDay.value !== currentDay) {
+      loadTodayAttendance() // Reload attendance data when day changes
+      lastCheckedDay.value = currentDay
+    }
+  }
+
+  // Check every minute for day change
+  dayCheckInterval = setInterval(checkDayChange, 60000)
+}
+
+// Register cleanup first
+onBeforeUnmount(() => {
+  if (dayCheckInterval) {
+    clearInterval(dayCheckInterval)
+  }
+})
 
 const loadCurrentUserData = async () => {
   try {
@@ -168,8 +195,14 @@ onMounted(async () => {
     await new Promise((resolve) => setTimeout(resolve, 100))
     await authStore.checkAuth()
     await loadCurrentUserData()
-    attendanceStore.loadRecords() // Load saved attendance records
-    await loadTodayAttendance() // Load today's attendance if exists
+
+    // Load and reset attendance if needed
+    await attendanceStore.resetDailyAttendance()
+    attendanceStore.loadRecords()
+    await loadTodayAttendance()
+
+    // Setup day check after everything is loaded
+    setupDayCheck()
   } catch (error) {
     console.error('Error in onMounted:', error)
   } finally {
@@ -266,12 +299,14 @@ const handleTimeIn = async () => {
   console.log('Current employee:', currentUserEmployee.value)
   isProcessing.value = true
   try {
-    // Check for existing attendance first
+    // Check for day change first
+    await attendanceStore.resetDailyAttendance()
+
+    // Check for existing attendance
     const existingAttendance = await attendanceStore.getTodayAttendance(
       currentUserEmployee.value.employee_id,
     )
 
-    // If there's already a valid attendance record, prevent duplicate
     if (
       existingAttendance &&
       existingAttendance.signIn &&
@@ -282,12 +317,10 @@ const handleTimeIn = async () => {
       return
     }
 
-    // Now try to record the new time in
     const result = await attendanceStore.recordTimeIn(currentUserEmployee.value.employee_id)
     console.log('Time in result:', result)
     showToastMessage(`Time In recorded successfully at ${formattedTime.value}`)
     await loadTodayAttendance()
-    console.log("Today's attendance after time in:", attendanceStore.todayAttendance)
   } catch (error) {
     console.error('Time in error:', error)
     showToastMessage(error.message || 'Failed to record Time In', 'error')
@@ -302,6 +335,9 @@ const handleTimeOut = async () => {
     return
   }
 
+  // Check for day change first
+  await attendanceStore.resetDailyAttendance()
+
   if (!attendanceStore.todayAttendance?.signIn) {
     showToastMessage('You need to Time In first', 'error')
     return
@@ -313,7 +349,6 @@ const handleTimeOut = async () => {
     const result = await attendanceStore.recordTimeOut(currentUserEmployee.value.employee_id)
     console.log('Time out result:', result)
 
-    // Show overtime message if applicable
     if (result.overtime > 0) {
       showToastMessage(
         `Time Out recorded successfully at ${formattedTime.value}. Overtime: ${result.overtime} hours`,
@@ -324,7 +359,6 @@ const handleTimeOut = async () => {
     }
 
     await loadTodayAttendance()
-    console.log("Today's attendance after time out:", attendanceStore.todayAttendance)
   } catch (error) {
     console.error('Time out error:', error)
     showToastMessage(error.message || 'Failed to record Time Out', 'error')
@@ -336,22 +370,32 @@ const handleTimeOut = async () => {
 // Load today's attendance data
 const loadTodayAttendance = async () => {
   if (currentUserEmployee.value?.employee_id) {
-    const attendance = await attendanceStore.getTodayAttendance(
-      currentUserEmployee.value.employee_id,
-    )
+    try {
+      // This will trigger the daily reset check in the store
+      await attendanceStore.resetDailyAttendance()
 
-    // If attendance exists but no sign in, ensure status is Absent
-    if (attendance && (!attendance.signIn || attendance.signIn === '-')) {
-      attendance.status = 'Absent'
+      const attendance = await attendanceStore.getTodayAttendance(
+        currentUserEmployee.value.employee_id,
+      )
+
+      // If attendance exists but no sign in, ensure status is Absent
+      if (attendance && (!attendance.signIn || attendance.signIn === '-')) {
+        attendance.status = 'Absent'
+      }
+
+      console.log("Loaded today's attendance:", attendance)
+    } catch (error) {
+      console.error('Error loading attendance:', error)
+      showToastMessage('Error loading attendance data', 'error')
     }
-
-    console.log("Loaded today's attendance:", attendance)
   }
 }
 
 // Load attendance data when modal opens
 watch(showAddAttendanceModal, async (newValue) => {
   if (newValue) {
+    // Check for day change and reset when modal opens
+    await attendanceStore.resetDailyAttendance()
     await loadTodayAttendance()
   }
 })
