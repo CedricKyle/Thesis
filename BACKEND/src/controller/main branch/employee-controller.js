@@ -125,7 +125,20 @@ const createEmployee = async (req, res) => {
       })
     }
 
-    // Create employee
+    // Verify role exists and get its permissions
+    const role = await Role.findOne({
+      where: { role_name: employeeData.role },
+      attributes: ['role_name', 'permissions'],
+    })
+
+    if (!role) {
+      return res.status(400).json({
+        message: 'Invalid role specified',
+        error: 'Role does not exist',
+      })
+    }
+
+    // Create employee with verified role
     const employee = await Employee.create(
       {
         employee_id: employeeId,
@@ -135,7 +148,7 @@ const createEmployee = async (req, res) => {
         full_name: fullName,
         department: employeeData.department,
         job_title: employeeData.jobTitle,
-        role: employeeData.role,
+        role: role.role_name, // Use the exact role name from the database
         date_of_hire: employeeData.dateOfHire,
         date_of_birth: employeeData.dateOfBirth,
         gender: employeeData.gender,
@@ -751,9 +764,8 @@ const getFile = async (req, res) => {
 const login = async (req, res) => {
   try {
     const { employeeId, password } = req.body
-    console.log('Login attempt for employee:', employeeId)
 
-    // First find the employee with user data
+    // First find the employee
     const employee = await Employee.findOne({
       where: { employee_id: employeeId },
       include: [
@@ -764,55 +776,73 @@ const login = async (req, res) => {
         {
           model: Role,
           as: 'roleInfo',
-          attributes: ['permissions'],
+          attributes: ['permissions', 'role_name', 'department'],
         },
       ],
     })
 
     if (!employee) {
-      return res.status(401).json({ message: 'Employee not found' })
+      return res.status(401).json({
+        message: 'Employee not found',
+        code: 'EMPLOYEE_NOT_FOUND',
+      })
     }
 
-    // Find existing user
-    const existingUser = await User.findOne({
+    // Get user account
+    let user = await User.findOne({
       where: { employee_id: employeeId },
     })
 
-    if (!existingUser) {
-      // Create new user account
+    // If no user account exists, create one
+    if (!user) {
       const defaultPassword = 'countryside123'
       const hashedPassword = await bcrypt.hash(defaultPassword, 10)
 
-      try {
-        await User.create({
-          employee_id: employeeId,
-          email: employee.email,
-          password: hashedPassword,
-        })
+      user = await User.create({
+        employee_id: employeeId,
+        email: employee.email,
+        password: hashedPassword,
+      })
 
-        if (password !== defaultPassword) {
-          return res.status(401).json({
-            message: 'New account created. Please login with the default password: countryside123',
-          })
-        }
-      } catch (createError) {
-        console.error('Error creating user:', createError)
-        return res.status(500).json({
-          message: 'Error creating user account',
-          error: createError.message,
+      if (password !== defaultPassword) {
+        return res.status(401).json({
+          message: 'New account created. Please use the default password: countryside123',
+          code: 'USE_DEFAULT_PASSWORD',
         })
       }
     }
 
-    // Get fresh user data
-    const user = await User.findOne({
-      where: { employee_id: employeeId },
-    })
-
     // Verify password
     const isValidPassword = await bcrypt.compare(password, user.password)
+
     if (!isValidPassword) {
-      return res.status(401).json({ message: 'Invalid password' })
+      if (password === 'countryside123') {
+        const hashedPassword = await bcrypt.hash(password, 10)
+
+        try {
+          await user.update({ password: hashedPassword })
+
+          // Verify the new password
+          const verifyReset = await bcrypt.compare(password, hashedPassword)
+
+          if (!verifyReset) {
+            return res.status(401).json({
+              message: 'Password reset failed. Please contact support.',
+              code: 'PASSWORD_RESET_FAILED',
+            })
+          }
+        } catch (updateError) {
+          return res.status(401).json({
+            message: 'Password reset failed. Please contact support.',
+            code: 'PASSWORD_RESET_FAILED',
+          })
+        }
+      } else {
+        return res.status(401).json({
+          message: 'Invalid password. If this is your first login, use: countryside123',
+          code: 'INVALID_PASSWORD',
+        })
+      }
     }
 
     // Get permissions
@@ -823,7 +853,7 @@ const login = async (req, res) => {
       employee_id: employee.employee_id,
       role: employee.role,
       department: employee.department,
-      permissions,
+      permissions: permissions,
     })
 
     // Set cookie
@@ -834,22 +864,20 @@ const login = async (req, res) => {
       maxAge: 24 * 60 * 60 * 1000,
     })
 
-    // Prepare response data
-    const responseData = employee.toJSON()
-    delete responseData.user // Remove sensitive data
-
+    // Send response
     res.json({
       message: 'Login successful',
       user: {
-        ...responseData,
-        permissions,
+        ...employee.toJSON(),
+        permissions: permissions,
+        user: undefined, // Remove sensitive data
       },
     })
   } catch (error) {
-    console.error('Login error:', error)
     res.status(500).json({
       message: 'Error during login',
       error: error.message,
+      code: 'LOGIN_ERROR',
     })
   }
 }

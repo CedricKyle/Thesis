@@ -41,6 +41,10 @@ module.exports = (sequelize) => {
       role: {
         type: DataTypes.STRING(50),
         allowNull: false,
+        references: {
+          model: 'roles',
+          key: 'role_name',
+        },
       },
       date_of_hire: {
         type: DataTypes.DATE,
@@ -94,6 +98,14 @@ module.exports = (sequelize) => {
       deletedAt: false,
     },
   )
+
+  Employee.associate = (models) => {
+    Employee.belongsTo(models.Role, {
+      foreignKey: 'role',
+      targetKey: 'role_name',
+      as: 'roleInfo',
+    })
+  }
 
   return Employee
 }

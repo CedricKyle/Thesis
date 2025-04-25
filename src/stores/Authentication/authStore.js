@@ -49,28 +49,24 @@ export const useAuthStore = defineStore('auth', {
           this.currentUser = response.data.user
           this.isAuthenticated = true
 
-          // Log the permissions to see what we're getting
-          console.log('Raw permissions:', response.data.user.permissions)
+          // Handle permissions
+          try {
+            const rawPermissions = response.data.user.permissions
+            this.userPermissions = Array.isArray(rawPermissions)
+              ? rawPermissions
+              : JSON.parse(rawPermissions)
 
-          // Parse permissions if they're a string
-          this.userPermissions =
-            typeof response.data.user.permissions === 'string'
-              ? JSON.parse(response.data.user.permissions)
-              : response.data.user.permissions
-
-          console.log('Parsed permissions:', this.userPermissions)
-          console.log('User department:', response.data.user.department)
-
-          // Use the router name instead of path
-          const router = useRouter()
-          const departmentPath = getDepartmentPath(response.data.user.department)
-
-          // Log for debugging
-          console.log('Department:', response.data.user.department)
-          console.log('Department path:', departmentPath)
+            console.log('Processed permissions:', this.userPermissions)
+          } catch (error) {
+            console.error('Error processing permissions:', error)
+            this.error = 'Error processing user permissions'
+            return false
+          }
 
           // Navigate based on department
+          const departmentPath = getDepartmentPath(response.data.user.department)
           if (departmentPath) {
+            const router = useRouter()
             router.push(`/${departmentPath}/dashboard`)
           }
 

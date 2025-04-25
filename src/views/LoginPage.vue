@@ -43,39 +43,56 @@ const handleSubmit = async (e) => {
   loading.value = true
 
   try {
-    console.log('Attempting login with:', { employeeId: userId.value, password: password.value })
+    console.log('Login attempt:', {
+      employeeId: userId.value,
+      isDefaultPassword: password.value === 'countryside123',
+    })
 
     const response = await axios.post('/api/employees/login', {
       employeeId: userId.value,
       password: password.value,
     })
 
-    console.log('Login response:', response.data)
+    console.log('Login response:', {
+      status: response.status,
+      message: response.data.message,
+      hasUser: !!response.data.user,
+    })
 
     if (response.data.message === 'Login successful' && response.data.user) {
       // Update auth store
       authStore.currentUser = response.data.user
       authStore.isAuthenticated = true
 
+      // Parse permissions if needed
+      if (response.data.user.permissions) {
+        authStore.userPermissions = Array.isArray(response.data.user.permissions)
+          ? response.data.user.permissions
+          : JSON.parse(response.data.user.permissions)
+      }
+
       // Determine redirect path
+      const department = response.data.user.department
+      const role = response.data.user.role
+      console.log('User info:', { department, role })
+
       const redirectPath =
-        response.data.user.role === 'Super Admin'
+        role === 'Super Admin'
           ? '/admin/hr/dashboard'
-          : `/${getDepartmentPath(response.data.user.department)}/dashboard`
+          : `/${getDepartmentPath(department)}/dashboard`
 
       console.log('Redirecting to:', redirectPath)
 
-      // Keep "Logging in..." for 2s, then show welcome
+      // Show loading states
       setTimeout(() => {
         loading.value = false
         setTimeout(() => {
           showLoader.value = false
           window.location.href = redirectPath
-        }, 1000) // keep welcome screen for 1s
+        }, 1000)
       }, 2000)
     } else {
       error.value = response.data.message || 'Invalid credentials'
-      // Invalid login - show loading briefly, then hide loader
       setTimeout(() => {
         loading.value = false
         setTimeout(() => {
@@ -84,8 +101,33 @@ const handleSubmit = async (e) => {
       }, 1500)
     }
   } catch (err) {
-    console.error('Login error:', err)
-    error.value = err.response?.data?.message || 'An error occurred during login'
+    console.error('Login error details:', {
+      message: err.message,
+      response: err.response?.data,
+      code: err.response?.data?.code,
+    })
+
+    // Handle specific error codes
+    switch (err.response?.data?.code) {
+      case 'EMPLOYEE_NOT_FOUND':
+        error.value = 'Employee ID not found'
+        break
+      case 'ROLE_NOT_FOUND':
+        error.value = 'Employee role configuration error'
+        break
+      case 'USE_DEFAULT_PASSWORD':
+        error.value = 'Please use the default password: countryside123'
+        break
+      case 'INVALID_PASSWORD':
+        error.value = 'Invalid password. For first time login, use: countryside123'
+        break
+      case 'PASSWORD_VERIFICATION_ERROR':
+        error.value = 'Error verifying password. Please try again.'
+        break
+      default:
+        error.value = err.response?.data?.message || 'An error occurred during login'
+    }
+
     setTimeout(() => {
       loading.value = false
       setTimeout(() => {
@@ -197,7 +239,6 @@ const handleSubmit = async (e) => {
 
 <style scoped>
 /* Add any additional styles you need */
-
 
 /* Add smooth transitions */
 .fixed {
