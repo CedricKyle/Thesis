@@ -1,6 +1,6 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
-import { Plus, RefreshCw, UndoDot } from 'lucide-vue-next'
+import { Plus, RefreshCw, UndoDot, Archive } from 'lucide-vue-next'
 import { useRouter, useRoute } from 'vue-router'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import { storeToRefs } from 'pinia'
@@ -368,15 +368,6 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="flex items-center gap-5">
-        <label class="flex items-center gap-2">
-          <input
-            type="checkbox"
-            v-model="showArchived"
-            @input="refreshTableData"
-            class="checkbox checkbox-sm"
-          />
-          <span class="text-sm">Show Archived</span>
-        </label>
         <label class="input-search input-sm">
           <svg class="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
             <g
@@ -409,6 +400,17 @@ onBeforeUnmount(() => {
 
       <div class="w-full bg-white shadow-md rounded-md">
         <div ref="tableRef"></div>
+      </div>
+      <div class="flex justify-end">
+        <label class="flex items-center gap-2">
+          <input
+            type="checkbox"
+            v-model="showArchived"
+            @input="refreshTableData"
+            class="checkbox checkbox-xs checkbox-neutral"
+          />
+          <span class="text-sm cursor-pointer hover:text-gray-500">Show Archived</span>
+        </label>
       </div>
     </div>
 

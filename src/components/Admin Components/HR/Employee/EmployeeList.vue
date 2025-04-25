@@ -282,11 +282,6 @@ watch(
   <div class="flex flex-col mt-4">
     <!-- Add archive toggle and search bar container -->
     <div class="flex justify-between items-center mb-4">
-      <label class="cursor-pointer flex items-center gap-2">
-        <input type="checkbox" v-model="showArchived" class="checkbox checkbox-sm" />
-        <span class="text-sm">Show Archived Employees</span>
-      </label>
-
       <!-- Search input -->
       <label class="input-search input-sm">
         <svg class="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
@@ -307,6 +302,19 @@ watch(
 
     <!-- Table -->
     <BaseTable :data="filteredEmployees" :columns="columns" :options="tableOptions" />
+
+    <div class="flex justify-end mt-4">
+      <label class="cursor-pointer flex items-center gap-2">
+        <input
+          type="checkbox"
+          v-model="showArchived"
+          class="checkbox checkbox-xs checkbox-neutral"
+        />
+        <span class="text-sm cursor-pointer hover:text-gray-500 text-black"
+          >Show Archived Employees</span
+        >
+      </label>
+    </div>
 
     <!-- Delete Confirmation Modal -->
     <dialog ref="deleteConfirmModal" class="modal">
