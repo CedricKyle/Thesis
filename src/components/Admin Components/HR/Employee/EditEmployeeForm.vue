@@ -132,6 +132,18 @@ const hasEmergencyContactChanges = computed(() => {
   )
 })
 
+// Add this computed property to check for professional info changes
+const hasProfessionalInfoChanges = computed(() => {
+  if (!originalData?.value) return false
+
+  return (
+    employeeData.value.department !== originalData.value.department ||
+    employeeData.value.job_title !== originalData.value.job_title ||
+    employeeData.value.role !== originalData.value.role ||
+    employeeData.value.date_of_hire !== originalData.value.date_of_hire
+  )
+})
+
 onMounted(async () => {
   try {
     // Load roles first
@@ -184,7 +196,16 @@ onMounted(async () => {
 })
 
 const handleFieldChange = (fieldName, value) => {
-  if (JSON.stringify(originalData.value[fieldName]) !== JSON.stringify(value)) {
+  // Add professional fields to tracking
+  const professionalFields = ['department', 'job_title', 'role', 'date_of_hire']
+
+  if (professionalFields.includes(fieldName)) {
+    if (JSON.stringify(originalData.value[fieldName]) !== JSON.stringify(value)) {
+      changedFields.value.add(fieldName)
+    } else {
+      changedFields.value.delete(fieldName)
+    }
+  } else if (JSON.stringify(originalData.value[fieldName]) !== JSON.stringify(value)) {
     changedFields.value.add(fieldName)
   } else {
     changedFields.value.delete(fieldName)
@@ -199,14 +220,16 @@ const handleUpdate = async () => {
       original: originalData.value,
       hasPersonalChanges: hasPersonalInfoChanges.value,
       hasEmergencyChanges: hasEmergencyContactChanges.value,
+      hasProfessionalChanges: hasProfessionalInfoChanges.value,
       profileImageChanged: !!profileImageFile.value,
       resumeChanged: !!resumeFile.value,
     })
 
-    // Check if there are any changes
+    // Include professional info changes in the check
     const hasChanges =
       hasPersonalInfoChanges.value ||
       hasEmergencyContactChanges.value ||
+      hasProfessionalInfoChanges.value ||
       profileImageFile.value ||
       resumeFile.value
 
@@ -443,6 +466,7 @@ watch(
               <select
                 v-model="employeeData.department"
                 class="select focus:outline-none bg-white border-black text-black"
+                @change="handleFieldChange('department', employeeData.department)"
               >
                 <option disabled value="">Select Department</option>
                 <option v-for="dept in departments" :key="dept" :value="dept">{{ dept }}</option>
@@ -456,6 +480,7 @@ watch(
                 v-model="employeeData.job_title"
                 class="select focus:outline-none bg-white border-black text-black"
                 :disabled="!employeeData.department"
+                @change="handleFieldChange('job_title', employeeData.job_title)"
               >
                 <option disabled value="">Select Job Title</option>
                 <option v-for="job in availableJobs" :key="job" :value="job">{{ job }}</option>
@@ -468,6 +493,7 @@ watch(
               <select
                 v-model="employeeData.role"
                 class="select focus:outline-none bg-white border-black text-black"
+                @change="handleFieldChange('role', employeeData.role)"
               >
                 <option disabled value="">Select Role</option>
                 <option v-for="role in roles" :key="role.id" :value="role.role_name">
@@ -517,6 +543,7 @@ watch(
                 v-model="employeeData.date_of_hire"
                 type="date"
                 class="border-b-1 w-full outline-none border-gray-300 p-0 pt-3 text-black"
+                @change="handleFieldChange('date_of_hire', employeeData.date_of_hire)"
               />
             </div>
           </div>
