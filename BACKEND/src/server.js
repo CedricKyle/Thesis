@@ -5,6 +5,7 @@ const cookieParser = require('cookie-parser')
 const dotenv = require('dotenv')
 const employeeRoutes = require('./routes/main branch/employee-routes.js')
 const roleRoutes = require('./routes/main branch/role-routes.js')
+const attendanceRoutes = require('./routes/main branch/attendance-routes.js')
 const path = require('path')
 
 dotenv.config()
@@ -52,6 +53,7 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
 // Routes
 app.use('/api/employees', employeeRoutes)
 app.use('/api/roles', roleRoutes)
+app.use('/api/attendance', attendanceRoutes)
 
 // Error handling middleware
 app.use((err, req, res, next) => {

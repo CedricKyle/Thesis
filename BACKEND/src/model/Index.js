@@ -11,7 +11,8 @@ const sequelize = new Sequelize(config.database, config.username, config.passwor
 const Employee = require('./Employee')(sequelize)
 const EmergencyContact = require('./EmergencyContact')(sequelize)
 const Role = require('./Role')(sequelize)
-const User = require('./user')(sequelize)
+const User = require('./User')(sequelize)
+const EmployeeAttendance = require('./EmployeeAttendance')(sequelize)
 
 // Define relationships
 Employee.hasOne(EmergencyContact, {
@@ -40,6 +41,26 @@ Role.hasMany(Employee, {
   sourceKey: 'role_name',
 })
 
+// Add Attendance relationships
+Employee.hasMany(EmployeeAttendance, {
+  foreignKey: 'employee_id',
+  sourceKey: 'employee_id',
+  as: 'attendanceRecords',
+})
+
+EmployeeAttendance.belongsTo(Employee, {
+  foreignKey: 'employee_id',
+  targetKey: 'employee_id',
+  as: 'employee',
+})
+
+// For the approver relationship
+EmployeeAttendance.belongsTo(Employee, {
+  foreignKey: 'approved_by',
+  targetKey: 'employee_id',
+  as: 'approver',
+})
+
 // Export models and sequelize instance
 module.exports = {
   sequelize,
@@ -47,4 +68,5 @@ module.exports = {
   EmergencyContact,
   Role,
   User,
+  EmployeeAttendance,
 }
