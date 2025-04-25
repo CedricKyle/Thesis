@@ -16,7 +16,7 @@ export const useRolesStore = defineStore('roles', {
   }),
 
   actions: {
-    async fetchRoles() {
+    async fetchRoles(showArchived = false) {
       try {
         const authStore = useAuthStore()
         if (!authStore.isAuthenticated) {
@@ -25,7 +25,9 @@ export const useRolesStore = defineStore('roles', {
         }
 
         this.loading = true
-        const response = await axios.get('/api/roles')
+        const response = await axios.get('/api/roles', {
+          params: { showArchived: showArchived.toString() },
+        })
         this.roles = response.data
       } catch (error) {
         console.error('Error fetching roles:', error)
@@ -129,7 +131,8 @@ export const useRolesStore = defineStore('roles', {
     async deleteRole(roleId) {
       try {
         await axios.delete(`/api/roles/${roleId}`)
-        await this.fetchRoles()
+        // Pass true to show archived roles after deletion
+        await this.fetchRoles(true)
       } catch (error) {
         console.error('Error deleting role:', error)
         throw error
@@ -248,6 +251,17 @@ export const useRolesStore = defineStore('roles', {
       this.loading = false
       this.error = null
       this.currentEmployeeRole = null
+    },
+
+    async restoreRole(roleId) {
+      try {
+        await axios.post(`/api/roles/${roleId}/restore`)
+        // Pass the current showArchived state when refreshing
+        await this.fetchRoles(true)
+      } catch (error) {
+        console.error('Error restoring role:', error)
+        throw error
+      }
     },
   },
 })

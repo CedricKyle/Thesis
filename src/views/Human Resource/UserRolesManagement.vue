@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed, watch } from 'vue'
 import { Plus, RefreshCw } from 'lucide-vue-next'
 import { useRouter, useRoute } from 'vue-router'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
@@ -40,6 +40,9 @@ const roleToDelete = ref(null)
 
 // Determine if we're in admin mode
 const isAdminMode = computed(() => route.path.startsWith('/admin'))
+
+// In UserRolesManagement.vue, add a new ref for showing archived roles
+const showArchived = ref(false)
 
 // Table configuration
 const columns = [
@@ -86,36 +89,59 @@ const columns = [
     },
   },
   {
+    title: 'Status',
+    field: 'deleted_at',
+    formatter: function (cell) {
+      const isDeleted = cell.getValue() !== null
+      return `<span class="badge ${isDeleted ? 'badge-error' : 'badge-success'}">${isDeleted ? 'Archived' : 'Active'}</span>`
+    },
+    width: 100,
+  },
+  {
     title: 'Actions',
     formatter: function (cell) {
+      const row = cell.getRow().getData()
+      const isDeleted = row.deleted_at !== null
       return `
         <div class="flex gap-2">
-          <button class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost view-button" title="View Permissions">
-            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/>
-              <path d="M2 12s3-9 10-9 10 9 10 9-3 9-10 9-10-9-10-9z"/>
-            </svg>
-          </button>
-          <button class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost edit-button" title="Edit Role">
-            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-            </svg>
-          </button>
-          <button class="btn btn-sm btn-circle hover:bg-red-400 border-none btn-ghost delete-button" title="Delete Role">
-            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M18 6 6 18M6 6l12 12" />
-            </svg>
-          </button>
+          ${
+            isDeleted
+              ? `
+            <button class="btn btn-sm btn-circle hover:bg-green-500 border-none btn-ghost restore-button" title="Restore Role">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 12h18M12 3v18" />
+              </svg>
+            </button>
+          `
+              : `
+            <button class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost view-button" title="View Permissions">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/>
+                <path d="M2 12s3-9 10-9 10 9 10 9-3 9-10 9-10-9-10-9z"/>
+              </svg>
+            </button>
+            <button class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost edit-button" title="Edit Role">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+            </button>
+            <button class="btn btn-sm btn-circle hover:bg-red-400 border-none btn-ghost delete-button" title="Archive Role">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          `
+          }
         </div>`
     },
-    headerSort: false,
     cellClick: function (e, cell) {
       const record = cell.getRow().getData()
       const button = e.target.closest('button')
       if (!button) return
 
-      if (button.classList.contains('view-button')) handleView(record)
+      if (button.classList.contains('restore-button')) handleRestore(record)
+      else if (button.classList.contains('view-button')) handleView(record)
       else if (button.classList.contains('edit-button')) handleEdit(record)
       else if (button.classList.contains('delete-button')) handleDelete(record)
     },
@@ -199,13 +225,16 @@ const handleDelete = (rowData) => {
   deleteConfirmModal.value?.showModal()
 }
 
-// Update the handleRefresh function to be reusable
+// Modify the refreshTableData function
 const refreshTableData = async () => {
   try {
     isLoading.value = true
-    await rolesStore.fetchRoles()
+    await rolesStore.fetchRoles(showArchived.value)
     filteredRoles.value = roles.value
-    await updateTableData(filteredRoles.value)
+    if (table) {
+      await table.clearData()
+      await table.setData(filteredRoles.value)
+    }
   } catch (error) {
     console.error('Error refreshing roles:', error)
     showNotification('Error refreshing roles', 'error')
@@ -228,10 +257,10 @@ const confirmDelete = async () => {
     await rolesStore.deleteRole(roleToDelete.value.id)
     deleteConfirmModal.value?.close()
     roleToDelete.value = null
-    showToastMessage('Role deleted successfully')
-    await refreshTableData()
+    showToastMessage('Role archived successfully')
+    await refreshTableData() // This will maintain the current showArchived state
   } catch (error) {
-    showToastMessage('Error deleting role', 'error')
+    showToastMessage('Error archiving role', 'error')
   }
 }
 
@@ -287,10 +316,26 @@ const groupedPermissions = computed(() => {
   return groups
 })
 
+// Add restore functionality
+const handleRestore = async (rowData) => {
+  try {
+    await rolesStore.restoreRole(rowData.id)
+    showToastMessage('Role restored successfully')
+    await refreshTableData()
+  } catch (error) {
+    showToastMessage('Error restoring role', 'error')
+  }
+}
+
+// Add a watch to handle checkbox changes
+watch(showArchived, async (newValue) => {
+  await refreshTableData()
+})
+
 // Lifecycle hooks
 onMounted(async () => {
   try {
-    await rolesStore.fetchRoles()
+    await rolesStore.fetchRoles(showArchived.value) // Pass the showArchived value
     filteredRoles.value = roles.value
     await initTable()
   } catch (error) {
@@ -322,6 +367,15 @@ onBeforeUnmount(() => {
       </div>
 
       <div class="flex items-center gap-5">
+        <label class="flex items-center gap-2">
+          <input
+            type="checkbox"
+            v-model="showArchived"
+            @input="refreshTableData"
+            class="checkbox checkbox-sm"
+          />
+          <span class="text-sm">Show Archived</span>
+        </label>
         <label class="input-search input-sm">
           <svg class="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
             <g

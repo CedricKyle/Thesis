@@ -3,9 +3,10 @@ const { Role, Employee, sequelize } = require('../../model/Index.js') // We'll c
 // Convert to named exports instead of object
 const getAllRoles = async (req, res) => {
   try {
-    const { includeDeleted } = req.query
+    // Convert string 'true'/'false' to boolean
+    const showArchived = req.query.showArchived === 'true'
     const roles = await Role.findAll({
-      paranoid: !includeDeleted,
+      paranoid: !showArchived, // When showArchived is true, paranoid should be false
       attributes: [
         'id',
         'role_name',
