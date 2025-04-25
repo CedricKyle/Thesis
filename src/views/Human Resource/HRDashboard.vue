@@ -52,8 +52,13 @@ const filteredStats = computed(() => {
   let absent = 0
   let late = 0
 
+  // Only count active employees (not soft-deleted) and exclude Super Admin
+  const activeEmployees = employees.value.filter(
+    (employee) => !employee.deleted_at && employee.role !== 'Super Admin',
+  )
+
   // Check each employee's attendance status
-  employees.value.forEach((employee) => {
+  activeEmployees.forEach((employee) => {
     const record = attendanceMap.get(employee.employee_id)
 
     if (record) {

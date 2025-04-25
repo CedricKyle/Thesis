@@ -250,7 +250,12 @@ const getAllEmployees = async (req, res) => {
     const { includeDeleted } = req.query
 
     const employees = await Employee.findAll({
-      paranoid: includeDeleted === 'true' ? false : true,
+      where: {
+        deleted_at: null,
+        role: {
+          [Sequelize.Op.ne]: 'Super Admin', // Exclude Super Admin
+        },
+      },
       include: [
         {
           model: EmergencyContact,
@@ -267,20 +272,17 @@ const getAllEmployees = async (req, res) => {
       order: [['created_at', 'DESC']],
     })
 
-    // Map the employees to include permissions and is_deleted flag
     const mappedEmployees = employees.map((employee) => {
       const employeeJson = employee.toJSON()
       return {
         ...employeeJson,
         permissions: employeeJson.roleInfo?.permissions || [],
-        is_deleted: employee.deleted_at !== null,
-        roleInfo: undefined, // Remove roleInfo from response
+        roleInfo: undefined,
       }
     })
 
     res.json(mappedEmployees)
   } catch (error) {
-    console.error('Error fetching employees:', error)
     res.status(500).json({
       message: 'Error fetching employees',
       error: error.message,

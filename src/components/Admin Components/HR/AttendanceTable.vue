@@ -31,19 +31,11 @@ const statusClasses = {
 
 const commonButtonClasses = 'btn btn-sm btn-circle border-none btn-ghost'
 
-// Add computed property to check if current user is Super Admin
-const isSuperAdmin = computed(() => {
-  return authStore.currentUser?.role === 'Super Admin'
-})
-
-// Modify the getDefaultAttendanceData function to filter out Super Admin users
+// Simplify getDefaultAttendanceData to only filter out soft-deleted employees
 const getDefaultAttendanceData = (employees) => {
-  // Filter out Super Admin users if current user is not Super Admin
-  const filteredEmployees = isSuperAdmin.value
-    ? employees
-    : employees.filter((emp) => emp.role !== 'Super Admin')
+  // Filter out soft-deleted employees and Super Admin
+  const filteredEmployees = employees.filter((emp) => !emp.deleted_at && emp.role !== 'Super Admin')
 
-  const currentDate = new Date()
   return filteredEmployees.map((employee) => ({
     id: `absent-${employee.employee_id}`,
     employee_id: employee.employee_id,
@@ -56,22 +48,18 @@ const getDefaultAttendanceData = (employees) => {
   }))
 }
 
-// Modify the mergeAttendanceWithEmployees function to handle role-based filtering
+// Simplify mergeAttendanceWithEmployees
 const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
-  // Filter out Super Admin users if current user is not Super Admin
-  const filteredEmployees = isSuperAdmin.value
-    ? employees
-    : employees.filter((emp) => emp.role !== 'Super Admin')
+  // Filter out soft-deleted employees and Super Admin
+  const filteredEmployees = employees.filter((emp) => !emp.deleted_at && emp.role !== 'Super Admin')
 
   const defaultAttendance = getDefaultAttendanceData(filteredEmployees)
 
-  // Filter attendance records to exclude Super Admin records if needed
-  const filteredAttendance = isSuperAdmin.value
-    ? attendanceRecords
-    : attendanceRecords.filter((record) => {
-        const employee = employees.find((emp) => emp.employee_id === record.employee_id)
-        return employee && employee.role !== 'Super Admin'
-      })
+  // Filter attendance records
+  const filteredAttendance = attendanceRecords.filter((record) => {
+    const employee = employees.find((emp) => emp.employee_id === record.employee_id)
+    return employee && !employee.deleted_at && employee.role !== 'Super Admin'
+  })
 
   // Create a map of existing attendance records by employee_id
   const attendanceMap = new Map(filteredAttendance.map((record) => [record.employee_id, record]))
