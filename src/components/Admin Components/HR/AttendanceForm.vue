@@ -4,7 +4,7 @@ import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
 import { useAttendanceStore } from '@/stores/HR Management/attendanceStore'
 import { useAttendanceLogic } from '@/composables/Admin Composables/Human Resource/useAttendanceLogic'
 import { storeToRefs } from 'pinia'
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import axios from 'axios'
 
 const props = defineProps({
@@ -98,50 +98,84 @@ const calculateOvertime = (signIn, signOut) => {
   return 0
 }
 
+const isSubmitting = ref(false)
+
+// Add this near the top of the script with other refs
+const errorTimeout = ref(null)
+
+// Add this function to handle error message clearing
+const clearErrorWithTimeout = (message, duration = 2000) => {
+  // Clear any existing timeout
+  if (errorTimeout.value) {
+    clearTimeout(errorTimeout.value)
+  }
+
+  // Set the error message
+  formErrors.value.general = message
+
+  // Set new timeout to clear the error
+  errorTimeout.value = setTimeout(() => {
+    formErrors.value.general = ''
+  }, duration)
+}
+
 const handleSubmit = async () => {
+  if (isSubmitting.value) return // Prevent multiple submissions
+
+  isSubmitting.value = true
+  formErrors.value.general = ''
+
   if (!hasAvailableEmployees.value) {
-    formErrors.value.employeeName = 'No employees available in selected department'
+    clearErrorWithTimeout('No employees available in selected department')
+    isSubmitting.value = false
     return
   }
 
-  if (validateForm()) {
+  try {
+    // Validate form first
+    if (!validateForm()) return
+
     const selectedEmployee = filteredEmployees.value.find(
       (emp) => emp.full_name === newAttendance.value.employeeName,
     )
 
     if (!selectedEmployee) {
       formErrors.value.employeeName = 'Selected employee does not exist'
+      isSubmitting.value = false
       return
     }
 
-    try {
-      // Format the date and times
-      const date = new Date(newAttendance.value.date)
-      const timeIn = new Date(`${newAttendance.value.date}T${newAttendance.value.signIn}`)
-      const timeOut = new Date(`${newAttendance.value.date}T${newAttendance.value.signOut}`)
-
-      const attendanceData = {
-        employee_id: selectedEmployee.employee_id,
-        date: date.toISOString().split('T')[0],
-        time_in: newAttendance.value.signIn,
-        time_out: newAttendance.value.signOut,
-      }
-
-      // Call the backend API
-      const response = await axios.post('/api/attendance/manual', attendanceData, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      })
-
-      if (response.data.success) {
-        emit('showConfirm', response.data.data)
-        resetForm()
-      }
-    } catch (error) {
-      console.error('Error submitting attendance:', error)
-      formErrors.value.general = error.response?.data?.message || 'Error submitting attendance'
+    // Check if employee already has attendance for today
+    const todayAttendance = await attendanceStore.getTodayAttendance(selectedEmployee.employee_id)
+    if (todayAttendance) {
+      clearErrorWithTimeout(
+        `${newAttendance.value.employeeName} already has an attendance record for today`,
+      )
+      isSubmitting.value = false
+      return
     }
+
+    // Try to add the record
+    await attendanceStore.addRecord({
+      employee_id: selectedEmployee.employee_id,
+    })
+
+    // Success handling
+    emit('showConfirm', 'Attendance recorded successfully')
+    resetForm()
+  } catch (error) {
+    // Enhanced error handling
+    if (error.message.includes('already has an attendance record')) {
+      clearErrorWithTimeout(
+        `${newAttendance.value.employeeName} already has an attendance record for today`,
+      )
+    } else if (error.response?.data?.message) {
+      clearErrorWithTimeout(error.response.data.message)
+    } else {
+      clearErrorWithTimeout(error.message || 'Error recording attendance')
+    }
+  } finally {
+    isSubmitting.value = false
   }
 }
 
@@ -169,6 +203,14 @@ const handleFormSubmit = async (attendanceData) => {
     showToastMessage(error.message || 'Failed to add attendance record', 'error')
   }
 }
+
+// Add this near the other lifecycle hooks
+onBeforeUnmount(() => {
+  // Clear any existing timeout when component is destroyed
+  if (errorTimeout.value) {
+    clearTimeout(errorTimeout.value)
+  }
+})
 </script>
 
 <template>
@@ -309,8 +351,19 @@ const handleFormSubmit = async (attendanceData) => {
           </div>
         </fieldset>
       </div>
+      <!-- Add transition wrapper around the error message -->
+      <Transition name="fade">
+        <div
+          v-if="formErrors.general"
+          class="error-message bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded mb-4"
+        >
+          {{ formErrors.general }}
+        </div>
+      </Transition>
       <div class="action-buttons flex justify-end mt-5">
-        <button @click="handleSubmit" class="btn-primaryStyle">Add Attendance</button>
+        <button @click="handleSubmit" class="btn-primaryStyle" :disabled="isSubmitting">
+          {{ isSubmitting ? 'Adding...' : 'Add Attendance' }}
+        </button>
       </div>
     </div>
   </div>
@@ -336,5 +389,35 @@ const handleFormSubmit = async (attendanceData) => {
 .input:focus,
 .select:focus {
   border-color: var(--primary-color);
+}
+
+.error-message {
+  font-size: 0.875rem;
+  transition: all 0.3s ease;
+}
+
+/* Optional animation for error message */
+.error-message-enter-active,
+.error-message-leave-active {
+  transition:
+    opacity 0.3s,
+    transform 0.3s;
+}
+
+.error-message-enter-from,
+.error-message-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+
+/* Add these fade transition styles */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.5s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 </style>

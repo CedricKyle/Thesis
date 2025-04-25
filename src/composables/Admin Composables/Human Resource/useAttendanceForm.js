@@ -77,13 +77,17 @@ export function useAttendanceForm() {
 
   const resetForm = () => {
     newAttendance.value = {
+      department: '',
       employeeName: '',
       signIn: '',
       signOut: '',
-      date: '',
-      department: '',
+      date: new Date().toISOString().split('T')[0],
     }
-    formErrors.value = {}
+    // Clear all error messages including general errors
+    Object.keys(formErrors.value).forEach((key) => {
+      formErrors.value[key] = ''
+    })
+    formErrors.value.general = '' // Explicitly clear general errors
   }
 
   return {

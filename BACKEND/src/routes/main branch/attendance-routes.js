@@ -18,9 +18,6 @@ router.get('/history/:employee_id', verifyToken, attendanceController.getAttenda
 router.get('/department/:department', verifyToken, attendanceController.getDepartmentAttendance)
 router.get('/monthly/:employee_id', verifyToken, attendanceController.getMonthlyReport)
 
-// Add this new route for manual attendance entry
-router.post('/manual', verifyToken, attendanceController.addManualAttendance)
-
 // Add this route at the top of your routes
 router.get('/', verifyToken, attendanceController.getAllAttendance)
 

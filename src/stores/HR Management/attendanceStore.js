@@ -257,13 +257,31 @@ export const useAttendanceStore = defineStore('attendance', () => {
   // Actions
   const addRecord = async (attendanceData) => {
     try {
-      const response = await axios.post('/api/attendance/manual', attendanceData, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-      })
+      // Check for existing attendance first
+      const existingAttendance = await getTodayAttendance(attendanceData.employee_id)
+      if (existingAttendance) {
+        throw new Error('Employee already has an attendance record for today')
+      }
 
-      if (response.data.success) {
-        await loadRecords()
-        return response.data.data
+      // First do time in
+      const timeInResponse = await axios.post(
+        '/api/attendance/time-in',
+        { employee_id: attendanceData.employee_id },
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } },
+      )
+
+      if (timeInResponse.data.success) {
+        // Then do time out
+        const timeOutResponse = await axios.post(
+          '/api/attendance/time-out',
+          { employee_id: attendanceData.employee_id },
+          { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } },
+        )
+
+        if (timeOutResponse.data.success) {
+          await loadRecords()
+          return timeOutResponse.data.data
+        }
       }
     } catch (error) {
       console.error('Error adding attendance record:', error)
@@ -394,6 +412,12 @@ export const useAttendanceStore = defineStore('attendance', () => {
   const recordTimeIn = async (employee_id) => {
     isProcessing.value = true
     try {
+      // Check for existing attendance first
+      const todayAttendance = await getTodayAttendance(employee_id)
+      if (todayAttendance) {
+        throw new Error('Employee already has an attendance record for today')
+      }
+
       const response = await axios.post(
         '/api/attendance/time-in',
         { employee_id },
