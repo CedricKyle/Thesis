@@ -914,11 +914,12 @@ export const useAttendanceStore = defineStore('attendance', () => {
   // Add this action to fetch and map department attendance
   const fetchDepartmentAttendance = async (department, startDate, endDate) => {
     try {
+      // Accept "ALL_DEPARTMENTS" as department
+      const depParam = department || 'ALL_DEPARTMENTS'
       const response = await axios.get(
-        `/api/attendance/department/${department}?start_date=${startDate}&end_date=${endDate}`,
+        `/api/attendance/department/${depParam}?start_date=${startDate}&end_date=${endDate}`,
         { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } },
       )
-      // Map backend data to table columns
       departmentAttendanceRaw.value = (response.data.data || []).map((record) => ({
         employee_id: record.employee_id,
         full_name: record.employee?.full_name || record.full_name || '',
@@ -988,6 +989,7 @@ export const useAttendanceStore = defineStore('attendance', () => {
       if (!summaryMap[rec.full_name]) {
         summaryMap[rec.full_name] = {
           name: rec.full_name,
+          department: rec.department,
           present: 0,
           late: 0,
           absent: 0,

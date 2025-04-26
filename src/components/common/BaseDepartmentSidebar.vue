@@ -496,7 +496,7 @@ watch(
         <div class="logo-section flex items-center mb-5 gap-4">
           <div class="logo-content">
             <img
-              src="@/assets/Images/countryside-logo.png"
+              src="/public/countryside-logo.png"
               alt="Countryside logo"
               class="w-[60px] h-[60px]"
             />

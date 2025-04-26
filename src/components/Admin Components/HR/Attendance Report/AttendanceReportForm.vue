@@ -33,7 +33,8 @@ const filteredEmployees = computed(() => {
   })
 
   return employees.value.filter(
-    (emp) => emp.department === props.formData.department && !emp.deleted_at,
+    (emp) =>
+      emp.department === props.formData.department && !emp.deleted_at && emp.role !== 'Super Admin',
   )
 })
 
@@ -76,6 +77,7 @@ const handleSubmit = () => {
               @change="$emit('update:formData', { ...formData, employeeName: '' })"
             >
               <option value="">Select Department</option>
+              <option value="ALL_DEPARTMENTS">All Departments</option>
               <option v-for="dept in departments" :key="dept">{{ dept }}</option>
             </select>
           </div>

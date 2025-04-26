@@ -347,16 +347,21 @@ const attendanceController = {
       const { department } = req.params
       const { start_date, end_date } = req.query
 
-      // Validate input
       if (!start_date || !end_date) {
         return res
           .status(400)
           .json({ success: false, message: 'start_date and end_date are required' })
       }
 
-      // 1. Get all employees in the department
+      // 1. Get all employees (if ALL_DEPARTMENTS) or by department
+      const whereClause = { deleted_at: null }
+      if (department !== 'ALL_DEPARTMENTS') {
+        whereClause.department = department
+      }
+      // Exclude Super Admins
+      whereClause.role = { [Op.not]: 'Super Admin' }
       const employees = await Employee.findAll({
-        where: { department, deleted_at: null },
+        where: whereClause,
         attributes: ['employee_id', 'full_name', 'department'],
       })
 
@@ -413,7 +418,7 @@ const attendanceController = {
         }
       }
 
-      // 6. (Optional) Sort by date, then employee
+      // 6. Sort by date, then employee
       completeAttendance.sort((a, b) => {
         if (a.date === b.date) {
           return a.employee_id.localeCompare(b.employee_id)

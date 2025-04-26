@@ -59,7 +59,8 @@ onMounted(async () => {
 const isDepartmentReport = ref(false)
 
 const handleFormSubmit = async (employeeId) => {
-  isDepartmentReport.value = employeeId === 'ALL'
+  // If "ALL_DEPARTMENTS" is selected, treat as department report
+  isDepartmentReport.value = employeeId === 'ALL' || formData.value.department === 'ALL_DEPARTMENTS'
   attendanceStore.setReportFilters({
     startDate: formData.value.startDate,
     endDate: formData.value.endDate,
@@ -187,6 +188,28 @@ const departmentMostStats = computed(() => {
     maxAbsent,
   }
 })
+
+const handleExportPDF = () => {
+  if (isDepartmentReport.value) {
+    console.log('Department PDF:', {
+      summary: departmentFullSummary.value,
+      records: mappedDepartmentAttendance.value,
+      empSummaries: departmentFullEmployeeSummaries.value,
+    })
+    generatePDF(
+      formData.value,
+      departmentFullSummary.value,
+      mappedDepartmentAttendance.value,
+      departmentFullEmployeeSummaries.value,
+    )
+  } else {
+    console.log('Employee PDF:', {
+      summary: reportSummary.value,
+      records: getAttendanceReport.value,
+    })
+    generatePDF(formData.value, reportSummary.value, getAttendanceReport.value, [])
+  }
+}
 </script>
 
 <template>
@@ -205,10 +228,18 @@ const departmentMostStats = computed(() => {
           class="flex-1 min-w-[200px] bg-green-50 rounded-md p-4 shadow text-center"
         >
           <div class="text-xs text-gray-500 mb-1">Most Present</div>
-          <div class="text-lg font-bold text-green-700">
-            <span v-for="(emp, idx) in departmentMostStats.mostPresent" :key="emp.name">
-              {{ emp.name }}<span v-if="idx < departmentMostStats.mostPresent.length - 1">, </span>
-            </span>
+          <div class="text-lg font-bold text-green-700 flex flex-col items-center gap-1">
+            <template v-for="emp in departmentMostStats.mostPresent" :key="emp.name">
+              <div>
+                {{ emp.name }}
+                <div
+                  v-if="formData.department === 'ALL_DEPARTMENTS'"
+                  class="text-xs text-gray-500 font-normal"
+                >
+                  {{ emp.department || 'No Department' }}
+                </div>
+              </div>
+            </template>
           </div>
           <div class="text-2xl font-semibold text-green-800">
             {{ departmentMostStats.maxPresent }}
@@ -220,10 +251,18 @@ const departmentMostStats = computed(() => {
           class="flex-1 min-w-[200px] bg-yellow-50 rounded-md p-4 shadow text-center"
         >
           <div class="text-xs text-gray-500 mb-1">Most Late</div>
-          <div class="text-lg font-bold text-yellow-700">
-            <span v-for="(emp, idx) in departmentMostStats.mostLate" :key="emp.name">
-              {{ emp.name }}<span v-if="idx < departmentMostStats.mostLate.length - 1">, </span>
-            </span>
+          <div class="text-lg font-bold text-yellow-700 flex flex-col items-center gap-1">
+            <template v-for="emp in departmentMostStats.mostLate" :key="emp.name">
+              <div>
+                {{ emp.name }}
+                <div
+                  v-if="formData.department === 'ALL_DEPARTMENTS'"
+                  class="text-xs text-gray-500 font-normal"
+                >
+                  {{ emp.department || 'No Department' }}
+                </div>
+              </div>
+            </template>
           </div>
           <div class="text-2xl font-semibold text-yellow-800">
             {{ departmentMostStats.maxLate }}
@@ -235,10 +274,18 @@ const departmentMostStats = computed(() => {
           class="flex-1 min-w-[200px] bg-red-50 rounded-md p-4 shadow text-center"
         >
           <div class="text-xs text-gray-500 mb-1">Most Absent</div>
-          <div class="text-lg font-bold text-red-700">
-            <span v-for="(emp, idx) in departmentMostStats.mostAbsent" :key="emp.name">
-              {{ emp.name }}<span v-if="idx < departmentMostStats.mostAbsent.length - 1">, </span>
-            </span>
+          <div class="text-lg font-bold text-red-700 flex flex-col items-center gap-1">
+            <template v-for="emp in departmentMostStats.mostAbsent" :key="emp.name">
+              <div>
+                {{ emp.name }}
+                <div
+                  v-if="formData.department === 'ALL_DEPARTMENTS'"
+                  class="text-xs text-gray-500 font-normal"
+                >
+                  {{ emp.department || 'No Department' }}
+                </div>
+              </div>
+            </template>
           </div>
           <div class="text-2xl font-semibold text-red-800">
             {{ departmentMostStats.maxAbsent }}
@@ -319,13 +366,8 @@ const departmentMostStats = computed(() => {
         "
         :records="isDepartmentReport ? mappedDepartmentAttendance : getAttendanceReport"
         :is-department-report="isDepartmentReport"
-        @generate-pdf="
-          generatePDF(
-            formData,
-            isDepartmentReport ? departmentFullSummary : reportSummary,
-            isDepartmentReport ? mappedDepartmentAttendance : getAttendanceReport,
-          )
-        "
+        :selected-department="formData.department"
+        @generate-pdf="handleExportPDF"
       />
 
       <!-- Add a message when no data is found -->

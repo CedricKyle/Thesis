@@ -152,7 +152,7 @@ const handleSubmit = async (e) => {
         <p class="text-white text-sm">Logging in...</p>
       </div>
       <div v-else class="flex flex-col items-center gap-2">
-        <img src="@/assets/Images/countryside-logo.png" alt="Logo" class="w-32" />
+        <img src="/public/countryside-logo.png" alt="Logo" class="w-32" />
         <p class="text-white text-lg">Welcome to Countryside</p>
       </div>
     </div>
@@ -164,11 +164,7 @@ const handleSubmit = async (e) => {
     <div class="w-full max-w-md p-5 bg-primaryColor shadow-md h-96">
       <div class="form-container flex flex-col items-center w-full h-full">
         <div class="logo flex flex-col items-center">
-          <img
-            class="h-15 w-15"
-            src="../assets/Images/countryside-logo.png"
-            alt="this is logo img"
-          />
+          <img class="h-15 w-15" src="/public/countryside-logo.png" alt="this is logo img" />
           <h1 class="text-2xl font-bold text-secondaryColor">Welcome back,</h1>
         </div>
 

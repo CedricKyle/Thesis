@@ -15,6 +15,10 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
+  selectedDepartment: {
+    type: String,
+    default: '',
+  },
 })
 
 const emit = defineEmits(['generate-pdf'])
@@ -31,6 +35,15 @@ const columns = [
           field: 'full_name',
           sorter: 'string',
         },
+        ...(props.selectedDepartment === 'ALL_DEPARTMENTS'
+          ? [
+              {
+                title: 'Department',
+                field: 'department',
+                sorter: 'string',
+              },
+            ]
+          : []),
       ]
     : []),
   {
@@ -47,25 +60,26 @@ const columns = [
       })
     },
   },
-  {
-    title: 'Time In',
-    field: 'signIn',
-    formatter: (cell) => cell.getValue() || '-',
-  },
-  {
-    title: 'Time Out',
-    field: 'signOut',
-    formatter: (cell) => cell.getValue() || '-',
-  },
-  {
-    title: 'Working Hours',
-    field: 'workingHours',
-    formatter: (cell) => {
-      const value = cell.getValue()
-      // This will handle the format "8h 30m + 2h 15m OT"
-      return value || '-'
-    },
-  },
+  // Only show these columns if NOT all departments
+  ...(props.selectedDepartment !== 'ALL_DEPARTMENTS'
+    ? [
+        {
+          title: 'Time In',
+          field: 'signIn',
+          formatter: (cell) => cell.getValue() || '-',
+        },
+        {
+          title: 'Time Out',
+          field: 'signOut',
+          formatter: (cell) => cell.getValue() || '-',
+        },
+        {
+          title: 'Working Hours',
+          field: 'workingHours',
+          formatter: (cell) => cell.getValue() || '-',
+        },
+      ]
+    : []),
   {
     title: 'Status',
     field: 'status',
