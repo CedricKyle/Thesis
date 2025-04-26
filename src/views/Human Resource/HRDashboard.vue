@@ -8,17 +8,26 @@ import {
   X,
   RotateCw,
 } from 'lucide-vue-next'
-import { computed, ref, watch, onMounted } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 // Import Chart.js components
-import { Pie } from 'vue-chartjs'
-import { Chart as ChartJS, Title, Tooltip, Legend, ArcElement, CategoryScale } from 'chart.js'
+import { Pie, Bar } from 'vue-chartjs'
+import {
+  Chart as ChartJS,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  CategoryScale,
+  BarElement,
+  LinearScale,
+} from 'chart.js'
 import { useAttendanceStore } from '@/stores/HR Management/attendanceStore'
 import { storeToRefs } from 'pinia'
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
 import { DEPARTMENTS } from '@/composables/Admin Composables/User & Role/role/permissionsId'
 
 // Register Chart.js components
-ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale)
+ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale, BarElement, LinearScale)
 
 // Date state
 const selectedDate = ref(new Date().toISOString().split('T')[0]) // Default to today
@@ -31,71 +40,84 @@ const { loadRecords } = attendanceStore
 const employeeStore = useEmployeeStore()
 const { employees } = storeToRefs(employeeStore)
 
-// Filtered stats based on selected date
+// Dynamic department list (excluding Admin)
+const departmentList = computed(() =>
+  Object.values(DEPARTMENTS).filter((dept) => dept !== DEPARTMENTS.ADMIN),
+)
+
+// Trend range state
+const trendRange = ref('7days') // options: '1day', '7days', '1month'
+
+// Utility to get date range array
+function getDateRange() {
+  const end = new Date(selectedDate.value)
+  let days = []
+  if (trendRange.value === '1day') {
+    days = [end.toISOString().split('T')[0]]
+  } else if (trendRange.value === '7days') {
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(end)
+      d.setDate(end.getDate() - i)
+      days.push(d.toISOString().split('T')[0])
+    }
+  } else if (trendRange.value === '1month') {
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(end)
+      d.setDate(end.getDate() - i)
+      days.push(d.toISOString().split('T')[0])
+    }
+  }
+  return days
+}
+
+// Filtered stats based on selected range
 const filteredStats = computed(() => {
   if (!attendanceRecords.value || !employees.value) {
     return { present: 0, absent: 0, late: 0 }
   }
-
-  const dateToCheck = new Date(selectedDate.value)
-
-  // Get all records for the selected date
-  const recordsForDate = attendanceRecords.value.filter((record) => {
-    const recordDate = new Date(record.date)
-    return recordDate.toDateString() === dateToCheck.toDateString()
-  })
-
-  // Create a map of attendance records by employee_id
-  const attendanceMap = new Map(recordsForDate.map((record) => [record.employee_id, record]))
-
-  // Only count active employees (not soft-deleted) and exclude Super Admin
+  const dateRange = getDateRange()
   const activeEmployees = employees.value.filter(
     (employee) => !employee.deleted_at && employee.role !== 'Super Admin',
   )
-
-  // Initialize counters
   let present = 0
-  let absent = activeEmployees.length // Start with all employees as absent
+  let absent = 0
   let late = 0
 
-  // Check each employee's attendance status
-  activeEmployees.forEach((employee) => {
-    const record = attendanceMap.get(employee.employee_id)
-
-    if (record && record.signIn !== '-') {
-      // Only count as present/late if they have signed in
-      switch (record.status) {
-        case 'Present':
-        case 'Present + OT':
-          present++
-          absent-- // Reduce absent count for each present employee
-          break
-        case 'Late':
-        case 'Late + OT':
-          late++
-          absent-- // Reduce absent count for each late employee
-          break
+  dateRange.forEach((date) => {
+    const recordsForDate = attendanceRecords.value.filter((record) => record.date === date)
+    const attendanceMap = new Map(recordsForDate.map((record) => [record.employee_id, record]))
+    let dayPresent = 0
+    let dayAbsent = activeEmployees.length
+    let dayLate = 0
+    activeEmployees.forEach((employee) => {
+      const record = attendanceMap.get(employee.employee_id)
+      if (record && record.signIn !== '-') {
+        switch (record.status) {
+          case 'Present':
+          case 'Present + OT':
+            dayPresent++
+            dayAbsent--
+            break
+          case 'Late':
+          case 'Late + OT':
+            dayLate++
+            dayAbsent--
+            break
+        }
       }
-    }
+    })
+    present += dayPresent
+    absent += dayAbsent
+    late += dayLate
   })
-
-  return {
-    present,
-    absent,
-    late,
-  }
+  return { present, absent, late }
 })
 
-// Chart data based on filtered stats
+// Pie chart data (still for the selected date only)
 const filteredChartData = computed(() => {
   const total = employees.value?.length || 0
   const stats = filteredStats.value
-
-  // Calculate percentages
-  const getPercentage = (value) => {
-    return total > 0 ? Math.round((value / total) * 100) : 0
-  }
-
+  const getPercentage = (value) => (total > 0 ? Math.round((value / total) * 100) : 0)
   return {
     labels: ['Present', 'Absent', 'Late'],
     datasets: [
@@ -115,13 +137,13 @@ const filteredChartData = computed(() => {
 })
 
 // Format date for display
-const formattedDate = computed(() => {
-  return new Date(selectedDate.value).toLocaleDateString('en-US', {
+const formattedDate = computed(() =>
+  new Date(selectedDate.value).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-  })
-})
+  }),
+)
 
 // Todo list state
 const newTask = ref('')
@@ -158,34 +180,27 @@ const chartOptions = ref({
   maintainAspectRatio: false,
   plugins: {
     legend: {
-      position: 'right',
+      position: 'top',
       labels: {
         padding: 20,
-        font: {
-          size: 14,
-        },
+        font: { size: 14 },
         usePointStyle: true,
         pointStyle: 'circle',
       },
     },
     title: {
       display: true,
-      text: 'Employee Attendance Overview',
-      font: {
-        size: 20,
-      },
-      padding: {
-        top: 20,
-        bottom: 20,
-      },
-      color: '#374151',
+      text: 'Attendance Trend',
+      font: { size: 18 },
+      color: '#466114',
+      padding: { top: 10, bottom: 10 },
     },
     tooltip: {
       callbacks: {
         label: function (context) {
-          const label = context.label || ''
-          const value = context.raw || 0 // Use raw value instead of formatted
-          return `${label}: ${value}% (${filteredStats.value[label.toLowerCase()]} employees)`
+          const label = context.dataset.label || ''
+          const value = context.raw || 0
+          return `${label}: ${value}`
         },
       },
     },
@@ -221,36 +236,102 @@ onMounted(() => {
   }
 })
 
-const departmentList = computed(() =>
-  Object.values(DEPARTMENTS).filter((dept) => dept !== DEPARTMENTS.ADMIN),
-)
-
+// Department breakdown for selected range
 const departmentStats = computed(() => {
   if (!employees.value || !attendanceRecords.value) return []
+  const dateRange = getDateRange()
   return departmentList.value.map((dept) => {
     const deptEmployees = employees.value.filter(
       (e) => e.department === dept && !e.deleted_at && e.role !== 'Super Admin',
     )
-    const records = attendanceRecords.value.filter(
-      (r) => r.date === selectedDate.value && r.department === dept,
-    )
+    let present = 0
+    let absent = 0
+    let late = 0
+    let onLeave = 0
+
+    dateRange.forEach((date) => {
+      const records = attendanceRecords.value.filter(
+        (r) => r.date === date && r.department === dept,
+      )
+      present += records.filter((r) => r.status === 'Present' || r.status === 'Present + OT').length
+      late += records.filter((r) => r.status === 'Late' || r.status === 'Late + OT').length
+      onLeave += records.filter((r) => r.status === 'On Leave').length
+
+      // Absent: employees with no record or signIn === '-'
+      const attendanceMap = new Map(records.map((r) => [r.employee_id, r]))
+      deptEmployees.forEach((emp) => {
+        const rec = attendanceMap.get(emp.employee_id)
+        if (!rec || rec.signIn === '-') {
+          absent++
+        }
+      })
+    })
+
     return {
       name: dept,
-      present: records.filter((r) => r.status === 'Present' || r.status === 'Present + OT').length,
-      absent:
-        deptEmployees.length -
-        records.filter(
-          (r) =>
-            r.status === 'Present' ||
-            r.status === 'Present + OT' ||
-            r.status === 'Late' ||
-            r.status === 'Late + OT',
-        ).length,
-      late: records.filter((r) => r.status === 'Late' || r.status === 'Late + OT').length,
-      onLeave: records.filter((r) => r.status === 'On Leave').length,
-      total: deptEmployees.length,
+      present,
+      absent,
+      late,
+      onLeave,
+      total: deptEmployees.length * dateRange.length, // total possible attendance slots
     }
   })
+})
+
+// Attendance trend chart data
+const trendLabels = computed(() => {
+  const today = new Date(selectedDate.value)
+  let days = []
+  if (trendRange.value === '1day') {
+    days = [today.toISOString().split('T')[0]]
+  } else if (trendRange.value === '7days') {
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today)
+      d.setDate(today.getDate() - i)
+      days.push(d.toISOString().split('T')[0])
+    }
+  } else if (trendRange.value === '1month') {
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(today)
+      d.setDate(today.getDate() - i)
+      days.push(d.toISOString().split('T')[0])
+    }
+  }
+  return days
+})
+
+const attendanceTrendData = computed(() => {
+  const present = []
+  const absent = []
+  const late = []
+  trendLabels.value.forEach((date) => {
+    const activeEmployees = employees.value.filter((e) => !e.deleted_at && e.role !== 'Super Admin')
+    const records = attendanceRecords.value.filter((r) => r.date === date)
+    const attendanceMap = new Map(records.map((r) => [r.employee_id, r]))
+    let presentCount = 0,
+      absentCount = 0,
+      lateCount = 0
+    activeEmployees.forEach((emp) => {
+      const rec = attendanceMap.get(emp.employee_id)
+      if (rec && rec.signIn !== '-') {
+        if (rec.status === 'Present' || rec.status === 'Present + OT') presentCount++
+        else if (rec.status === 'Late' || rec.status === 'Late + OT') lateCount++
+      } else {
+        absentCount++
+      }
+    })
+    present.push(presentCount)
+    absent.push(absentCount)
+    late.push(lateCount)
+  })
+  return {
+    labels: trendLabels.value,
+    datasets: [
+      { label: 'Present', data: present, backgroundColor: '#466114' },
+      { label: 'Absent', data: absent, backgroundColor: '#ef4444' },
+      { label: 'Late', data: late, backgroundColor: '#F87A14' },
+    ],
+  }
 })
 </script>
 
@@ -267,26 +348,45 @@ const departmentStats = computed(() => {
       </div>
     </div>
 
+    <div class="flex gap-2 mb-2">
+      <button
+        class="btn btn-xs"
+        :class="trendRange === '1day' ? 'bg-primaryColor text-white' : 'bg-gray-200'"
+        @click="trendRange = '1day'"
+      >
+        1 Day
+      </button>
+      <button
+        class="btn btn-xs"
+        :class="trendRange === '7days' ? 'bg-primaryColor text-white' : 'bg-gray-200'"
+        @click="trendRange = '7days'"
+      >
+        7 Days
+      </button>
+      <button
+        class="btn btn-xs"
+        :class="trendRange === '1month' ? 'bg-primaryColor text-white' : 'bg-gray-200'"
+        @click="trendRange = '1month'"
+      >
+        1 Month
+      </button>
+    </div>
+
     <div class="grid grid-cols-4 grid-rows-[auto_auto_auto_auto] gap-4 text-black">
       <!--Stats Grid-->
       <div class="col-span-3 flex gap-4 justify-between">
-        <div class="">
+        <div>
           <div class="card bg-white w-65 shadow-md">
             <div class="card-body">
-              <!--Card Content-->
               <div class="card-header flex flex-row gap-2 justify-between">
-                <div class="">
-                  <h1 class="text-gray-600">Present</h1>
-                </div>
-                <div class="">
-                  <EllipsisVertical class="w-4 h-4" />
-                </div>
+                <div><h1 class="text-gray-600">Present</h1></div>
+                <div><EllipsisVertical class="w-4 h-4" /></div>
               </div>
               <div class="card-content mt-4 flex flex-row gap-2 justify-between">
-                <div class="">
+                <div>
                   <h1 class="text-4xl font-bold">{{ filteredStats.present }}</h1>
                 </div>
-                <div class="">
+                <div>
                   <UserRoundCheck class="w-9 h-9 text-white rounded-full p-2 bg-[#466114]" />
                 </div>
               </div>
@@ -299,20 +399,15 @@ const departmentStats = computed(() => {
         <div>
           <div class="card bg-white w-65 shadow-md">
             <div class="card-body">
-              <!--Card Content-->
               <div class="card-header flex flex-row gap-2 justify-between">
-                <div class="">
-                  <h1 class="text-gray-600">Absent</h1>
-                </div>
-                <div class="">
-                  <EllipsisVertical class="w-4 h-4" />
-                </div>
+                <div><h1 class="text-gray-600">Absent</h1></div>
+                <div><EllipsisVertical class="w-4 h-4" /></div>
               </div>
               <div class="card-content mt-4 flex flex-row gap-2 justify-between">
-                <div class="">
+                <div>
                   <h1 class="text-4xl font-bold">{{ filteredStats.absent }}</h1>
                 </div>
-                <div class="">
+                <div>
                   <CircleX class="w-9 h-9 text-white rounded-full p-2 bg-[#ef4444]" />
                 </div>
               </div>
@@ -325,20 +420,15 @@ const departmentStats = computed(() => {
         <div>
           <div class="card bg-white w-65 shadow-md">
             <div class="card-body">
-              <!--Card Content-->
               <div class="card-header flex flex-row gap-2 justify-between">
-                <div class="">
-                  <h1 class="text-gray-600">Late</h1>
-                </div>
-                <div class="">
-                  <EllipsisVertical class="w-4 h-4" />
-                </div>
+                <div><h1 class="text-gray-600">Late</h1></div>
+                <div><EllipsisVertical class="w-4 h-4" /></div>
               </div>
               <div class="card-content mt-4 flex flex-row gap-2 justify-between">
-                <div class="">
+                <div>
                   <h1 class="text-4xl font-bold">{{ filteredStats.late }}</h1>
                 </div>
-                <div class="">
+                <div>
                   <Timer class="w-9 h-9 text-white rounded-full p-2 bg-[#F87A14]" />
                 </div>
               </div>
@@ -384,7 +474,6 @@ const departmentStats = computed(() => {
                   </div>
                 </div>
               </div>
-
               <div class="todo-list w-[80%] flex flex-col overflow-y-auto">
                 <ul class="mt-5">
                   <li
@@ -409,7 +498,7 @@ const departmentStats = computed(() => {
                         {{ task.text }}
                       </span>
                     </div>
-                    <div class="">
+                    <div>
                       <X
                         class="w-4 h-4 cursor-pointer"
                         :class="task.completed ? 'text-gray-400' : 'text-black'"
@@ -423,23 +512,27 @@ const departmentStats = computed(() => {
           </div>
         </div>
       </div>
+
       <!--Chart Grid-->
       <div class="col-span-3 row-start-2">
-        <div class="chart bg-white shadow-md rounded-md p-6">
-          <div class="flex justify-between items-center mb-4">
-            <h2 class="text-lg font-semibold text-gray-700">
-              Attendance Statistics for {{ formattedDate }}
-            </h2>
-          </div>
-          <div class="h-[400px]">
-            <Pie :data="filteredChartData" :options="chartOptions" />
+        <div class="chart bg-white shadow-md rounded-md p-6 flex flex-col items-center">
+          <div
+            class="w-full"
+            :style="`min-height: 350px; height: ${trendRange === '1month' ? 600 : 350}px;`"
+          >
+            <Bar :data="attendanceTrendData" :options="chartOptions" />
           </div>
         </div>
       </div>
     </div>
 
     <div class="bg-white p-4 rounded shadow mb-6 text-black">
-      <h2 class="font-semibold mb-2">Department Breakdown ({{ formattedDate }})</h2>
+      <h2 class="font-semibold mb-2">
+        Department Breakdown
+        <span v-if="trendRange === '1day'">({{ formattedDate }})</span>
+        <span v-else-if="trendRange === '7days'">(Last 7 Days)</span>
+        <span v-else>(Last 30 Days)</span>
+      </h2>
       <table class="min-w-full text-sm">
         <thead>
           <tr>
@@ -448,7 +541,7 @@ const departmentStats = computed(() => {
             <th class="text-center px-2 py-1">Late</th>
             <th class="text-center px-2 py-1">Absent</th>
             <th class="text-center px-2 py-1">On Leave</th>
-            <th class="text-center px-2 py-1">Total Employees</th>
+            <th class="text-center px-2 py-1">Total Slots</th>
           </tr>
         </thead>
         <tbody>
@@ -469,6 +562,13 @@ const departmentStats = computed(() => {
 <style scoped>
 .chart {
   transition: all 0.3s ease;
+  width: 100%;
+  min-height: 350px;
+  height: 350px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
 }
 
 .chart:hover {
