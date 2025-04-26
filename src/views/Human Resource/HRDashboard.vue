@@ -333,6 +333,151 @@ const attendanceTrendData = computed(() => {
     ],
   }
 })
+
+// Helper: Get date range for leaderboard
+const leaderboardDateRange = computed(() => getDateRange())
+
+// Helper: Get all attendance records in range
+const recordsInRange = computed(() =>
+  attendanceRecords.value
+    ? attendanceRecords.value.filter((r) => leaderboardDateRange.value.includes(r.date))
+    : [],
+)
+
+// Helper: Map employee_id to employee object
+const employeeMap = computed(() => {
+  const map = new Map()
+  if (employees.value) {
+    employees.value.forEach((e) => {
+      if (!e.deleted_at && e.role !== 'Super Admin') map.set(e.employee_id, e)
+    })
+  }
+  return map
+})
+
+// Count attendance per employee in range
+function getAttendanceCounts(statuses) {
+  const counts = {}
+  recordsInRange.value.forEach((rec) => {
+    if (!employeeMap.value.has(rec.employee_id)) return
+    if (statuses.includes(rec.status)) {
+      counts[rec.employee_id] = (counts[rec.employee_id] || 0) + 1
+    }
+  })
+  return counts
+}
+
+// Top 3 Present
+const topPresent = computed(() => {
+  const counts = getAttendanceCounts(['Present', 'Present + OT'])
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([id, count]) => ({
+      ...employeeMap.value.get(id),
+      count,
+    }))
+})
+
+// Top 3 Late
+const topLate = computed(() => {
+  const counts = getAttendanceCounts(['Late', 'Late + OT'])
+  return Object.entries(counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([id, count]) => ({
+      ...employeeMap.value.get(id),
+      count,
+    }))
+})
+
+// Top 3 Absent (most days with no record or signIn === '-')
+const topAbsent = computed(() => {
+  const range = leaderboardDateRange.value
+  const activeEmployees = employees.value
+    ? employees.value.filter((e) => !e.deleted_at && e.role !== 'Super Admin')
+    : []
+  const absentCounts = {}
+  activeEmployees.forEach((emp) => {
+    let absent = 0
+    range.forEach((date) => {
+      const rec = recordsInRange.value.find(
+        (r) => r.employee_id === emp.employee_id && r.date === date,
+      )
+      if (!rec || rec.signIn === '-') absent++
+    })
+    absentCounts[emp.employee_id] = absent
+  })
+  return Object.entries(absentCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([id, count]) => ({
+      ...employeeMap.value.get(id),
+      count,
+    }))
+})
+
+// ALERTS: Employees with frequent absences or lateness in the selected range
+
+// Helper: Get active employees
+const activeEmployees = computed(() =>
+  employees.value ? employees.value.filter((e) => !e.deleted_at && e.role !== 'Super Admin') : [],
+)
+
+// Helper: Get all attendance records in range
+const alertRecordsInRange = computed(() =>
+  attendanceRecords.value
+    ? attendanceRecords.value.filter((r) => getDateRange().includes(r.date))
+    : [],
+)
+
+// Frequent Absentees (e.g., absent >= 50% of days in range)
+const frequentAbsentees = computed(() => {
+  const range = getDateRange()
+  return activeEmployees.value
+    .map((emp) => {
+      let absent = 0
+      range.forEach((date) => {
+        const rec = alertRecordsInRange.value.find(
+          (r) => r.employee_id === emp.employee_id && r.date === date,
+        )
+        if (!rec || rec.signIn === '-') absent++
+      })
+      return { ...emp, absent }
+    })
+    .filter((emp) => emp.absent >= Math.ceil(range.length / 2))
+    .sort((a, b) => b.absent - a.absent)
+})
+
+// Frequent Late (e.g., late >= 3 times in range)
+const frequentLate = computed(() => {
+  const counts = {}
+  alertRecordsInRange.value.forEach((rec) => {
+    if (rec.status === 'Late' || rec.status === 'Late + OT') {
+      counts[rec.employee_id] = (counts[rec.employee_id] || 0) + 1
+    }
+  })
+  return activeEmployees.value
+    .map((emp) => ({
+      ...emp,
+      late: counts[emp.employee_id] || 0,
+    }))
+    .filter((emp) => emp.late >= 3)
+    .sort((a, b) => b.late - a.late)
+})
+
+// No Records (no attendance at all in range)
+const noRecords = computed(() => {
+  const range = getDateRange()
+  return activeEmployees.value.filter((emp) =>
+    range.every(
+      (date) =>
+        !alertRecordsInRange.value.find(
+          (r) => r.employee_id === emp.employee_id && r.date === date,
+        ),
+    ),
+  )
+})
 </script>
 
 <template>
@@ -527,6 +672,59 @@ const attendanceTrendData = computed(() => {
     </div>
 
     <div class="bg-white p-4 rounded shadow mb-6 text-black">
+      <h2 class="font-semibold mb-4">
+        Employee Leaderboard ({{
+          trendRange === '1day'
+            ? formattedDate
+            : trendRange === '7days'
+              ? 'Last 7 Days'
+              : 'Last 30 Days'
+        }})
+      </h2>
+      <div class="grid grid-cols-3 gap-4">
+        <!-- Most Present -->
+        <div>
+          <h3 class="font-semibold text-green-700 mb-2">Most Present</h3>
+          <ol>
+            <li v-for="(emp, idx) in topPresent" :key="emp.employee_id" class="mb-1">
+              <span class="font-bold">{{ idx + 1 }}.</span>
+              <span>{{ emp?.first_name }} {{ emp?.last_name }}</span>
+              <span class="ml-2 text-xs text-gray-500">({{ emp.department }})</span>
+              <span class="ml-2 text-xs text-gray-400">- {{ emp.count }} days</span>
+            </li>
+            <li v-if="topPresent.length === 0" class="text-gray-400">No data</li>
+          </ol>
+        </div>
+        <!-- Most Late -->
+        <div>
+          <h3 class="font-semibold text-orange-600 mb-2">Most Late</h3>
+          <ol>
+            <li v-for="(emp, idx) in topLate" :key="emp.employee_id" class="mb-1">
+              <span class="font-bold">{{ idx + 1 }}.</span>
+              <span>{{ emp?.first_name }} {{ emp?.last_name }}</span>
+              <span class="ml-2 text-xs text-gray-500">({{ emp.department }})</span>
+              <span class="ml-2 text-xs text-gray-400">- {{ emp.count }} days</span>
+            </li>
+            <li v-if="topLate.length === 0" class="text-gray-400">No data</li>
+          </ol>
+        </div>
+        <!-- Most Absent -->
+        <div>
+          <h3 class="font-semibold text-red-700 mb-2">Most Absent</h3>
+          <ol>
+            <li v-for="(emp, idx) in topAbsent" :key="emp.employee_id" class="mb-1">
+              <span class="font-bold">{{ idx + 1 }}.</span>
+              <span>{{ emp?.first_name }} {{ emp?.last_name }}</span>
+              <span class="ml-2 text-xs text-gray-500">({{ emp.department }})</span>
+              <span class="ml-2 text-xs text-gray-400">- {{ emp.count }} days</span>
+            </li>
+            <li v-if="topAbsent.length === 0" class="text-gray-400">No data</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+
+    <div class="bg-white p-4 rounded shadow mb-6 text-black">
       <h2 class="font-semibold mb-2">
         Department Breakdown
         <span v-if="trendRange === '1day'">({{ formattedDate }})</span>
@@ -555,6 +753,57 @@ const attendanceTrendData = computed(() => {
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <div class="bg-white p-4 rounded shadow mb-6 text-black">
+      <h2 class="font-semibold mb-4">
+        Attendance Alerts ({{
+          trendRange === '1day'
+            ? formattedDate
+            : trendRange === '7days'
+              ? 'Last 7 Days'
+              : 'Last 30 Days'
+        }})
+      </h2>
+      <div class="grid grid-cols-3 gap-4">
+        <!-- Frequent Absentees -->
+        <div>
+          <h3 class="font-semibold text-red-700 mb-2">Frequent Absentees</h3>
+          <ul>
+            <li v-for="emp in frequentAbsentees" :key="emp.employee_id" class="mb-1">
+              <span>{{ emp.first_name }} {{ emp.last_name }}</span>
+              <span class="ml-2 text-xs text-gray-500">({{ emp.department }})</span>
+              <span class="ml-2 text-xs text-gray-400">- {{ emp.absent }} absences</span>
+            </li>
+            <li v-if="frequentAbsentees.length === 0" class="text-gray-400">
+              No frequent absentees
+            </li>
+          </ul>
+        </div>
+        <!-- Frequent Late -->
+        <div>
+          <h3 class="font-semibold text-orange-600 mb-2">Frequent Late</h3>
+          <ul>
+            <li v-for="emp in frequentLate" :key="emp.employee_id" class="mb-1">
+              <span>{{ emp.first_name }} {{ emp.last_name }}</span>
+              <span class="ml-2 text-xs text-gray-500">({{ emp.department }})</span>
+              <span class="ml-2 text-xs text-gray-400">- {{ emp.late }} times</span>
+            </li>
+            <li v-if="frequentLate.length === 0" class="text-gray-400">No frequent latecomers</li>
+          </ul>
+        </div>
+        <!-- No Records -->
+        <div>
+          <h3 class="font-semibold text-gray-700 mb-2">No Records</h3>
+          <ul>
+            <li v-for="emp in noRecords" :key="emp.employee_id" class="mb-1">
+              <span>{{ emp.first_name }} {{ emp.last_name }}</span>
+              <span class="ml-2 text-xs text-gray-500">({{ emp.department }})</span>
+            </li>
+            <li v-if="noRecords.length === 0" class="text-gray-400">All employees have records</li>
+          </ul>
+        </div>
+      </div>
     </div>
   </div>
 </template>
