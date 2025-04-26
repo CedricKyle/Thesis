@@ -15,6 +15,7 @@ import { Chart as ChartJS, Title, Tooltip, Legend, ArcElement, CategoryScale } f
 import { useAttendanceStore } from '@/stores/HR Management/attendanceStore'
 import { storeToRefs } from 'pinia'
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
+import { DEPARTMENTS } from '@/composables/Admin Composables/User & Role/role/permissionsId'
 
 // Register Chart.js components
 ChartJS.register(Title, Tooltip, Legend, ArcElement, CategoryScale)
@@ -219,6 +220,38 @@ onMounted(() => {
     todoList.value = JSON.parse(savedTodos)
   }
 })
+
+const departmentList = computed(() =>
+  Object.values(DEPARTMENTS).filter((dept) => dept !== DEPARTMENTS.ADMIN),
+)
+
+const departmentStats = computed(() => {
+  if (!employees.value || !attendanceRecords.value) return []
+  return departmentList.value.map((dept) => {
+    const deptEmployees = employees.value.filter(
+      (e) => e.department === dept && !e.deleted_at && e.role !== 'Super Admin',
+    )
+    const records = attendanceRecords.value.filter(
+      (r) => r.date === selectedDate.value && r.department === dept,
+    )
+    return {
+      name: dept,
+      present: records.filter((r) => r.status === 'Present' || r.status === 'Present + OT').length,
+      absent:
+        deptEmployees.length -
+        records.filter(
+          (r) =>
+            r.status === 'Present' ||
+            r.status === 'Present + OT' ||
+            r.status === 'Late' ||
+            r.status === 'Late + OT',
+        ).length,
+      late: records.filter((r) => r.status === 'Late' || r.status === 'Late + OT').length,
+      onLeave: records.filter((r) => r.status === 'On Leave').length,
+      total: deptEmployees.length,
+    }
+  })
+})
 </script>
 
 <template>
@@ -403,6 +436,32 @@ onMounted(() => {
           </div>
         </div>
       </div>
+    </div>
+
+    <div class="bg-white p-4 rounded shadow mb-6 text-black">
+      <h2 class="font-semibold mb-2">Department Breakdown ({{ formattedDate }})</h2>
+      <table class="min-w-full text-sm">
+        <thead>
+          <tr>
+            <th class="text-left px-2 py-1">Department</th>
+            <th class="text-center px-2 py-1">Present</th>
+            <th class="text-center px-2 py-1">Late</th>
+            <th class="text-center px-2 py-1">Absent</th>
+            <th class="text-center px-2 py-1">On Leave</th>
+            <th class="text-center px-2 py-1">Total Employees</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="dept in departmentStats" :key="dept.name">
+            <td class="px-2 py-1">{{ dept.name }}</td>
+            <td class="text-center px-2 py-1">{{ dept.present }}</td>
+            <td class="text-center px-2 py-1">{{ dept.late }}</td>
+            <td class="text-center px-2 py-1">{{ dept.absent }}</td>
+            <td class="text-center px-2 py-1">{{ dept.onLeave }}</td>
+            <td class="text-center px-2 py-1">{{ dept.total }}</td>
+          </tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </template>
