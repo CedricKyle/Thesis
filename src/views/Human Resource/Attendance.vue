@@ -106,7 +106,16 @@ const showToast = (message, type = 'success') => {
 
 // Form handlers
 const handleFormSubmit = (formData) => {
-  modalState.value.selectedRecord = formData
+  console.log('Form data received:', formData)
+  // Create a new object with the exact structure needed for the modal
+  modalState.value.selectedRecord = {
+    full_name: formData.full_name,
+    department: formData.department,
+    date: formData.date,
+    signIn: formData.time_in, // Map time_in to signIn
+    signOut: formData.time_out, // Map time_out to signOut
+    employee_id: formData.employee_id,
+  }
   modalState.value.confirm = true
 }
 
@@ -245,61 +254,44 @@ const totalPages = computed(() =>
 
 const handleAttendanceSubmit = async (attendanceData) => {
   try {
-    // Convert Proxy to plain object and ensure all properties are present
-    const plainData = {
-      full_name: attendanceData.full_name,
-      employee_id: attendanceData.employee_id,
-      department: attendanceData.department,
-      date: attendanceData.date,
-      signIn: attendanceData.signIn,
-      signOut: attendanceData.signOut,
+    console.log('Submitting attendance data:', attendanceData)
+
+    if (!attendanceData || !attendanceData.employee_id) {
+      showToast('Invalid attendance data', 'error')
+      return
     }
 
-    console.log('Plain attendance data:', plainData)
-
-    // Calculate working hours
-    let workingHours = '-'
-    if (plainData.signIn && plainData.signOut) {
-      // Split hours and minutes for both times
-      const [inHours, inMinutes] = plainData.signIn.split(':').map(Number)
-      const [outHours, outMinutes] = plainData.signOut.split(':').map(Number)
-
-      // Convert to total minutes
-      const inTotalMinutes = inHours * 60 + inMinutes
-      const outTotalMinutes = outHours * 60 + outMinutes
-
-      // Calculate the difference in minutes
-      const diffMinutes = outTotalMinutes - inTotalMinutes
-
-      if (diffMinutes > 0) {
-        // Format the working hours
-        const hours = Math.floor(diffMinutes / 60)
-        const minutes = diffMinutes % 60
-        workingHours = `${hours}:${minutes.toString().padStart(2, '0')}`
-      }
+    // Ensure consistent time format by adding seconds if not present
+    const formatTime = (time) => {
+      if (!time) return null
+      return time.includes(':')
+        ? time.split(':').length === 2
+          ? `${time}:00`
+          : time
+        : `${time}:00`
     }
 
+    // Create the attendance record with consistent format
     const record = {
-      id: Date.now(),
-      full_name: plainData.full_name,
-      employee_id: plainData.employee_id,
-      department: plainData.department,
-      date: new Date(plainData.date),
-      signIn: plainData.signIn,
-      signOut: plainData.signOut,
-      workingHours: workingHours,
-      status: determineStatus(plainData.signIn),
+      employee_id: attendanceData.employee_id,
+      date: attendanceData.date,
+      time_in: formatTime(attendanceData.time_in || attendanceData.signIn),
+      time_out: formatTime(attendanceData.time_out || attendanceData.signOut),
     }
 
-    console.log('Final record to be added:', record)
+    console.log('Formatted record to submit:', record)
 
-    await addRecord(record)
+    await attendanceStore.addRecord(record)
     modalState.value.confirm = false
     showToast('Attendance added successfully')
     await loadRecords()
     resetForm()
   } catch (error) {
-    console.error('Error saving attendance:', error)
+    console.error('Error saving attendance:', {
+      message: error.message,
+      response: error.response?.data,
+      data: error.response?.config?.data,
+    })
     showToast(error.message || 'Failed to add attendance', 'error')
   }
 }
@@ -318,25 +310,39 @@ const fetchAttendanceRecords = async () => {
 
 // Add this helper function
 const calculateWorkingHours = (record) => {
-  if (!record) return '-'
+  if (
+    !record ||
+    !record.signIn ||
+    !record.signOut ||
+    record.signIn === '-' ||
+    record.signOut === '-'
+  ) {
+    return '-'
+  }
 
-  // Convert Proxy to plain object if needed
-  const data = record.toJSON ? record.toJSON() : record
+  // Parse hours and minutes
+  const [inHours, inMinutes] = record.signIn.split(':').map(Number)
+  const [outHours, outMinutes] = record.signOut.split(':').map(Number)
 
-  if (!data.signIn || !data.signOut) return '-'
+  // Calculate total minutes since start of day
+  const totalMinutesIn = inHours * 60 + inMinutes
+  const totalMinutesOut = outHours * 60 + outMinutes
 
-  const [inHours, inMinutes] = data.signIn.split(':').map(Number)
-  const [outHours, outMinutes] = data.signOut.split(':').map(Number)
+  // Calculate difference in minutes
+  const diffMinutes = totalMinutesOut - totalMinutesIn
 
-  const inTotalMinutes = inHours * 60 + inMinutes
-  const outTotalMinutes = outHours * 60 + outMinutes
-
-  const diffMinutes = outTotalMinutes - inTotalMinutes
-
-  if (diffMinutes <= 0) return '-'
-
+  // Convert to hours and minutes
   const hours = Math.floor(diffMinutes / 60)
   const minutes = diffMinutes % 60
+
+  // Calculate overtime (anything over 8 hours)
+  const overtime = Math.max(0, hours - 8)
+  const regularHours = hours >= 8 ? 8 : hours
+
+  // Format the output
+  if (overtime > 0) {
+    return `${regularHours}:${minutes.toString().padStart(2, '0')} + ${overtime}:00 OT`
+  }
   return `${hours}:${minutes.toString().padStart(2, '0')}`
 }
 
@@ -589,30 +595,32 @@ const handleTimeOut = async () => {
           class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
         />
 
-        <div class="pt-4 flex flex-col gap-2">
+        <div v-if="modalState.selectedRecord" class="pt-4 flex flex-col gap-2">
           <div class="flex flex-row">
             <div class="w-40 text-gray-500">Employee</div>
-            <div>{{ modalState.selectedRecord?.full_name || '-' }}</div>
+            <div>{{ modalState.selectedRecord.full_name }}</div>
           </div>
           <div class="flex flex-row">
             <div class="w-40 text-gray-500">Department</div>
-            <div>{{ modalState.selectedRecord?.department || '-' }}</div>
+            <div>{{ modalState.selectedRecord.department }}</div>
           </div>
           <div class="flex flex-row">
             <div class="w-40 text-gray-500">Date</div>
-            <div>{{ modalState.selectedRecord?.date || '-' }}</div>
+            <div>{{ modalState.selectedRecord.date }}</div>
           </div>
           <div class="flex flex-row">
             <div class="w-40 text-gray-500">Time In</div>
-            <div>{{ modalState.selectedRecord?.signIn || '-' }}</div>
+            <div>{{ modalState.selectedRecord.signIn || modalState.selectedRecord.time_in }}</div>
           </div>
           <div class="flex flex-row">
             <div class="w-40 text-gray-500">Time Out</div>
-            <div>{{ modalState.selectedRecord?.signOut || '-' }}</div>
+            <div>{{ modalState.selectedRecord.signOut || modalState.selectedRecord.time_out }}</div>
           </div>
           <div class="flex flex-row">
             <div class="w-40 text-gray-500">Working Hours</div>
-            <div>{{ calculateWorkingHours(modalState.selectedRecord) }}</div>
+            <div>
+              {{ calculateWorkingHours(modalState.selectedRecord) }}
+            </div>
           </div>
         </div>
 

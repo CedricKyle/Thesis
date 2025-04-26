@@ -257,26 +257,52 @@ export const useAttendanceStore = defineStore('attendance', () => {
   // Actions
   const addRecord = async (attendanceData) => {
     try {
-      // Check for existing attendance first
-      const existingAttendance = await getTodayAttendance(attendanceData.employee_id)
-      if (existingAttendance) {
-        throw new Error('Employee already has an attendance record for today')
+      // Log the incoming data
+      console.log('Attendance Data received:', attendanceData)
+
+      // Validate required data
+      if (!attendanceData.employee_id || !attendanceData.date) {
+        throw new Error('Employee ID and date are required')
       }
 
+      // Ensure time format is consistent
+      const formatTime = (time) => {
+        if (!time) return null
+        return time.includes(':')
+          ? time.split(':').length === 2
+            ? `${time}:00`
+            : time
+          : `${time}:00`
+      }
+
+      // Prepare the time-in data
+      const timeInData = {
+        employee_id: attendanceData.employee_id,
+        time_in: formatTime(attendanceData.time_in || attendanceData.signIn),
+        date: attendanceData.date,
+      }
+
+      console.log('Time-in request data:', timeInData)
+
       // First do time in
-      const timeInResponse = await axios.post(
-        '/api/attendance/time-in',
-        { employee_id: attendanceData.employee_id },
-        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } },
-      )
+      const timeInResponse = await axios.post('/api/attendance/time-in', timeInData, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      })
 
       if (timeInResponse.data.success) {
-        // Then do time out
-        const timeOutResponse = await axios.post(
-          '/api/attendance/time-out',
-          { employee_id: attendanceData.employee_id },
-          { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } },
-        )
+        // Prepare the time-out data
+        const timeOutData = {
+          employee_id: attendanceData.employee_id,
+          time_out: formatTime(attendanceData.time_out || attendanceData.signOut),
+          date: attendanceData.date,
+        }
+
+        console.log('Time-out request data:', timeOutData)
+
+        // Then do time out with the same date
+        const timeOutResponse = await axios.post('/api/attendance/time-out', timeOutData, {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        })
 
         if (timeOutResponse.data.success) {
           await loadRecords()
@@ -284,7 +310,12 @@ export const useAttendanceStore = defineStore('attendance', () => {
         }
       }
     } catch (error) {
-      console.error('Error adding attendance record:', error)
+      // Log the detailed error
+      console.error('Error adding attendance record:', {
+        message: error.message,
+        response: error.response?.data,
+        data: error.response?.config?.data,
+      })
       throw error
     }
   }
@@ -336,14 +367,21 @@ export const useAttendanceStore = defineStore('attendance', () => {
         const employeeStore = useEmployeeStore()
         await employeeStore.loadEmployees()
 
+        // Format time consistently
+        const formatTime = (time) => {
+          if (!time || time === '-') return '-'
+          const timeParts = time.split(':')
+          return timeParts.slice(0, 2).join(':') // Return HH:mm format
+        }
+
         // Map the attendance records to include employee details
         const records = response.data.data.map((record) => ({
           id: record.id,
           employee_id: record.employee_id,
           full_name: record.employee?.full_name,
           department: record.employee?.department,
-          signIn: record.time_in || '-',
-          signOut: record.time_out || '-',
+          signIn: formatTime(record.time_in),
+          signOut: formatTime(record.time_out),
           workingHours: record.working_hours || 0,
           status: record.status || 'Absent',
           date: record.date,
@@ -421,21 +459,53 @@ export const useAttendanceStore = defineStore('attendance', () => {
   }
 
   // Add these new actions
-  const recordTimeIn = async (employee_id) => {
+  const recordTimeIn = async (employee_id, employeeData = null) => {
     isProcessing.value = true
     try {
-      const response = await axios.post(
-        '/api/attendance/time-in',
-        { employee_id },
-        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } },
-      )
+      // Format current date and time
+      const now = new Date()
+      const timeInData = {
+        employee_id: employee_id,
+        time_in: now.toLocaleTimeString('en-US', {
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        }),
+        date: now.toISOString().split('T')[0],
+      }
+
+      console.log('Sending time in data:', timeInData)
+
+      const response = await axios.post('/api/attendance/time-in', timeInData, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      })
 
       if (response.data.success) {
-        todayAttendance.value = response.data.data
+        // Map the response data to match the expected format
+        const mappedData = {
+          id: response.data.data.id,
+          employee_id: response.data.data.employee_id,
+          full_name: employeeData?.full_name || response.data.data.employee?.full_name,
+          department: employeeData?.department || response.data.data.employee?.department,
+          signIn: response.data.data.time_in,
+          signOut: response.data.data.time_out || '-',
+          time_in: response.data.data.time_in,
+          time_out: response.data.data.time_out || '-',
+          status: response.data.data.status,
+          approvalStatus: response.data.data.approval_status || 'Pending',
+          overtime: response.data.data.overtime_hours || 0,
+          workingHours: response.data.data.working_hours || 0,
+          approvedBy: response.data.data.approved_by || '-',
+          approvedAt: response.data.data.approved_at || '-',
+        }
+
+        todayAttendance.value = mappedData
         await loadRecords()
-        return response.data.data
+        return mappedData
       }
     } catch (error) {
+      console.error('Time in error:', error.response?.data || error)
       throw new Error(error.response?.data?.message || 'Failed to record time in')
     } finally {
       isProcessing.value = false
@@ -445,18 +515,48 @@ export const useAttendanceStore = defineStore('attendance', () => {
   const recordTimeOut = async (employee_id) => {
     isProcessing.value = true
     try {
-      const response = await axios.post(
-        '/api/attendance/time-out',
-        { employee_id },
-        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } },
-      )
+      // Format current date and time
+      const now = new Date()
+      const timeOutData = {
+        employee_id: employee_id,
+        time_out: now.toLocaleTimeString('en-US', {
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+        }),
+        date: now.toISOString().split('T')[0], // Add the date field
+      }
+
+      console.log('Sending time out data:', timeOutData)
+
+      const response = await axios.post('/api/attendance/time-out', timeOutData, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      })
 
       if (response.data.success) {
-        todayAttendance.value = response.data.data
+        // Map the response data to match the expected format
+        const mappedData = {
+          id: response.data.data.id,
+          employee_id: response.data.data.employee_id,
+          signIn: response.data.data.time_in || '-',
+          signOut: response.data.data.time_out || '-',
+          time_in: response.data.data.time_in || '-',
+          time_out: response.data.data.time_out || '-',
+          status: response.data.data.status,
+          approvalStatus: response.data.data.approval_status || 'Pending',
+          overtime: response.data.data.overtime_hours || 0,
+          workingHours: response.data.data.working_hours || 0,
+          approvedBy: response.data.data.approved_by || '-',
+          approvedAt: response.data.data.approved_at || '-',
+        }
+
+        todayAttendance.value = mappedData
         await loadRecords()
-        return response.data.data
+        return mappedData
       }
     } catch (error) {
+      console.error('Time out error:', error.response?.data || error)
       throw new Error(error.response?.data?.message || 'Failed to record time out')
     } finally {
       isProcessing.value = false
@@ -465,6 +565,10 @@ export const useAttendanceStore = defineStore('attendance', () => {
 
   const getTodayAttendance = async (employee_id) => {
     try {
+      if (!employee_id) {
+        throw new Error('Employee ID is required')
+      }
+
       const response = await axios.get('/api/attendance/today', {
         params: { employee_id },
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
@@ -472,7 +576,6 @@ export const useAttendanceStore = defineStore('attendance', () => {
 
       if (response.data.success) {
         const data = response.data.data
-        // Ensure consistent data structure
         todayAttendance.value = data
           ? {
               ...data,
@@ -480,6 +583,8 @@ export const useAttendanceStore = defineStore('attendance', () => {
               signOut: data.time_out || '-',
               time_in: data.time_in || '-',
               time_out: data.time_out || '-',
+              approvedBy: data.approved_by || '-',
+              approvedAt: data.approved_at || '-',
             }
           : null
         return todayAttendance.value

@@ -7,6 +7,7 @@ import { useAttendanceStore } from '@/stores/HR Management/attendanceStore'
 import { LogOut, User, Settings, Timer, X } from 'lucide-vue-next'
 import profilePlaceholder from '@/assets/Images/profile-placeholder.png'
 import { useAttendanceLogic } from '@/composables/Admin Composables/Human Resource/useAttendanceLogic'
+import axios from 'axios'
 
 const props = defineProps({
   departmentName: {
@@ -306,11 +307,12 @@ const showToastMessage = (message, type = 'success') => {
 // Time In/Out handlers
 const handleTimeIn = async () => {
   if (!currentUserEmployee.value?.employee_id) {
+    console.log('Current user employee:', currentUserEmployee.value)
     showToastMessage('Employee information not found', 'error')
     return
   }
 
-  console.log('Current employee:', currentUserEmployee.value)
+  console.log('Attempting time in for employee:', currentUserEmployee.value.employee_id)
   isProcessing.value = true
   try {
     // Check for day change first
@@ -320,6 +322,8 @@ const handleTimeIn = async () => {
     const existingAttendance = await attendanceStore.getTodayAttendance(
       currentUserEmployee.value.employee_id,
     )
+
+    console.log('Existing attendance:', existingAttendance)
 
     if (
       existingAttendance &&
@@ -331,7 +335,12 @@ const handleTimeIn = async () => {
       return
     }
 
-    const result = await attendanceStore.recordTimeIn(currentUserEmployee.value.employee_id)
+    // Pass both employee_id and employee data
+    const result = await attendanceStore.recordTimeIn(currentUserEmployee.value.employee_id, {
+      full_name: currentUserEmployee.value.full_name,
+      department: currentUserEmployee.value.department,
+    })
+
     console.log('Time in result:', result)
     showToastMessage(`Time In recorded successfully at ${formattedTime.value}`)
     await loadTodayAttendance()
@@ -394,58 +403,58 @@ const handleTimeOut = async () => {
 const loadTodayAttendance = async () => {
   if (currentUserEmployee.value?.employee_id) {
     try {
-      console.log('=== Starting loadTodayAttendance ===')
-      console.log('Employee ID:', currentUserEmployee.value.employee_id)
+      console.log('Loading today attendance for:', currentUserEmployee.value.employee_id)
+
+      // Create default attendance data with current employee info
+      const defaultAttendance = {
+        employee_id: currentUserEmployee.value.employee_id,
+        full_name: currentUserEmployee.value.full_name,
+        department: currentUserEmployee.value.department,
+        signIn: '-',
+        signOut: '-',
+        time_in: '-',
+        time_out: '-',
+        status: 'Absent',
+        approvalStatus: 'Not Submitted',
+      }
 
       const attendance = await attendanceStore.getTodayAttendance(
         currentUserEmployee.value.employee_id,
       )
 
-      console.log('Raw attendance data from backend:', attendance)
+      console.log('Loaded attendance:', attendance)
 
       if (attendance) {
-        console.log('Mapping attendance data...')
-        // Map the backend data structure to match frontend expectations
         const mappedAttendance = {
           id: attendance.id,
           employee_id: attendance.employee_id,
-          full_name: attendance.employee?.full_name || currentUserEmployee.value.full_name,
-          department: attendance.employee?.department || currentUserEmployee.value.department,
+          full_name: currentUserEmployee.value.full_name,
+          department: currentUserEmployee.value.department,
           signIn: attendance.time_in || '-',
           signOut: attendance.time_out || '-',
           status: attendance.status || 'Absent',
           approvalStatus: attendance.approval_status || 'Not Submitted',
           overtime: attendance.overtime_hours || 0,
           workingHours: attendance.working_hours || 0,
-          approvedBy: attendance.approved_by || null,
-          approvedAt: attendance.approved_at || null,
-          // Add these to ensure consistency
           time_in: attendance.time_in || '-',
           time_out: attendance.time_out || '-',
+          approvedBy: attendance.approved_by || '-',
+          approvedAt: attendance.approved_at || '-',
         }
-        console.log('Mapped attendance data:', mappedAttendance)
+
+        console.log('Mapped attendance:', mappedAttendance)
         attendanceStore.todayAttendance = mappedAttendance
       } else {
-        console.log('No attendance found, creating default record')
-        // Initialize default attendance if none exists
-        const defaultAttendance = {
-          employee_id: currentUserEmployee.value.employee_id,
-          full_name: currentUserEmployee.value.full_name,
-          department: currentUserEmployee.value.department,
-          signIn: '-',
-          signOut: '-',
-          time_in: '-',
-          time_out: '-',
-          status: 'Absent',
-          approvalStatus: 'Not Submitted',
-        }
+        // Use the default attendance if no record found
         attendanceStore.todayAttendance = defaultAttendance
       }
 
       todayAttendance.value = attendanceStore.todayAttendance
-      console.log('Final todayAttendance value:', todayAttendance.value)
     } catch (error) {
       console.error('Error in loadTodayAttendance:', error)
+      // On error, still set the default attendance to maintain UI state
+      attendanceStore.todayAttendance = defaultAttendance
+      todayAttendance.value = defaultAttendance
       showToastMessage('Error loading attendance data', 'error')
     }
   }

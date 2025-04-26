@@ -130,7 +130,14 @@ const columns = [
   {
     title: 'Time In',
     field: 'signIn',
-    formatter: (cell) => cell.getValue() || '-',
+    formatter: (cell) => {
+      const value = cell.getValue()
+      if (!value || value === '-') return '-'
+
+      // Handle both HH:mm:ss and HH:mm formats
+      const timeParts = value.split(':')
+      return timeParts.slice(0, 2).join(':') // Always return HH:mm format
+    },
     headerSort: true,
     sorter: (a, b) => {
       if (a === '-') return 1
@@ -141,7 +148,14 @@ const columns = [
   {
     title: 'Time Out',
     field: 'signOut',
-    formatter: (cell) => cell.getValue() || '-',
+    formatter: (cell) => {
+      const value = cell.getValue()
+      if (!value || value === '-') return '-'
+
+      // Handle both HH:mm:ss and HH:mm formats
+      const timeParts = value.split(':')
+      return timeParts.slice(0, 2).join(':') // Always return HH:mm format
+    },
     headerSort: true,
     sorter: (a, b) => {
       if (a === '-') return 1
@@ -153,26 +167,51 @@ const columns = [
     title: 'Working Hours',
     field: 'workingHours',
     formatter: (cell) => {
-      const value = cell.getValue()
+      const record = cell.getRow().getData()
 
-      // If no value, return dash
-      if (value === null || value === undefined || value === '-') {
+      // If no sign in or sign out, return dash
+      if (!record.signIn || !record.signOut || record.signIn === '-' || record.signOut === '-') {
         return '-'
       }
 
-      // If it's a number, format it with 2 decimal places
-      if (typeof value === 'number') {
-        return value.toFixed(2)
+      // Parse time strings and handle HH:mm:ss format
+      const parseTime = (timeStr) => {
+        // Remove any AM/PM indicators and split time components
+        const [time] = timeStr.split(/\s+/)
+        const [hours, minutes, seconds] = time.split(':').map(Number)
+        return hours * 60 + minutes + (seconds || 0) / 60
       }
 
-      // If it's already a string, return as is
-      return value
+      const inMinutes = parseTime(record.signIn)
+      const outMinutes = parseTime(record.signOut)
+
+      // Calculate difference in minutes
+      const diffMinutes = outMinutes - inMinutes
+
+      // Convert to hours and minutes
+      const hours = Math.floor(diffMinutes / 60)
+      const minutes = Math.floor(diffMinutes % 60)
+
+      // Calculate overtime (anything over 8 hours)
+      const overtime = Math.max(0, hours - 8)
+      const regularHours = hours >= 8 ? 8 : hours
+
+      // Format the output
+      if (overtime > 0) {
+        return `${regularHours}:${minutes.toString().padStart(2, '0')} + ${overtime}:00 OT`
+      }
+      return `${hours}:${minutes.toString().padStart(2, '0')}`
     },
     headerSort: true,
     sorter: (a, b) => {
       if (a === '-') return 1
       if (b === '-') return -1
-      return parseFloat(a) - parseFloat(b)
+      const getHours = (str) => {
+        const match = str.match(/(\d+):(\d+)/)
+        if (!match) return 0
+        return parseInt(match[1]) + parseInt(match[2]) / 60
+      }
+      return getHours(a) - getHours(b)
     },
   },
   {

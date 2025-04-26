@@ -120,60 +120,53 @@ const clearErrorWithTimeout = (message, duration = 2000) => {
 }
 
 const handleSubmit = async () => {
-  if (isSubmitting.value) return // Prevent multiple submissions
+  if (isSubmitting.value) return
 
   isSubmitting.value = true
   formErrors.value.general = ''
 
-  if (!hasAvailableEmployees.value) {
-    clearErrorWithTimeout('No employees available in selected department')
-    isSubmitting.value = false
-    return
-  }
-
   try {
     // Validate form first
-    if (!validateForm()) return
+    if (!validateForm()) {
+      isSubmitting.value = false
+      return
+    }
 
     const selectedEmployee = filteredEmployees.value.find(
       (emp) => emp.full_name === newAttendance.value.employeeName,
     )
 
     if (!selectedEmployee) {
-      formErrors.value.employeeName = 'Selected employee does not exist'
+      clearErrorWithTimeout('Selected employee not found')
       isSubmitting.value = false
       return
     }
 
-    // Check if employee already has attendance for today
-    const todayAttendance = await attendanceStore.getTodayAttendance(selectedEmployee.employee_id)
-    if (todayAttendance) {
-      clearErrorWithTimeout(
-        `${newAttendance.value.employeeName} already has an attendance record for today`,
-      )
-      isSubmitting.value = false
-      return
+    // Format time to HH:mm:ss
+    const formatTime = (time) => {
+      if (!time) return null
+      return `${time}:00` // Add seconds to match the backend format
     }
 
-    // Try to add the record
-    await attendanceStore.addRecord({
+    // Create attendance data object with formatted times
+    const attendanceData = {
       employee_id: selectedEmployee.employee_id,
-    })
-
-    // Success handling
-    emit('showConfirm', 'Attendance recorded successfully')
-    resetForm()
-  } catch (error) {
-    // Enhanced error handling
-    if (error.message.includes('already has an attendance record')) {
-      clearErrorWithTimeout(
-        `${newAttendance.value.employeeName} already has an attendance record for today`,
-      )
-    } else if (error.response?.data?.message) {
-      clearErrorWithTimeout(error.response.data.message)
-    } else {
-      clearErrorWithTimeout(error.message || 'Error recording attendance')
+      full_name: selectedEmployee.full_name,
+      department: newAttendance.value.department,
+      date: newAttendance.value.date,
+      time_in: formatTime(newAttendance.value.signIn),
+      time_out: formatTime(newAttendance.value.signOut),
+      signIn: formatTime(newAttendance.value.signIn),
+      signOut: formatTime(newAttendance.value.signOut),
     }
+
+    // Log the data being emitted
+    console.log('Emitting attendance data:', attendanceData)
+
+    // Emit the data to parent
+    emit('showConfirm', attendanceData)
+  } catch (error) {
+    clearErrorWithTimeout(error.message || 'Error submitting attendance')
   } finally {
     isSubmitting.value = false
   }

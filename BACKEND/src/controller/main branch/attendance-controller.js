@@ -9,15 +9,22 @@ const attendanceController = {
   async timeIn(req, res) {
     const t = await sequelize.transaction()
     try {
-      const { employee_id } = req.body
-      const now = new Date()
-      const today = now.toISOString().split('T')[0]
+      const { employee_id, time_in, date } = req.body
+
+      // Add validation
+      if (!employee_id || !time_in || !date) {
+        await t.rollback()
+        return res.status(400).json({
+          success: false,
+          message: 'Employee ID, time in, and date are required',
+        })
+      }
 
       // Check for existing attendance
       const existingAttendance = await EmployeeAttendance.findOne({
         where: {
           employee_id,
-          date: today,
+          date: date,
           deleted_at: null,
         },
         transaction: t,
@@ -32,34 +39,23 @@ const attendanceController = {
       }
 
       // Determine if late (9:00 AM is start time)
-      const timeIn = now.toTimeString().split(' ')[0]
-      const [hours, minutes] = timeIn.split(':').map(Number)
+      const [hours, minutes] = time_in.split(':').map(Number)
       const status = hours > 9 || (hours === 9 && minutes > 0) ? 'Late' : 'Present'
 
-      if (!existingAttendance) {
-        const attendance = await EmployeeAttendance.create(
-          {
-            employee_id,
-            date: today,
-            time_in: timeIn,
-            status,
-          },
-          { transaction: t },
-        )
-      } else {
-        await existingAttendance.update(
-          {
-            time_in: timeIn,
-            status,
-          },
-          { transaction: t },
-        )
-      }
+      const attendance = await EmployeeAttendance.create(
+        {
+          employee_id,
+          date: date,
+          time_in: time_in,
+          status,
+        },
+        { transaction: t },
+      )
 
       await t.commit()
       res.json({
         success: true,
-        data: existingAttendance,
+        data: attendance,
       })
     } catch (error) {
       await t.rollback()
@@ -74,14 +70,20 @@ const attendanceController = {
   async timeOut(req, res) {
     const t = await sequelize.transaction()
     try {
-      const { employee_id } = req.body
-      const now = new Date()
-      const today = now.toISOString().split('T')[0]
+      const { employee_id, time_out, date } = req.body
+
+      if (!employee_id || !time_out || !date) {
+        await t.rollback()
+        return res.status(400).json({
+          success: false,
+          message: 'Employee ID, time out, and date are required',
+        })
+      }
 
       const attendance = await EmployeeAttendance.findOne({
         where: {
           employee_id,
-          date: today,
+          date: date,
           deleted_at: null,
         },
         transaction: t,
@@ -91,7 +93,7 @@ const attendanceController = {
         await t.rollback()
         return res.status(400).json({
           success: false,
-          message: 'No time in record found for today',
+          message: 'No time in record found for this date',
         })
       }
 
@@ -99,25 +101,33 @@ const attendanceController = {
         await t.rollback()
         return res.status(400).json({
           success: false,
-          message: 'Already timed out for today',
+          message: 'Already timed out for this date',
         })
       }
 
-      const timeOut = now.toTimeString().split(' ')[0]
+      // Parse time strings and convert to minutes since midnight
+      const parseTimeToMinutes = (timeStr) => {
+        const [hours, minutes, seconds] = timeStr.split(':').map(Number)
+        return hours * 60 + minutes + (seconds || 0) / 60
+      }
 
-      // Calculate working hours
-      const timeInDate = new Date(`${today}T${attendance.time_in}`)
-      const timeOutDate = new Date(`${today}T${timeOut}`)
-      const workingHours = Number(((timeOutDate - timeInDate) / (1000 * 60 * 60)).toFixed(2))
+      const inMinutes = parseTimeToMinutes(attendance.time_in)
+      const outMinutes = parseTimeToMinutes(time_out)
 
-      // Calculate overtime (if more than 8 hours)
-      const overtime = Math.max(0, workingHours - 8)
+      // Calculate total working minutes
+      const totalMinutes = outMinutes - inMinutes
+
+      // Convert to hours with 2 decimal places
+      const workingHours = (totalMinutes / 60).toFixed(2)
+
+      // Calculate overtime (anything over 8 hours)
+      const overtimeHours = Math.max(0, (totalMinutes - 480) / 60).toFixed(2) // 480 minutes = 8 hours
 
       await attendance.update(
         {
-          time_out: timeOut,
+          time_out: time_out,
           working_hours: workingHours,
-          overtime_hours: overtime,
+          overtime_hours: overtimeHours,
         },
         { transaction: t },
       )
