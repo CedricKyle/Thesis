@@ -940,6 +940,86 @@ export const useAttendanceStore = defineStore('attendance', () => {
   // Computed for mapped department attendance
   const mappedDepartmentAttendance = computed(() => departmentAttendanceRaw.value)
 
+  const departmentFullSummary = computed(() => {
+    const records = mappedDepartmentAttendance.value
+    if (!records.length) return null
+
+    let present = 0,
+      late = 0,
+      absent = 0,
+      onLeave = 0,
+      totalHours = 0
+
+    records.forEach((record) => {
+      switch (record.status) {
+        case 'Present':
+          present++
+          break
+        case 'Late':
+          late++
+          break
+        case 'Absent':
+          absent++
+          break
+        case 'On Leave':
+          onLeave++
+          break
+      }
+      totalHours += Number(record.workingHours || 0)
+    })
+
+    return {
+      'Total Records': records.length,
+      Present: present,
+      Late: late,
+      Absent: absent,
+      'On Leave': onLeave,
+      'Total Hours': totalHours.toFixed(2),
+      'Average Hours/Day': (totalHours / records.length).toFixed(2),
+    }
+  })
+
+  const departmentFullEmployeeSummaries = computed(() => {
+    const records = mappedDepartmentAttendance.value
+    if (!records.length) return []
+
+    const summaryMap = {}
+    records.forEach((rec) => {
+      if (!summaryMap[rec.full_name]) {
+        summaryMap[rec.full_name] = {
+          name: rec.full_name,
+          present: 0,
+          late: 0,
+          absent: 0,
+          onLeave: 0,
+          totalHours: 0,
+          count: 0,
+        }
+      }
+      switch (rec.status) {
+        case 'Present':
+          summaryMap[rec.full_name].present++
+          break
+        case 'Late':
+          summaryMap[rec.full_name].late++
+          break
+        case 'Absent':
+          summaryMap[rec.full_name].absent++
+          break
+        case 'On Leave':
+          summaryMap[rec.full_name].onLeave++
+          break
+      }
+      summaryMap[rec.full_name].totalHours += Number(rec.workingHours || 0)
+      summaryMap[rec.full_name].count++
+    })
+
+    return Object.values(summaryMap).map((emp) => ({
+      ...emp,
+      avgHours: emp.count ? (emp.totalHours / emp.count).toFixed(2) : '0.00',
+    }))
+  })
+
   return {
     // State
     attendanceRecords,
@@ -1012,5 +1092,11 @@ export const useAttendanceStore = defineStore('attendance', () => {
 
     // Add this new computed property
     mappedDepartmentAttendance,
+
+    // Add this new computed property
+    departmentFullSummary,
+
+    // Add this new computed property
+    departmentFullEmployeeSummaries,
   }
 })

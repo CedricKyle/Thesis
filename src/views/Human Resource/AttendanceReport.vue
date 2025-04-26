@@ -33,6 +33,8 @@ const {
   getDepartmentAttendanceReport,
   departmentEmployeeSummaries,
   mappedDepartmentAttendance,
+  departmentFullSummary,
+  departmentFullEmployeeSummaries,
 } = storeToRefs(attendanceStore)
 
 // Form state
@@ -133,6 +135,58 @@ const employeeChartData = computed(() => {
     ],
   }
 })
+
+// Chart for department report (uses full employee summaries)
+const departmentChartData = computed(() => ({
+  labels: departmentFullEmployeeSummaries.value.map((emp) => emp.name),
+  datasets: [
+    {
+      label: 'Present',
+      data: departmentFullEmployeeSummaries.value.map((emp) => emp.present),
+      backgroundColor: '#466114',
+    },
+    {
+      label: 'Late',
+      data: departmentFullEmployeeSummaries.value.map((emp) => emp.late),
+      backgroundColor: '#f87a14',
+    },
+    {
+      label: 'Absent',
+      data: departmentFullEmployeeSummaries.value.map((emp) => emp.absent),
+      backgroundColor: '#f87171',
+    },
+    {
+      label: 'On Leave',
+      data: departmentFullEmployeeSummaries.value.map((emp) => emp.onLeave),
+      backgroundColor: '#60a5fa',
+    },
+  ],
+}))
+
+const departmentMostStats = computed(() => {
+  if (!isDepartmentReport.value || !departmentFullEmployeeSummaries.value.length) return {}
+
+  const emps = departmentFullEmployeeSummaries.value
+
+  // Find max values
+  const maxPresent = Math.max(...emps.map((e) => e.present))
+  const maxLate = Math.max(...emps.map((e) => e.late))
+  const maxAbsent = Math.max(...emps.map((e) => e.absent))
+
+  // Find all employees with the max value (and value > 0)
+  const mostPresent = emps.filter((e) => e.present === maxPresent && maxPresent > 0)
+  const mostLate = emps.filter((e) => e.late === maxLate && maxLate > 0)
+  const mostAbsent = emps.filter((e) => e.absent === maxAbsent && maxAbsent > 0)
+
+  return {
+    mostPresent,
+    mostLate,
+    mostAbsent,
+    maxPresent,
+    maxLate,
+    maxAbsent,
+  }
+})
 </script>
 
 <template>
@@ -140,11 +194,63 @@ const employeeChartData = computed(() => {
     <div class="report-container w-full flex flex-col justify-between gap-4 text-black">
       <AttendanceReportForm v-model:formData="formData" @submit="handleFormSubmit" />
 
+      <!-- Most Stats Cards -->
+      <div
+        v-if="isDepartmentReport && departmentFullEmployeeSummaries.length"
+        class="flex flex-wrap gap-4 mb-2"
+      >
+        <!-- Most Present -->
+        <div
+          v-if="departmentMostStats.mostPresent && departmentMostStats.maxPresent > 0"
+          class="flex-1 min-w-[200px] bg-green-50 rounded-md p-4 shadow text-center"
+        >
+          <div class="text-xs text-gray-500 mb-1">Most Present</div>
+          <div class="text-lg font-bold text-green-700">
+            <span v-for="(emp, idx) in departmentMostStats.mostPresent" :key="emp.name">
+              {{ emp.name }}<span v-if="idx < departmentMostStats.mostPresent.length - 1">, </span>
+            </span>
+          </div>
+          <div class="text-2xl font-semibold text-green-800">
+            {{ departmentMostStats.maxPresent }}
+          </div>
+        </div>
+        <!-- Most Late -->
+        <div
+          v-if="departmentMostStats.mostLate && departmentMostStats.maxLate > 0"
+          class="flex-1 min-w-[200px] bg-yellow-50 rounded-md p-4 shadow text-center"
+        >
+          <div class="text-xs text-gray-500 mb-1">Most Late</div>
+          <div class="text-lg font-bold text-yellow-700">
+            <span v-for="(emp, idx) in departmentMostStats.mostLate" :key="emp.name">
+              {{ emp.name }}<span v-if="idx < departmentMostStats.mostLate.length - 1">, </span>
+            </span>
+          </div>
+          <div class="text-2xl font-semibold text-yellow-800">
+            {{ departmentMostStats.maxLate }}
+          </div>
+        </div>
+        <!-- Most Absent -->
+        <div
+          v-if="departmentMostStats.mostAbsent && departmentMostStats.maxAbsent > 0"
+          class="flex-1 min-w-[200px] bg-red-50 rounded-md p-4 shadow text-center"
+        >
+          <div class="text-xs text-gray-500 mb-1">Most Absent</div>
+          <div class="text-lg font-bold text-red-700">
+            <span v-for="(emp, idx) in departmentMostStats.mostAbsent" :key="emp.name">
+              {{ emp.name }}<span v-if="idx < departmentMostStats.mostAbsent.length - 1">, </span>
+            </span>
+          </div>
+          <div class="text-2xl font-semibold text-red-800">
+            {{ departmentMostStats.maxAbsent }}
+          </div>
+        </div>
+      </div>
+
       <AttendanceReportSummary
-        v-if="hasGeneratedReport && (isDepartmentReport ? departmentReportSummary : reportSummary)"
+        v-if="hasGeneratedReport && (isDepartmentReport ? departmentFullSummary : reportSummary)"
         :employee-name="isDepartmentReport ? formData.department : formData.employeeName"
-        :summary="isDepartmentReport ? departmentReportSummary : reportSummary"
-      />
+        :summary="isDepartmentReport ? departmentFullSummary : reportSummary"
+      ></AttendanceReportSummary>
 
       <!-- Employee Attendance Chart -->
       <div
@@ -158,58 +264,21 @@ const employeeChartData = computed(() => {
         />
       </div>
 
-      <AttendanceReportTable
-        v-if="
-          hasGeneratedReport &&
-          (isDepartmentReport
-            ? getDepartmentAttendanceReport.length > 0
-            : getAttendanceReport.length > 0)
-        "
-        :records="isDepartmentReport ? getDepartmentAttendanceReport : getAttendanceReport"
-        :is-department-report="isDepartmentReport"
-        @generate-pdf="
-          generatePDF(
-            formData,
-            isDepartmentReport ? departmentReportSummary : reportSummary,
-            isDepartmentReport ? getDepartmentAttendanceReport : getAttendanceReport,
-          )
-        "
-      >
-        <template #default="{ records }">
-          <tbody>
-            <tr v-for="record in records" :key="record.date">
-              <td>{{ record.date }}</td>
-              <td>{{ record.signIn || '-' }}</td>
-              <td>{{ record.signOut || '-' }}</td>
-              <td>
-                <span
-                  :class="{
-                    'bg-red-100 text-red-700 px-2 rounded': record.status === 'Absent',
-                    'bg-green-100 text-green-700 px-2 rounded': record.status === 'Present',
-                    'bg-yellow-100 text-yellow-700 px-2 rounded': record.status === 'Late',
-                    'bg-blue-100 text-blue-700 px-2 rounded': record.status === 'On Leave',
-                  }"
-                >
-                  {{ record.status }}
-                </span>
-              </td>
-              <td>{{ record.workingHours || '-' }}</td>
-            </tr>
-          </tbody>
-        </template>
-      </AttendanceReportTable>
-
-      <!-- Add a message when no data is found -->
+      <!-- Department Attendance Chart -->
       <div
-        v-if="hasGeneratedReport && (!reportSummary || !getAttendanceReport?.length)"
-        class="p-4 text-center text-gray-500 bg-white rounded-md shadow-md"
+        v-if="isDepartmentReport && departmentFullEmployeeSummaries.length"
+        class="bg-white shadow-md rounded-md p-5 mb-4"
       >
-        No attendance records found for the selected period.
+        <h2 class="font-semibold mb-2">Department Attendance Chart</h2>
+        <Bar
+          :data="departmentChartData"
+          :options="{ responsive: true, plugins: { legend: { position: 'top' } } }"
+        ></Bar>
       </div>
 
       <!-- Per-Employee Summary Table -->
       <div
-        v-if="isDepartmentReport && departmentEmployeeSummaries.length"
+        v-if="isDepartmentReport && departmentFullEmployeeSummaries.length"
         class="bg-white shadow-md rounded-md p-5 mb-4"
       >
         <h2 class="font-semibold mb-2">Per-Employee Attendance Summary</h2>
@@ -227,7 +296,7 @@ const employeeChartData = computed(() => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="emp in departmentEmployeeSummaries" :key="emp.name">
+              <tr v-for="emp in departmentFullEmployeeSummaries" :key="emp.name">
                 <td class="px-2 py-1">{{ emp.name }}</td>
                 <td class="px-2 py-1">{{ emp.present }}</td>
                 <td class="px-2 py-1">{{ emp.late }}</td>
@@ -241,23 +310,35 @@ const employeeChartData = computed(() => {
         </div>
       </div>
 
-      <!-- Department Attendance Chart -->
-      <div
-        v-if="isDepartmentReport && departmentEmployeeSummaries.length"
-        class="bg-white shadow-md rounded-md p-5 mb-4"
-      >
-        <h2 class="font-semibold mb-2">Department Attendance Chart</h2>
-        <Bar
-          :data="chartData"
-          :options="{ responsive: true, plugins: { legend: { position: 'top' } } }"
-        />
-      </div>
-
+      <!-- Tabulator Table -->
       <AttendanceReportTable
-        v-if="isDepartmentReport && hasGeneratedReport && mappedDepartmentAttendance.length"
-        :records="mappedDepartmentAttendance"
-        :is-department-report="true"
+        v-if="
+          hasGeneratedReport &&
+          ((isDepartmentReport && mappedDepartmentAttendance.length > 0) ||
+            (!isDepartmentReport && getAttendanceReport.length > 0))
+        "
+        :records="isDepartmentReport ? mappedDepartmentAttendance : getAttendanceReport"
+        :is-department-report="isDepartmentReport"
+        @generate-pdf="
+          generatePDF(
+            formData,
+            isDepartmentReport ? departmentFullSummary : reportSummary,
+            isDepartmentReport ? mappedDepartmentAttendance : getAttendanceReport,
+          )
+        "
       />
+
+      <!-- Add a message when no data is found -->
+      <div
+        v-if="
+          hasGeneratedReport &&
+          ((isDepartmentReport && mappedDepartmentAttendance.length === 0) ||
+            (!isDepartmentReport && (!reportSummary || !getAttendanceReport?.length)))
+        "
+        class="p-4 text-center text-gray-500 bg-white rounded-md shadow-md"
+      >
+        No attendance records found for the selected period.
+      </div>
     </div>
   </div>
 </template>

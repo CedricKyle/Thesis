@@ -11,7 +11,6 @@ const attendanceController = {
     try {
       const { employee_id, time_in, date } = req.body
 
-      // Add validation
       if (!employee_id || !time_in || !date) {
         await t.rollback()
         return res.status(400).json({
@@ -20,8 +19,8 @@ const attendanceController = {
         })
       }
 
-      // Check for existing attendance
-      const existingAttendance = await EmployeeAttendance.findOne({
+      // Find the existing "Absent" record for today
+      const attendance = await EmployeeAttendance.findOne({
         where: {
           employee_id,
           date: date,
@@ -30,11 +29,11 @@ const attendanceController = {
         transaction: t,
       })
 
-      if (existingAttendance) {
+      if (!attendance) {
         await t.rollback()
-        return res.status(400).json({
+        return res.status(404).json({
           success: false,
-          message: 'Employee already has an attendance record for today',
+          message: 'No absent record found for today. Please run the absent cron job.',
         })
       }
 
@@ -42,10 +41,8 @@ const attendanceController = {
       const [hours, minutes] = time_in.split(':').map(Number)
       const status = hours > 9 || (hours === 9 && minutes > 0) ? 'Late' : 'Present'
 
-      const attendance = await EmployeeAttendance.create(
+      await attendance.update(
         {
-          employee_id,
-          date: date,
           time_in: time_in,
           status,
         },
