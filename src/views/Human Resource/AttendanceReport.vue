@@ -32,6 +32,7 @@ const {
   departmentReportSummary,
   getDepartmentAttendanceReport,
   departmentEmployeeSummaries,
+  mappedDepartmentAttendance,
 } = storeToRefs(attendanceStore)
 
 // Form state
@@ -55,7 +56,7 @@ onMounted(async () => {
 
 const isDepartmentReport = ref(false)
 
-const handleFormSubmit = (employeeId) => {
+const handleFormSubmit = async (employeeId) => {
   isDepartmentReport.value = employeeId === 'ALL'
   attendanceStore.setReportFilters({
     startDate: formData.value.startDate,
@@ -64,6 +65,14 @@ const handleFormSubmit = (employeeId) => {
     employeeId,
   })
   hasGeneratedReport.value = true
+
+  if (isDepartmentReport.value) {
+    await attendanceStore.fetchDepartmentAttendance(
+      formData.value.department,
+      formData.value.startDate,
+      formData.value.endDate,
+    )
+  }
 }
 
 // Watch for form data changes to reset report
@@ -105,6 +114,25 @@ const chartData = computed(() => ({
     },
   ],
 }))
+
+const employeeChartData = computed(() => {
+  if (!reportSummary.value) return { labels: [], datasets: [] }
+  return {
+    labels: ['Present', 'Late', 'Absent', 'On Leave'],
+    datasets: [
+      {
+        label: 'Days',
+        data: [
+          reportSummary.value['Present Days'] || 0,
+          reportSummary.value['Late Days'] || 0,
+          reportSummary.value['Absent Days'] || 0,
+          reportSummary.value['On Leave Days'] || 0,
+        ],
+        backgroundColor: ['#4ade80', '#facc15', '#f87171', '#60a5fa'],
+      },
+    ],
+  }
+})
 </script>
 
 <template>
@@ -117,6 +145,18 @@ const chartData = computed(() => ({
         :employee-name="isDepartmentReport ? formData.department : formData.employeeName"
         :summary="isDepartmentReport ? departmentReportSummary : reportSummary"
       />
+
+      <!-- Employee Attendance Chart -->
+      <div
+        v-if="hasGeneratedReport && !isDepartmentReport && reportSummary"
+        class="bg-white shadow-md rounded-md p-5 mb-4"
+      >
+        <h2 class="font-semibold mb-2">Employee Attendance Chart</h2>
+        <Bar
+          :data="employeeChartData"
+          :options="{ responsive: true, plugins: { legend: { display: false } } }"
+        />
+      </div>
 
       <AttendanceReportTable
         v-if="
@@ -134,7 +174,30 @@ const chartData = computed(() => ({
             isDepartmentReport ? getDepartmentAttendanceReport : getAttendanceReport,
           )
         "
-      />
+      >
+        <template #default="{ records }">
+          <tbody>
+            <tr v-for="record in records" :key="record.date">
+              <td>{{ record.date }}</td>
+              <td>{{ record.signIn || '-' }}</td>
+              <td>{{ record.signOut || '-' }}</td>
+              <td>
+                <span
+                  :class="{
+                    'bg-red-100 text-red-700 px-2 rounded': record.status === 'Absent',
+                    'bg-green-100 text-green-700 px-2 rounded': record.status === 'Present',
+                    'bg-yellow-100 text-yellow-700 px-2 rounded': record.status === 'Late',
+                    'bg-blue-100 text-blue-700 px-2 rounded': record.status === 'On Leave',
+                  }"
+                >
+                  {{ record.status }}
+                </span>
+              </td>
+              <td>{{ record.workingHours || '-' }}</td>
+            </tr>
+          </tbody>
+        </template>
+      </AttendanceReportTable>
 
       <!-- Add a message when no data is found -->
       <div
@@ -189,6 +252,12 @@ const chartData = computed(() => ({
           :options="{ responsive: true, plugins: { legend: { position: 'top' } } }"
         />
       </div>
+
+      <AttendanceReportTable
+        v-if="isDepartmentReport && hasGeneratedReport && mappedDepartmentAttendance.length"
+        :records="mappedDepartmentAttendance"
+        :is-department-report="true"
+      />
     </div>
   </div>
 </template>

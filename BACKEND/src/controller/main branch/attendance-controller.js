@@ -262,37 +262,79 @@ const attendanceController = {
       const { employee_id } = req.params
       const { start_date, end_date } = req.query
 
-      const where = {
-        employee_id,
-        deleted_at: null,
+      if (!start_date || !end_date) {
+        return res
+          .status(400)
+          .json({ success: false, message: 'start_date and end_date are required' })
       }
 
-      if (start_date && end_date) {
-        where.date = {
-          [Op.between]: [start_date, end_date],
+      // 1. Get employee info
+      const employee = await Employee.findOne({
+        where: { employee_id, deleted_at: null },
+        attributes: ['employee_id', 'full_name', 'department'],
+      })
+      if (!employee) {
+        return res.status(404).json({ success: false, message: 'Employee not found' })
+      }
+
+      // 2. Build date range array
+      function getDateRangeArray(start, end) {
+        const arr = []
+        let dt = new Date(start)
+        while (dt <= new Date(end)) {
+          arr.push(dt.toISOString().split('T')[0])
+          dt.setDate(dt.getDate() + 1)
         }
+        return arr
       }
+      const dateRange = getDateRangeArray(start_date, end_date)
 
-      const attendance = await EmployeeAttendance.findAll({
-        where,
-        include: [
-          {
-            model: Employee,
-            as: 'employee',
-            attributes: ['full_name', 'department'],
-          },
-          {
-            model: Employee,
-            as: 'approver',
-            attributes: ['full_name'],
-          },
-        ],
-        order: [['date', 'DESC']],
+      // 3. Fetch all attendance records for this employee in the range
+      const attendanceRecords = await EmployeeAttendance.findAll({
+        where: {
+          employee_id,
+          date: { [Op.between]: [start_date, end_date] },
+          deleted_at: null,
+        },
+        order: [['date', 'ASC']],
+      })
+
+      // 4. Build a map for quick lookup
+      const attendanceMap = {}
+      attendanceRecords.forEach((rec) => {
+        attendanceMap[rec.date] = rec
+      })
+
+      // 5. Build the complete attendance grid
+      const completeAttendance = dateRange.map((date) => {
+        if (attendanceMap[date]) {
+          return attendanceMap[date]
+        } else {
+          // Virtual "Absent" record
+          return {
+            employee_id: employee.employee_id,
+            date,
+            status: 'Absent',
+            employee,
+            time_in: null,
+            time_out: null,
+            working_hours: 0,
+            overtime_hours: 0,
+            approval_status: 'Pending',
+            approved_by: null,
+            approved_at: null,
+            created_at: null,
+            deleted_at: null,
+          }
+        }
       })
 
       res.json({
         success: true,
-        data: attendance,
+        employee,
+        start_date,
+        end_date,
+        data: completeAttendance,
       })
     } catch (error) {
       res.status(500).json({
@@ -306,36 +348,88 @@ const attendanceController = {
   async getDepartmentAttendance(req, res) {
     try {
       const { department } = req.params
-      const date = req.query.date || new Date().toISOString().split('T')[0]
+      const { start_date, end_date } = req.query
 
-      const attendance = await EmployeeAttendance.findAll({
+      // Validate input
+      if (!start_date || !end_date) {
+        return res
+          .status(400)
+          .json({ success: false, message: 'start_date and end_date are required' })
+      }
+
+      // 1. Get all employees in the department
+      const employees = await Employee.findAll({
+        where: { department, deleted_at: null },
+        attributes: ['employee_id', 'full_name', 'department'],
+      })
+
+      // 2. Build date range array
+      const dateRange = getDateRangeArray(start_date, end_date)
+
+      // 3. Fetch all attendance records for these employees in the range
+      const attendanceRecords = await EmployeeAttendance.findAll({
         where: {
-          date,
+          employee_id: employees.map((e) => e.employee_id),
+          date: { [Op.between]: [start_date, end_date] },
           deleted_at: null,
         },
         include: [
           {
             model: Employee,
             as: 'employee',
-            where: { department },
-            attributes: ['full_name', 'department'],
+            attributes: ['employee_id', 'full_name', 'department'],
           },
         ],
       })
 
-      const summary = {
-        total: attendance.length,
-        present: attendance.filter((a) => a.status === 'Present').length,
-        late: attendance.filter((a) => a.status === 'Late').length,
-        absent: attendance.filter((a) => a.status === 'Absent').length,
+      // 4. Build a map for quick lookup
+      const attendanceMap = {}
+      attendanceRecords.forEach((rec) => {
+        attendanceMap[`${rec.employee_id}_${rec.date}`] = rec
+      })
+
+      // 5. Build the complete attendance grid
+      const completeAttendance = []
+      for (const emp of employees) {
+        for (const date of dateRange) {
+          const key = `${emp.employee_id}_${date}`
+          if (attendanceMap[key]) {
+            completeAttendance.push(attendanceMap[key])
+          } else {
+            // Virtual "Absent" record
+            completeAttendance.push({
+              employee_id: emp.employee_id,
+              date,
+              status: 'Absent',
+              employee: emp,
+              time_in: null,
+              time_out: null,
+              working_hours: 0,
+              overtime_hours: 0,
+              approval_status: 'Pending',
+              approved_by: null,
+              approved_at: null,
+              created_at: null,
+              deleted_at: null,
+            })
+          }
+        }
       }
+
+      // 6. (Optional) Sort by date, then employee
+      completeAttendance.sort((a, b) => {
+        if (a.date === b.date) {
+          return a.employee_id.localeCompare(b.employee_id)
+        }
+        return new Date(a.date) - new Date(b.date)
+      })
 
       res.json({
         success: true,
-        date,
         department,
-        summary,
-        data: attendance,
+        start_date,
+        end_date,
+        data: completeAttendance,
       })
     } catch (error) {
       res.status(500).json({
@@ -802,6 +896,16 @@ function calculateDuration(timeIn, timeOut) {
 
   // Format as HH:mm
   return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+}
+
+function getDateRangeArray(start, end) {
+  const arr = []
+  let dt = new Date(start)
+  while (dt <= new Date(end)) {
+    arr.push(dt.toISOString().split('T')[0])
+    dt.setDate(dt.getDate() + 1)
+  }
+  return arr
 }
 
 module.exports = attendanceController

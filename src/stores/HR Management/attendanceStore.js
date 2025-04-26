@@ -33,6 +33,9 @@ export const useAttendanceStore = defineStore('attendance', () => {
   const todayAttendance = ref(null)
   const isProcessing = ref(false)
 
+  // Add this new state property
+  const departmentAttendanceRaw = ref([])
+
   // API base URL
   const API_URL = '/api/attendance' // Add /api prefix
 
@@ -421,7 +424,7 @@ export const useAttendanceStore = defineStore('attendance', () => {
         const records = response.data.data.map((record) => ({
           id: record.id,
           employee_id: record.employee_id,
-          full_name: record.employee?.full_name,
+          full_name: record.employee?.full_name || record.full_name,
           department: record.employee?.department,
           signIn: formatTime(record.time_in),
           signOut: formatTime(record.time_out),
@@ -772,11 +775,12 @@ export const useAttendanceStore = defineStore('attendance', () => {
     }
   }
 
-  const getDepartmentAttendance = async (department) => {
+  const getDepartmentAttendance = async (department, startDate, endDate) => {
     try {
-      const response = await axios.get(`/api/attendance/department/${department}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-      })
+      const response = await axios.get(
+        `/api/attendance/department/${department}?start_date=${startDate}&end_date=${endDate}`,
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } },
+      )
       return response.data.success ? response.data.data : []
     } catch (error) {
       console.error('Error fetching department attendance:', error)
@@ -907,6 +911,35 @@ export const useAttendanceStore = defineStore('attendance', () => {
     }))
   })
 
+  // Add this action to fetch and map department attendance
+  const fetchDepartmentAttendance = async (department, startDate, endDate) => {
+    try {
+      const response = await axios.get(
+        `/api/attendance/department/${department}?start_date=${startDate}&end_date=${endDate}`,
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } },
+      )
+      // Map backend data to table columns
+      departmentAttendanceRaw.value = (response.data.data || []).map((record) => ({
+        employee_id: record.employee_id,
+        full_name: record.employee?.full_name || record.full_name || '',
+        date: record.date,
+        signIn: record.time_in || '-',
+        signOut: record.time_out || '-',
+        workingHours: record.working_hours || 0,
+        status: record.status,
+        department: record.employee?.department || record.department || '',
+      }))
+      return departmentAttendanceRaw.value
+    } catch (error) {
+      console.error('Error fetching department attendance:', error)
+      departmentAttendanceRaw.value = []
+      throw error
+    }
+  }
+
+  // Computed for mapped department attendance
+  const mappedDepartmentAttendance = computed(() => departmentAttendanceRaw.value)
+
   return {
     // State
     attendanceRecords,
@@ -973,5 +1006,11 @@ export const useAttendanceStore = defineStore('attendance', () => {
 
     // Add this new computed property
     departmentEmployeeSummaries,
+
+    // Add this new action
+    fetchDepartmentAttendance,
+
+    // Add this new computed property
+    mappedDepartmentAttendance,
   }
 })
