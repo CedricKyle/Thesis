@@ -179,6 +179,13 @@ export const useAttendanceStore = defineStore('attendance', () => {
     let absentDays = 0
     let onLeaveDays = 0
     let totalOvertime = 0
+    let overtimeDays = 0
+    let earliestTimeIn = null
+    let latestTimeIn = null
+    let statusCount = {}
+    let bestStreak = 0
+    let currentStreak = 0
+    let perfectAttendanceDays = 0
 
     records.forEach((record) => {
       // Calculate total hours and count days
@@ -193,12 +200,31 @@ export const useAttendanceStore = defineStore('attendance', () => {
           const hours = (outTime - inTime) / 60
           totalHours += hours
 
-          // Calculate overtime (if worked more than 8 hours)
+          // Overtime
           if (hours > 8) {
             totalOvertime += hours - 8
+            overtimeDays++
           }
         }
+
+        // Earliest/Latest Time In
+        if (!earliestTimeIn || inTime < earliestTimeIn) earliestTimeIn = inTime
+        if (!latestTimeIn || inTime > latestTimeIn) latestTimeIn = inTime
       }
+
+      // Status count
+      statusCount[record.status] = (statusCount[record.status] || 0) + 1
+
+      // Streaks
+      if (record.status === 'Present' || record.status === 'Late') {
+        currentStreak++
+        if (currentStreak > bestStreak) bestStreak = currentStreak
+      } else {
+        currentStreak = 0
+      }
+
+      // Perfect attendance
+      if (record.status === 'Present') perfectAttendanceDays++
 
       // Count status
       switch (record.status) {
@@ -217,6 +243,17 @@ export const useAttendanceStore = defineStore('attendance', () => {
       }
     })
 
+    // Find most common status
+    let mostCommonStatus = Object.entries(statusCount).sort((a, b) => b[1] - a[1])[0]?.[0] || '-'
+
+    // Format earliest/latest time in
+    const formatTime = (minutes) => {
+      if (minutes == null) return '-'
+      const h = Math.floor(minutes / 60)
+      const m = minutes % 60
+      return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
+    }
+
     return {
       'Total Days': totalDays,
       'Total Hours': totalHours.toFixed(2),
@@ -226,6 +263,12 @@ export const useAttendanceStore = defineStore('attendance', () => {
       'On Leave Days': onLeaveDays,
       'Average Hours/Day': (totalHours / (presentDays + lateDays) || 0).toFixed(2),
       'Total Overtime': Math.round(totalOvertime * 10) / 10,
+      'Days with Overtime': overtimeDays,
+      'Earliest Time In': formatTime(earliestTimeIn),
+      'Latest Time In': formatTime(latestTimeIn),
+      'Best Attendance Streak': bestStreak,
+      'Most Common Status': mostCommonStatus,
+      'Perfect Attendance Days': perfectAttendanceDays,
     }
   })
 
@@ -759,6 +802,111 @@ export const useAttendanceStore = defineStore('attendance', () => {
     todayAttendance.value = null
   }
 
+  const getDepartmentAttendanceReport = computed(() => {
+    if (
+      !reportFilters.value.startDate ||
+      !reportFilters.value.endDate ||
+      !reportFilters.value.department
+    ) {
+      return []
+    }
+
+    const startDate = new Date(reportFilters.value.startDate)
+    const endDate = new Date(reportFilters.value.endDate)
+    const department = reportFilters.value.department
+
+    // Filter records for the department and date range
+    return attendanceRecords.value.filter(
+      (record) =>
+        record.department === department &&
+        new Date(record.date) >= startDate &&
+        new Date(record.date) <= endDate &&
+        record.approvalStatus === 'Approved',
+    )
+  })
+
+  const departmentReportSummary = computed(() => {
+    const records = getDepartmentAttendanceReport.value
+    if (!records.length) return null
+
+    let present = 0,
+      late = 0,
+      absent = 0,
+      onLeave = 0,
+      totalHours = 0
+
+    records.forEach((record) => {
+      switch (record.status) {
+        case 'Present':
+          present++
+          break
+        case 'Late':
+          late++
+          break
+        case 'Absent':
+          absent++
+          break
+        case 'On Leave':
+          onLeave++
+          break
+      }
+      totalHours += Number(record.workingHours || 0)
+    })
+
+    return {
+      'Total Records': records.length,
+      Present: present,
+      Late: late,
+      Absent: absent,
+      'On Leave': onLeave,
+      'Total Hours': totalHours.toFixed(2),
+      'Average Hours/Day': (totalHours / records.length).toFixed(2),
+    }
+  })
+
+  const departmentEmployeeSummaries = computed(() => {
+    const records = getDepartmentAttendanceReport.value
+    if (!records.length) return []
+
+    // Group by employee
+    const summaryMap = {}
+    records.forEach((rec) => {
+      if (!summaryMap[rec.full_name]) {
+        summaryMap[rec.full_name] = {
+          name: rec.full_name,
+          present: 0,
+          late: 0,
+          absent: 0,
+          onLeave: 0,
+          totalHours: 0,
+          count: 0,
+        }
+      }
+      switch (rec.status) {
+        case 'Present':
+          summaryMap[rec.full_name].present++
+          break
+        case 'Late':
+          summaryMap[rec.full_name].late++
+          break
+        case 'Absent':
+          summaryMap[rec.full_name].absent++
+          break
+        case 'On Leave':
+          summaryMap[rec.full_name].onLeave++
+          break
+      }
+      summaryMap[rec.full_name].totalHours += Number(rec.workingHours || 0)
+      summaryMap[rec.full_name].count++
+    })
+
+    // Convert to array
+    return Object.values(summaryMap).map((emp) => ({
+      ...emp,
+      avgHours: emp.count ? (emp.totalHours / emp.count).toFixed(2) : '0.00',
+    }))
+  })
+
   return {
     // State
     attendanceRecords,
@@ -816,5 +964,14 @@ export const useAttendanceStore = defineStore('attendance', () => {
 
     // Add this new function
     canReenterAttendance,
+
+    // Add this new computed property
+    getDepartmentAttendanceReport,
+
+    // Add this new computed property
+    departmentReportSummary,
+
+    // Add this new computed property
+    departmentEmployeeSummaries,
   }
 })

@@ -46,14 +46,15 @@ const departments = [
 ]
 
 const handleSubmit = () => {
+  if (props.formData.employeeName === 'ALL') {
+    emit('submit', 'ALL')
+    return
+  }
   const selectedEmployee = employees.value.find(
-    (emp) => emp.full_name === props.formData.employeeName, // Changed from fullName to full_name
+    (emp) => emp.full_name === props.formData.employeeName,
   )
-
-  console.log('Selected employee:', selectedEmployee)
-
   if (!selectedEmployee) return
-  emit('submit', selectedEmployee.employee_id) // Changed from id to employee_id
+  emit('submit', selectedEmployee.employee_id)
 }
 </script>
 
@@ -88,6 +89,7 @@ const handleSubmit = () => {
               :disabled="!formData.department"
             >
               <option value="">Select Employee</option>
+              <option value="ALL">All Employees</option>
               <option
                 v-for="emp in filteredEmployees"
                 :key="emp.employee_id"

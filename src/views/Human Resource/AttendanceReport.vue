@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useAttendanceStore } from '@/stores/HR Management/attendanceStore'
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
@@ -7,13 +7,32 @@ import AttendanceReportForm from '@/components/Admin Components/HR/Attendance Re
 import AttendanceReportSummary from '@/components/Admin Components/HR/Attendance Report/AttendanceReportSummary.vue'
 import AttendanceReportTable from '@/components/Admin Components/HR/Attendance Report/AttendanceReportTable.vue'
 import { usePDFGenerator } from '@/composables/Admin Composables/Human Resource/usePDFGenerator'
+import { Bar } from 'vue-chartjs'
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js'
+
+ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 
 const isDevelopment = import.meta.env.MODE === 'development'
 
 // Store setup
 const attendanceStore = useAttendanceStore()
 const employeeStore = useEmployeeStore()
-const { reportFilters, getAttendanceReport, reportSummary } = storeToRefs(attendanceStore)
+const {
+  reportFilters,
+  getAttendanceReport,
+  reportSummary,
+  departmentReportSummary,
+  getDepartmentAttendanceReport,
+  departmentEmployeeSummaries,
+} = storeToRefs(attendanceStore)
 
 // Form state
 const formData = ref({
@@ -34,14 +53,16 @@ onMounted(async () => {
   hasGeneratedReport.value = false
 })
 
+const isDepartmentReport = ref(false)
+
 const handleFormSubmit = (employeeId) => {
+  isDepartmentReport.value = employeeId === 'ALL'
   attendanceStore.setReportFilters({
     startDate: formData.value.startDate,
     endDate: formData.value.endDate,
     department: formData.value.department,
     employeeId,
   })
-
   hasGeneratedReport.value = true
 }
 
@@ -58,6 +79,32 @@ watch(
 )
 
 const { generatePDF } = usePDFGenerator()
+
+const chartData = computed(() => ({
+  labels: departmentEmployeeSummaries.value.map((emp) => emp.name),
+  datasets: [
+    {
+      label: 'Present',
+      data: departmentEmployeeSummaries.value.map((emp) => emp.present),
+      backgroundColor: '#4ade80',
+    },
+    {
+      label: 'Late',
+      data: departmentEmployeeSummaries.value.map((emp) => emp.late),
+      backgroundColor: '#facc15',
+    },
+    {
+      label: 'Absent',
+      data: departmentEmployeeSummaries.value.map((emp) => emp.absent),
+      backgroundColor: '#f87171',
+    },
+    {
+      label: 'On Leave',
+      data: departmentEmployeeSummaries.value.map((emp) => emp.onLeave),
+      backgroundColor: '#60a5fa',
+    },
+  ],
+}))
 </script>
 
 <template>
@@ -66,15 +113,27 @@ const { generatePDF } = usePDFGenerator()
       <AttendanceReportForm v-model:formData="formData" @submit="handleFormSubmit" />
 
       <AttendanceReportSummary
-        v-if="hasGeneratedReport && reportSummary"
-        :employee-name="formData.employeeName"
-        :summary="reportSummary"
+        v-if="hasGeneratedReport && (isDepartmentReport ? departmentReportSummary : reportSummary)"
+        :employee-name="isDepartmentReport ? formData.department : formData.employeeName"
+        :summary="isDepartmentReport ? departmentReportSummary : reportSummary"
       />
 
       <AttendanceReportTable
-        v-if="hasGeneratedReport && getAttendanceReport?.length > 0"
-        :records="getAttendanceReport"
-        @generate-pdf="generatePDF(formData, reportSummary, getAttendanceReport)"
+        v-if="
+          hasGeneratedReport &&
+          (isDepartmentReport
+            ? getDepartmentAttendanceReport.length > 0
+            : getAttendanceReport.length > 0)
+        "
+        :records="isDepartmentReport ? getDepartmentAttendanceReport : getAttendanceReport"
+        :is-department-report="isDepartmentReport"
+        @generate-pdf="
+          generatePDF(
+            formData,
+            isDepartmentReport ? departmentReportSummary : reportSummary,
+            isDepartmentReport ? getDepartmentAttendanceReport : getAttendanceReport,
+          )
+        "
       />
 
       <!-- Add a message when no data is found -->
@@ -83,6 +142,52 @@ const { generatePDF } = usePDFGenerator()
         class="p-4 text-center text-gray-500 bg-white rounded-md shadow-md"
       >
         No attendance records found for the selected period.
+      </div>
+
+      <!-- Per-Employee Summary Table -->
+      <div
+        v-if="isDepartmentReport && departmentEmployeeSummaries.length"
+        class="bg-white shadow-md rounded-md p-5 mb-4"
+      >
+        <h2 class="font-semibold mb-2">Per-Employee Attendance Summary</h2>
+        <div class="overflow-x-auto">
+          <table class="min-w-full text-xs md:text-sm">
+            <thead>
+              <tr>
+                <th class="px-2 py-1">Employee</th>
+                <th class="px-2 py-1">Present</th>
+                <th class="px-2 py-1">Late</th>
+                <th class="px-2 py-1">Absent</th>
+                <th class="px-2 py-1">On Leave</th>
+                <th class="px-2 py-1">Total Hours</th>
+                <th class="px-2 py-1">Avg Hours/Day</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="emp in departmentEmployeeSummaries" :key="emp.name">
+                <td class="px-2 py-1">{{ emp.name }}</td>
+                <td class="px-2 py-1">{{ emp.present }}</td>
+                <td class="px-2 py-1">{{ emp.late }}</td>
+                <td class="px-2 py-1">{{ emp.absent }}</td>
+                <td class="px-2 py-1">{{ emp.onLeave }}</td>
+                <td class="px-2 py-1">{{ emp.totalHours }}</td>
+                <td class="px-2 py-1">{{ emp.avgHours }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Department Attendance Chart -->
+      <div
+        v-if="isDepartmentReport && departmentEmployeeSummaries.length"
+        class="bg-white shadow-md rounded-md p-5 mb-4"
+      >
+        <h2 class="font-semibold mb-2">Department Attendance Chart</h2>
+        <Bar
+          :data="chartData"
+          :options="{ responsive: true, plugins: { legend: { position: 'top' } } }"
+        />
       </div>
     </div>
   </div>

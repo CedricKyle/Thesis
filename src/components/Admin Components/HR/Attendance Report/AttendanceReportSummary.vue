@@ -71,7 +71,23 @@ const getStatBoxStyle = (key) => {
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <template v-for="(value, key) in summary" :key="key">
           <div class="stat-box p-3 rounded-md" :class="getStatBoxStyle(key)">
-            <p class="text-gray-600 text-xs">{{ key }}</p>
+            <p class="text-gray-600 text-xs flex items-center gap-1">
+              <span>{{ key }}</span>
+              <span
+                v-if="key === 'Best Attendance Streak'"
+                title="Most consecutive Present/Late days"
+                >🏆</span
+              >
+              <span v-if="key === 'Most Common Status'" title="Status with most days">📊</span>
+              <span v-if="key === 'Earliest Time In'" title="Earliest clock-in time">⏰</span>
+              <span v-if="key === 'Latest Time In'" title="Latest clock-in time">🕒</span>
+              <span v-if="key === 'Days with Overtime'" title="Days with >8 hours worked">⏱️</span>
+              <span
+                v-if="key === 'Perfect Attendance Days'"
+                title="Days with Present and no Late/Absent"
+                >✅</span
+              >
+            </p>
             <p class="text-xl font-semibold" :class="getTextColor(key)">
               {{ formatValue(key, value) }}
             </p>

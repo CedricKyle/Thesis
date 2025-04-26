@@ -11,6 +11,10 @@ const props = defineProps({
     type: Array,
     required: true,
   },
+  isDepartmentReport: {
+    type: Boolean,
+    default: false,
+  },
 })
 
 const emit = defineEmits(['generate-pdf'])
@@ -20,6 +24,15 @@ let table = null
 
 // Define columns for Tabulator
 const columns = [
+  ...(props.isDepartmentReport
+    ? [
+        {
+          title: 'Employee',
+          field: 'full_name',
+          sorter: 'string',
+        },
+      ]
+    : []),
   {
     title: 'Date',
     field: 'date',
