@@ -47,6 +47,13 @@ const verifyToken = async (req, res, next) => {
         ? JSON.parse(currentUser.permissions)
         : currentUser.permissions
 
+    if (currentUser.deleted_at) {
+      return res.status(403).json({
+        message: 'Your account is archived. Please contact the administrator.',
+        code: 'ACCOUNT_ARCHIVED',
+      })
+    }
+
     if (decoded.role !== currentUser.role) {
       return res.status(403).json({
         message: 'Your role has been changed',

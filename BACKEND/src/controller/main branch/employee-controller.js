@@ -777,6 +777,7 @@ const login = async (req, res) => {
           attributes: ['permissions', 'role_name', 'department'],
         },
       ],
+      paranoid: false, // Make sure to include soft-deleted employees
     })
 
     if (!employee) {
@@ -786,9 +787,18 @@ const login = async (req, res) => {
       })
     }
 
+    // Check if employee is archived (soft deleted)
+    if (employee.deleted_at) {
+      return res.status(403).json({
+        message: 'Your account is archived. Please contact the administrator.',
+        code: 'ACCOUNT_ARCHIVED',
+      })
+    }
+
     // Get user account
     let user = await User.findOne({
       where: { employee_id: employeeId },
+      paranoid: false, // In case the user is also soft-deleted
     })
 
     // If no user account exists, create one

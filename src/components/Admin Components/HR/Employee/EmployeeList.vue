@@ -64,11 +64,11 @@ const filteredEmployees = computed(() => {
 
 // Define columns for Tabulator
 const columns = [
-  {
-    title: 'Employee ID',
-    field: 'employee_id',
-    sorter: 'string',
-  },
+  // {
+  //   title: 'Employee ID',
+  //   field: 'employee_id',
+  //   sorter: 'string',
+  // },
   {
     title: 'Full Name',
     field: 'full_name',
