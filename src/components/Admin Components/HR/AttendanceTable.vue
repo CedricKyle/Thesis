@@ -260,9 +260,11 @@ const columns = [
       const isAbsentRecord = record.id && record.id.toString().startsWith('absent-')
       const isPending = record.approvalStatus === 'Pending'
       const isApproved = record.approvalStatus === 'Approved'
+      const hasAttendance =
+        record.signIn && record.signIn !== '-' && record.signOut && record.signOut !== '-'
 
       // Don't show actions for absent records
-      if (isAbsentRecord) {
+      if (isAbsentRecord || !hasAttendance) {
         return ''
       }
 
