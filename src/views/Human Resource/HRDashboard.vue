@@ -483,7 +483,7 @@ const noRecords = computed(() => {
 <template>
   <div class="min-h-screen overflow-y-auto pb-6">
     <!-- Date Selector -->
-    <div class="w-full flex justify-end mb-4 px-4">
+    <div class="w-full flex justify-between mb-4">
       <div class="flex items-center gap-2">
         <input
           type="date"
@@ -491,30 +491,30 @@ const noRecords = computed(() => {
           class="input input-bordered input-sm w-auto !outline-none hover:shadow-md"
         />
       </div>
-    </div>
 
-    <div class="flex gap-2 mb-2">
-      <button
-        class="btn btn-xs"
-        :class="trendRange === '1day' ? 'bg-primaryColor text-white' : 'bg-gray-200'"
-        @click="trendRange = '1day'"
-      >
-        1 Day
-      </button>
-      <button
-        class="btn btn-xs"
-        :class="trendRange === '7days' ? 'bg-primaryColor text-white' : 'bg-gray-200'"
-        @click="trendRange = '7days'"
-      >
-        7 Days
-      </button>
-      <button
-        class="btn btn-xs"
-        :class="trendRange === '1month' ? 'bg-primaryColor text-white' : 'bg-gray-200'"
-        @click="trendRange = '1month'"
-      >
-        1 Month
-      </button>
+      <div class="flex gap-2">
+        <button
+          class="btn-secondaryStyle"
+          :class="trendRange === '1day' ? 'bg-primaryColor text-white' : 'bg-gray-200'"
+          @click="trendRange = '1day'"
+        >
+          1 Day
+        </button>
+        <button
+          class="btn-secondaryStyle"
+          :class="trendRange === '7days' ? 'bg-primaryColor text-white' : 'bg-gray-200'"
+          @click="trendRange = '7days'"
+        >
+          7 Days
+        </button>
+        <button
+          class="btn-secondaryStyle"
+          :class="trendRange === '1month' ? 'bg-primaryColor text-white' : 'bg-gray-200'"
+          @click="trendRange = '1month'"
+        >
+          1 Month
+        </button>
+      </div>
     </div>
 
     <div class="grid grid-cols-4 grid-rows-[auto_auto_auto_auto] gap-4 text-black">
