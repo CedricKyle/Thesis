@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useAttendanceStore } from '@/stores/HR Management/attendanceStore'
 import { useAttendanceForm } from '@/composables/Admin Composables/Human Resource/useAttendanceForm'
@@ -391,6 +391,15 @@ const handleTimeOut = async () => {
     isProcessing.value = false
   }
 }
+
+// Watch for changes in the local state and update the store
+watch(
+  () => state.value.selectedDate,
+  (newDate) => {
+    attendanceStore.selectedDate = newDate
+  },
+  { immediate: true },
+)
 </script>
 
 <template>
@@ -500,7 +509,7 @@ const handleTimeOut = async () => {
 
         <AttendanceTable
           ref="tableRef"
-          :records="paginatedRecords"
+          :records="filteredRecords"
           @view="viewRecord"
           @delete="handleDelete"
         />

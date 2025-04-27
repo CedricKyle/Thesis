@@ -4,9 +4,11 @@ export function useAttendanceLogic() {
   // Time constants
   const TIME_CONSTANTS = {
     WORK_START: 8 * 60, // 8:00 AM = 480 minutes
+    WORK_END: 17 * 60, // 5:00 PM = 1020 minutes
+    OVERTIME_START: 18 * 60, // 6:00 PM = 1080 minutes
     GRACE_PERIOD: 8 * 60 + 15, // 8:15 AM = 495 minutes
-    STANDARD_END: 17 * 60, // 5:00 PM = 1020 minutes
-    OVERTIME_THRESHOLD: 17 * 60 + 20, // 5:20 PM = 1040 minutes
+    BREAK_START: 17 * 60, // 5:00 PM
+    BREAK_END: 18 * 60, // 6:00 PM
   }
 
   // Utility functions
@@ -21,6 +23,7 @@ export function useAttendanceLogic() {
     return `${year}-${month}-${day}`
   }
 
+  // Calculate regular working hours (with 1-hour break auto-deducted if worked at least 5 hours)
   const calculateHours = (signIn, signOut) => {
     if (!signIn || !signOut || signIn === '-' || signOut === '-') return '-'
 
@@ -32,25 +35,31 @@ export function useAttendanceLogic() {
 
     if (outTime <= inTime) return '-'
 
-    // Calculate regular working hours (up to 5:00 PM / 17:00)
-    let regularMinutes = Math.min(outTime, TIME_CONSTANTS.STANDARD_END) - inTime
-    regularMinutes = Math.max(0, regularMinutes) // Ensure non-negative
+    // Regular working time: 8:00 AM to 5:00 PM (9 hours), but auto-deduct 1 hour for break if worked at least 5 hours
+    let regularMinutes =
+      Math.min(outTime, TIME_CONSTANTS.WORK_END) - Math.max(inTime, TIME_CONSTANTS.WORK_START)
+    regularMinutes = Math.max(0, regularMinutes)
+    let regularHours = Math.floor(regularMinutes / 60)
+    let regularMins = regularMinutes % 60
 
-    // Calculate overtime (after 5:20 PM / 17:20)
-    let overtimeMinutes = 0
-    if (outTime > TIME_CONSTANTS.OVERTIME_THRESHOLD) {
-      overtimeMinutes = outTime - TIME_CONSTANTS.STANDARD_END
+    // Deduct 1 hour for break if worked at least 5 hours
+    if (regularMinutes >= 300) {
+      regularHours -= 1
+      if (regularMins < 0) {
+        regularHours -= 1
+        regularMins += 60
+      }
     }
 
-    // Format regular hours
-    const regularHours = Math.floor(regularMinutes / 60)
-    const regularMins = regularMinutes % 60
+    // Overtime: only after 6:00 PM
+    let overtimeMinutes = 0
+    if (outTime >= TIME_CONSTANTS.OVERTIME_START) {
+      overtimeMinutes = outTime - TIME_CONSTANTS.OVERTIME_START
+    }
 
-    // Format overtime hours
-    const overtimeHours = Math.floor(overtimeMinutes / 60)
-    const overtimeMins = overtimeMinutes % 60
+    let overtimeHours = Math.floor(overtimeMinutes / 60)
+    let overtimeMins = overtimeMinutes % 60
 
-    // Create the display string
     let displayString = `${regularHours}h ${regularMins}m`
     if (overtimeMinutes > 0) {
       displayString += ` + ${overtimeHours}h ${overtimeMins}m OT`
@@ -59,19 +68,21 @@ export function useAttendanceLogic() {
     return displayString
   }
 
+  // Calculate overtime in hours (only after 6:00 PM)
   const calculateOvertime = (signOut) => {
     if (!signOut || signOut.trim() === '') return 0
-
     const [hours, minutes] = signOut.split(':')
     const signOutTimeInMinutes = parseInt(hours) * 60 + parseInt(minutes)
 
-    if (signOutTimeInMinutes > TIME_CONSTANTS.OVERTIME_THRESHOLD) {
-      const overtimeMinutes = signOutTimeInMinutes - TIME_CONSTANTS.STANDARD_END
-      return Math.round((overtimeMinutes / 60) * 10) / 10 // Convert to hours with 1 decimal place
+    // Overtime only starts after 6:00 PM
+    if (signOutTimeInMinutes >= TIME_CONSTANTS.OVERTIME_START) {
+      const overtimeMinutes = signOutTimeInMinutes - TIME_CONSTANTS.OVERTIME_START
+      return Math.round((overtimeMinutes / 60) * 10) / 10 // hours, 1 decimal
     }
     return 0
   }
 
+  // Determine status for regular attendance
   const determineStatus = (signIn, signOut) => {
     // Handle absent case
     if (!signIn || signIn.trim() === '') return 'Absent'

@@ -111,20 +111,19 @@ const attendanceController = {
       const inMinutes = parseTimeToMinutes(attendance.time_in)
       const outMinutes = parseTimeToMinutes(time_out)
 
-      // Calculate total working minutes
-      const totalMinutes = outMinutes - inMinutes
+      const regularEnd = 17 * 60 // 17:00 in minutes
 
-      // Convert to hours with 2 decimal places
-      const workingHours = (totalMinutes / 60).toFixed(2)
+      // Working hours: only up to 17:00
+      const workingEnd = Math.min(outMinutes, regularEnd)
+      const totalWorkingMinutes = Math.max(0, workingEnd - inMinutes)
 
-      // Calculate overtime (anything over 8 hours)
-      const overtimeHours = Math.max(0, (totalMinutes - 480) / 60).toFixed(2) // 480 minutes = 8 hours
+      // Subtract 1 hour for lunch break
+      const workingHours = (totalWorkingMinutes / 60 - 1).toFixed(2)
 
       await attendance.update(
         {
           time_out: time_out,
           working_hours: workingHours,
-          overtime_hours: overtimeHours,
         },
         { transaction: t },
       )
@@ -143,7 +142,7 @@ const attendanceController = {
     }
   },
 
-  // Approve attendance
+  // Approve attendance (and OT if present)
   async approveAttendance(req, res) {
     const t = await sequelize.transaction()
     try {
@@ -174,6 +173,26 @@ const attendanceController = {
         })
       }
 
+      // If this record has overtime_proof, calculate overtime_hours
+      if (attendance.overtime_proof && attendance.time_out) {
+        // Overtime starts at 18:00
+        const [h, m] = attendance.time_out.split(':').map(Number)
+        const overtimeStart = 18 * 60 // 18:00 in minutes
+        const outMinutes = h * 60 + m
+        let overtimeMinutes = 0
+        if (outMinutes > overtimeStart) {
+          overtimeMinutes = outMinutes - overtimeStart
+        }
+        const overtimeHours = (overtimeMinutes / 60).toFixed(2)
+
+        await attendance.update(
+          {
+            overtime_hours: overtimeHours,
+          },
+          { transaction: t },
+        )
+      }
+
       await attendance.update(
         {
           approval_status: 'Approved',
@@ -194,6 +213,76 @@ const attendanceController = {
         success: false,
         message: error.message,
       })
+    }
+  },
+
+  // File overtime (update regular record)
+  async fileOvertime(req, res) {
+    const t = await sequelize.transaction()
+    try {
+      const { employee_id, date } = req.body
+      const image = req.file
+
+      if (!employee_id || !date || !image) {
+        await t.rollback()
+        return res
+          .status(400)
+          .json({ success: false, message: 'Employee ID, date, and image are required.' })
+      }
+
+      // Find the regular attendance record
+      const regular = await EmployeeAttendance.findOne({
+        where: {
+          employee_id,
+          date,
+          attendance_type: 'regular',
+          deleted_at: null,
+        },
+        transaction: t,
+      })
+      if (!regular || !regular.time_in || !regular.time_out) {
+        await t.rollback()
+        return res
+          .status(400)
+          .json({ success: false, message: 'Complete regular attendance first.' })
+      }
+      // Check time_out >= 18:00
+      const [h, m] = regular.time_out.split(':').map(Number)
+      if (h < 18) {
+        await t.rollback()
+        return res
+          .status(400)
+          .json({ success: false, message: 'Overtime can only be filed after 6:00 PM.' })
+      }
+      // Check if attendance is approved
+      if (regular.approval_status !== 'Approved') {
+        await t.rollback()
+        return res
+          .status(400)
+          .json({ success: false, message: 'Attendance must be approved before filing overtime.' })
+      }
+      // Prevent duplicate OT filing
+      if (regular.overtime_proof) {
+        await t.rollback()
+        return res
+          .status(400)
+          .json({ success: false, message: 'Overtime already filed for this date.' })
+      }
+
+      // Update the regular record with OT info
+      await regular.update(
+        {
+          overtime_proof: image.path,
+          approval_status: 'Pending', // If you want a separate OT approval status, add a new field
+        },
+        { transaction: t },
+      )
+
+      await t.commit()
+      res.json({ success: true, data: regular })
+    } catch (error) {
+      await t.rollback()
+      res.status(500).json({ success: false, message: error.message })
     }
   },
 

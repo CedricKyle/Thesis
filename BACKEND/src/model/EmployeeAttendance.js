@@ -41,6 +41,15 @@ module.exports = (sequelize) => {
         type: DataTypes.DECIMAL(4, 2),
         defaultValue: 0,
       },
+      attendance_type: {
+        type: DataTypes.ENUM('regular', 'overtime'),
+        defaultValue: 'regular',
+        allowNull: false,
+      },
+      overtime_proof: {
+        type: DataTypes.STRING,
+        allowNull: true,
+      },
       approval_status: {
         type: DataTypes.ENUM('Pending', 'Approved', 'Rejected'),
         defaultValue: 'Pending',

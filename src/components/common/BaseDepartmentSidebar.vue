@@ -485,6 +485,66 @@ watch(
   },
   { deep: true },
 )
+
+// Overtime modal state
+const overtimeImage = ref(null)
+const overtimeImagePreview = ref(null)
+const isFilingOvertime = ref(false)
+
+// Only allow overtime if regular attendance is complete and Time Out is at/after 6:00 PM
+const canFileOvertime = computed(() => {
+  const att = attendanceStore.todayAttendance
+  if (!att) return false
+  if (
+    att.signIn &&
+    att.signIn !== '-' &&
+    att.signOut &&
+    att.signOut !== '-' &&
+    att.approvalStatus === 'Approved'
+  ) {
+    const [h, m] = att.signOut.split(':').map(Number)
+    const outMinutes = h * 60 + m
+    return outMinutes >= 1080 // 18:00
+  }
+  return false
+})
+
+function handleOvertimeImage(e) {
+  const file = e.target.files[0]
+  if (file) {
+    overtimeImage.value = file
+    overtimeImagePreview.value = URL.createObjectURL(file)
+  }
+}
+
+async function submitOvertime() {
+  if (!overtimeImage.value) {
+    showToastMessage('Please upload an image as proof.', 'error')
+    return
+  }
+  isFilingOvertime.value = true
+  try {
+    const formData = new FormData()
+    formData.append('employee_id', currentUserEmployee.value.employee_id)
+    formData.append('date', new Date().toISOString().split('T')[0])
+    formData.append('image', overtimeImage.value)
+
+    await axios.post('/api/attendance/overtime', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
+    })
+    showToastMessage('Overtime filed successfully!', 'success')
+    overtimeImage.value = null
+    overtimeImagePreview.value = null
+    await attendanceStore.loadRecords()
+  } catch (err) {
+    showToastMessage(err.response?.data?.message || 'Failed to file overtime', 'error')
+  } finally {
+    isFilingOvertime.value = false
+  }
+}
 </script>
 
 <template>
@@ -804,6 +864,26 @@ watch(
               >
                 <span v-if="isProcessing">Processing...</span>
                 <span v-else>{{ canTimeOut ? 'Time Out' : 'Already Timed Out' }}</span>
+              </button>
+            </div>
+
+            <!-- Overtime Filing Section -->
+            <div v-if="canFileOvertime" class="flex flex-col gap-2 mt-4 border-t pt-4">
+              <h4 class="font-semibold text-base text-black">File Overtime</h4>
+              <div class="flex flex-row items-center gap-2">
+                <label class="w-40 text-gray-500">Proof of Overtime:</label>
+                <input type="file" accept="image/*" @change="handleOvertimeImage" />
+              </div>
+              <div v-if="overtimeImagePreview" class="mt-2">
+                <img :src="overtimeImagePreview" class="max-h-40 rounded border" />
+              </div>
+              <button
+                class="btn-primaryStyle mt-2"
+                :disabled="!overtimeImage || isFilingOvertime"
+                @click="submitOvertime"
+              >
+                <span v-if="isFilingOvertime">Submitting...</span>
+                <span v-else>Submit Overtime</span>
               </button>
             </div>
 

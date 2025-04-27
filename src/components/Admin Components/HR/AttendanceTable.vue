@@ -72,30 +72,76 @@ const getDefaultAttendanceData = (employees) => {
 
 // Simplify mergeAttendanceWithEmployees
 const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
-  // Filter out only active employees
-  const filteredEmployees = employees.filter((emp) => !emp.deleted_at)
+  const filteredEmployees = employees.filter((emp) => !emp.deleted_at && emp.role !== 'Super Admin')
+  const rows = []
 
-  // Create default records for all employees
-  const defaultAttendance = getDefaultAttendanceData(filteredEmployees)
+  filteredEmployees.forEach((employee) => {
+    const selectedDate = attendanceStore.selectedDate
 
-  // Create a map of existing attendance records by employee_id
-  const attendanceMap = new Map(attendanceRecords.map((record) => [record.employee_id, record]))
+    // Use only attendanceType
+    const getType = (r) => r.attendanceType
 
-  // Return either the actual attendance record or the default one
-  return defaultAttendance.map((defaultRecord) => {
-    const actualRecord = attendanceMap.get(defaultRecord.employee_id)
-    if (actualRecord) {
-      return {
-        ...actualRecord,
-        full_name: defaultRecord.full_name, // Use employee name from employee data
-        department: defaultRecord.department, // Use department from employee data
-        workingHours: actualRecord.workingHours || '-',
-        status: actualRecord.status || 'Absent',
-        approvalStatus: actualRecord.approvalStatus || 'Pending',
-      }
+    // Find the regular attendance record for this employee and date
+    const regular = attendanceRecords.find(
+      (r) =>
+        r.employee_id === employee.employee_id &&
+        getType(r) === 'regular' &&
+        r.date === selectedDate,
+    )
+
+    // Find the approved overtime record for this employee and date
+    const overtime = attendanceRecords.find(
+      (r) =>
+        r.employee_id === employee.employee_id &&
+        getType(r) === 'overtime' &&
+        r.date === selectedDate &&
+        (r.approvalStatus === 'Approved' || r.approval_status === 'Approved'),
+    )
+
+    if (regular) {
+      rows.push({
+        id: regular.id,
+        employee_id: regular.employee_id,
+        full_name: regular.full_name || employee.full_name,
+        department: regular.department || employee.department,
+        signIn: regular.signIn || regular.time_in || '-',
+        signOut: regular.signOut || regular.time_out || '-',
+        workingHours: regular.workingHours ?? regular.working_hours ?? '-',
+        overtimeHours: overtime
+          ? (overtime.overtimeHours ?? overtime.overtime_hours ?? '-')
+          : (regular.overtimeHours ?? regular.overtime_hours ?? '-'),
+        status: regular.status || 'Present',
+        approvalStatus: regular.approvalStatus || regular.approval_status || 'Pending',
+        overtimeProof:
+          regular.overtimeProof ||
+          regular.overtime_proof ||
+          (overtime && (overtime.overtimeProof || overtime.overtime_proof)) ||
+          null,
+        isOvertime: false,
+        date: regular.date,
+        approved_by: regular.approved_by,
+      })
+    } else {
+      // If no regular record, show as absent
+      rows.push({
+        id: `absent-${employee.employee_id}`,
+        employee_id: employee.employee_id,
+        full_name: employee.full_name,
+        department: employee.department,
+        signIn: '-',
+        signOut: '-',
+        workingHours: '-',
+        overtimeHours: '-',
+        status: 'Absent',
+        approvalStatus: 'Pending',
+        overtimeProof: null,
+        isOvertime: false,
+        date: selectedDate,
+      })
     }
-    return defaultRecord
   })
+
+  return rows
 }
 
 // Update the permission check to use HR_MANAGE_ATTENDANCE
@@ -132,16 +178,14 @@ const columns = [
     field: 'signIn',
     formatter: (cell) => {
       const value = cell.getValue()
-      if (!value || value === '-') return '-'
-
-      // Handle both HH:mm:ss and HH:mm formats
+      if (!value || value === '-' || value === 'N/A') return value
       const timeParts = value.split(':')
-      return timeParts.slice(0, 2).join(':') // Always return HH:mm format
+      return timeParts.slice(0, 2).join(':')
     },
     headerSort: true,
     sorter: (a, b) => {
-      if (a === '-') return 1
-      if (b === '-') return -1
+      if (a === '-' || a === 'N/A') return 1
+      if (b === '-' || b === 'N/A') return -1
       return a.localeCompare(b)
     },
   },
@@ -150,16 +194,14 @@ const columns = [
     field: 'signOut',
     formatter: (cell) => {
       const value = cell.getValue()
-      if (!value || value === '-') return '-'
-
-      // Handle both HH:mm:ss and HH:mm formats
+      if (!value || value === '-' || value === 'N/A') return value
       const timeParts = value.split(':')
-      return timeParts.slice(0, 2).join(':') // Always return HH:mm format
+      return timeParts.slice(0, 2).join(':')
     },
     headerSort: true,
     sorter: (a, b) => {
-      if (a === '-') return 1
-      if (b === '-') return -1
+      if (a === '-' || a === 'N/A') return 1
+      if (b === '-' || b === 'N/A') return -1
       return a.localeCompare(b)
     },
   },
@@ -168,51 +210,30 @@ const columns = [
     field: 'workingHours',
     formatter: (cell) => {
       const record = cell.getRow().getData()
-
-      // If no sign in or sign out, return dash
-      if (!record.signIn || !record.signOut || record.signIn === '-' || record.signOut === '-') {
+      if (record.isOvertime) return '-'
+      if (
+        record.status === 'Absent' ||
+        record.workingHours === '-' ||
+        record.workingHours === null ||
+        record.workingHours === undefined ||
+        Number(record.workingHours) === 0
+      ) {
         return '-'
       }
-
-      // Parse time strings and handle HH:mm:ss format
-      const parseTime = (timeStr) => {
-        // Remove any AM/PM indicators and split time components
-        const [time] = timeStr.split(/\s+/)
-        const [hours, minutes, seconds] = time.split(':').map(Number)
-        return hours * 60 + minutes + (seconds || 0) / 60
-      }
-
-      const inMinutes = parseTime(record.signIn)
-      const outMinutes = parseTime(record.signOut)
-
-      // Calculate difference in minutes
-      const diffMinutes = outMinutes - inMinutes
-
-      // Convert to hours and minutes
-      const hours = Math.floor(diffMinutes / 60)
-      const minutes = Math.floor(diffMinutes % 60)
-
-      // Calculate overtime (anything over 8 hours)
-      const overtime = Math.max(0, hours - 8)
-      const regularHours = hours >= 8 ? 8 : hours
-
-      // Format the output
-      if (overtime > 0) {
-        return `${regularHours}:${minutes.toString().padStart(2, '0')} + ${overtime}:00 OT`
-      }
-      return `${hours}:${minutes.toString().padStart(2, '0')}`
+      return `${Number(record.workingHours).toFixed(2)}`
     },
     headerSort: true,
-    sorter: (a, b) => {
-      if (a === '-') return 1
-      if (b === '-') return -1
-      const getHours = (str) => {
-        const match = str.match(/(\d+):(\d+)/)
-        if (!match) return 0
-        return parseInt(match[1]) + parseInt(match[2]) / 60
-      }
-      return getHours(a) - getHours(b)
+  },
+  {
+    title: 'Overtime Hours',
+    field: 'overtimeHours',
+    formatter: (cell) => {
+      const record = cell.getRow().getData()
+      return record.overtimeHours && record.overtimeHours > 0
+        ? `${Number(record.overtimeHours).toFixed(2)}`
+        : '-'
     },
+    headerSort: true,
   },
   {
     title: 'Status',
@@ -220,14 +241,15 @@ const columns = [
     formatter: (cell) => {
       const status = cell.getValue()
       const record = cell.getRow().getData()
-
-      // Default to Absent if no sign in
       let displayStatus = status
-      if (record.signIn === '-') {
+      if (record.isOvertime) {
+        displayStatus = 'Overtime'
+      } else if (record.signIn === '-' || record.signIn === 'N/A') {
         displayStatus = 'Absent'
       }
-
-      const statusClass = statusClasses[displayStatus] || ''
+      const statusClass = record.isOvertime
+        ? 'badge badge-outline badge-info'
+        : statusClasses[displayStatus] || ''
       return `<span class="px-2 py-1 text-xs font-medium rounded-full ${statusClass}">${displayStatus}</span>`
     },
   },
@@ -238,7 +260,6 @@ const columns = [
       const record = cell.getRow().getData()
       const status = cell.getValue()
       const statusClass = approvalStatusClasses[status] || ''
-
       return `
         <div class="flex flex-col gap-1">
           <span class="px-2 py-1 text-xs font-medium rounded-full ${statusClass}">
@@ -254,6 +275,21 @@ const columns = [
     },
   },
   {
+    title: 'Overtime Proof',
+    field: 'overtimeProof',
+    formatter: (cell) => {
+      let value = cell.getValue()
+      console.log('Overtime Proof value:', value)
+      if (!value) return '-'
+      value = value.replace(/\\/g, '/')
+      const url = value.startsWith('http')
+        ? value
+        : `http://localhost:3000/${value.replace(/^\//, '')}`
+      return `<img src="${url}" alt="Overtime Proof" style="max-width:30px;max-height:30px;border-radius:4px;cursor:pointer;" onclick="window.open('${url}','_blank')" />`
+    },
+    headerSort: false,
+  },
+  {
     title: 'Action',
     formatter: (cell) => {
       const record = cell.getRow().getData()
@@ -261,13 +297,16 @@ const columns = [
       const isPending = record.approvalStatus === 'Pending'
       const isApproved = record.approvalStatus === 'Approved'
       const hasAttendance =
-        record.signIn && record.signIn !== '-' && record.signOut && record.signOut !== '-'
-
-      // Don't show actions for absent records
+        (record.isOvertime && record.overtimeProof) ||
+        (record.signIn &&
+          record.signIn !== '-' &&
+          record.signIn !== 'N/A' &&
+          record.signOut &&
+          record.signOut !== '-' &&
+          record.signOut !== 'N/A')
       if (isAbsentRecord || !hasAttendance) {
         return ''
       }
-
       return `
         <div class="flex gap-2">
           <button class="${commonButtonClasses} hover:bg-primaryColor/80 view-button">
@@ -276,11 +315,10 @@ const columns = [
               <circle cx="12" cy="12" r="3" />
             </svg>
           </button>
-
           ${
             isPending
               ? `
-            <button class="${commonButtonClasses} hover:bg-green-500 approve-button" 
+            <button class="${commonButtonClasses} hover:bg-green-500 approve-button"
                     title="Approve Attendance">
               <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M20 6L9 17l-5-5" />
@@ -289,7 +327,6 @@ const columns = [
           `
               : ''
           }
-
           ${
             !isApproved
               ? `
@@ -306,31 +343,21 @@ const columns = [
     headerSort: false,
     cellClick: async (e, cell) => {
       const record = cell.getRow().getData()
-
-      if (e.target.closest('.view-button')) {
+      // Defensive: Prevent double approval
+      if (e.target.closest('.approve-button') && canManageAttendance.value) {
+        if (record.approvalStatus === 'Approved') {
+          showToast('This record is already approved', 'warning')
+          return
+        }
+        openApprovalModal(record)
+      } else if (e.target.closest('.view-button')) {
         emit('view', record)
-      } else if (e.target.closest('.approve-button') && canManageAttendance.value) {
-        try {
-          if (record.id?.toString().startsWith('absent-')) {
-            showToast('Cannot approve an absent record', 'error')
-            return
-          }
-          openApprovalModal(record)
-        } catch (error) {
-          console.error('Error preparing approval:', error)
-          showToast(error.message || 'Failed to prepare approval', 'error')
-        }
       } else if (e.target.closest('.delete-button') && canManageAttendance.value) {
-        try {
-          if (record.approvalStatus === 'Approved') {
-            showToast('Cannot delete an approved attendance record', 'error')
-            return
-          }
-          openDeleteModal(record)
-        } catch (error) {
-          console.error('Error preparing deletion:', error)
-          showToast(error.message || 'Failed to prepare deletion', 'error')
+        if (record.approvalStatus === 'Approved') {
+          showToast('Cannot delete an approved attendance record', 'error')
+          return
         }
+        openDeleteModal(record)
       }
     },
   },
@@ -375,6 +402,13 @@ const initTable = async () => {
 
       const initialData = mergeAttendanceWithEmployees(props.records, employeeStore.employees)
 
+      console.log('Loaded employees:', employeeStore.employees)
+      console.log('Loaded attendance records:', props.records)
+      console.log(
+        'Merged data:',
+        mergeAttendanceWithEmployees(props.records, employeeStore.employees),
+      )
+
       table = new Tabulator(tableRef.value, {
         data: initialData,
         columns,
@@ -394,6 +428,13 @@ const initTable = async () => {
         ],
         dataLoaded: function () {
           this.redraw(true)
+        },
+        rowFormatter: function (row) {
+          const data = row.getData()
+          if (data.isOvertime) {
+            row.getElement().style.background = '#e6f7ff'
+            row.getElement().style.fontWeight = 'bold'
+          }
         },
       })
 
@@ -436,16 +477,13 @@ const refreshTableData = async () => {
     try {
       // Load fresh data
       await attendanceStore.loadRecords()
-
       // Get fresh employee data
       await employeeStore.loadEmployees()
-
       // Merge attendance with employees to show correct status
       const mergedData = mergeAttendanceWithEmployees(
         attendanceStore.attendanceRecords,
         employeeStore.employees,
       )
-
       // Update the table with the merged data
       table.setData(mergedData)
     } catch (error) {
@@ -579,6 +617,58 @@ const handleDelete = async () => {
     showToast('Failed to delete attendance record', 'error')
   }
 }
+
+function formatToYYYYMMDD(date) {
+  if (!date) return ''
+  const d = new Date(date)
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+console.log('Selected date:', attendanceStore.selectedDate)
+attendanceStore.attendanceRecords.forEach((r) => {
+  if (
+    r.employee_id === '2025-50001' &&
+    new Date(r.date).toISOString().split('T')[0] === '2025-04-27'
+  ) {
+    console.log(
+      'Record:',
+      r,
+      'attendance_type:',
+      r.attendance_type,
+      'attendanceType:',
+      r.attendanceType,
+    )
+  }
+})
+
+// Only show regular records for the selected date
+const rows = computed(() => {
+  const selectedDate = attendanceStore.selectedDate
+  return attendanceStore.attendanceRecords
+    .filter(
+      (r) =>
+        (r.attendanceType === 'regular' || r.attendance_type === 'regular') &&
+        r.date === selectedDate,
+    )
+    .map((r) => ({
+      id: r.id,
+      employee_id: r.employee_id,
+      full_name: r.full_name,
+      department: r.department,
+      signIn: r.signIn || '-',
+      signOut: r.signOut || '-',
+      workingHours: r.workingHours ?? '-',
+      overtimeHours: r.overtimeHours ?? '-',
+      status: r.status || 'Absent',
+      approvalStatus: r.approvalStatus || 'Pending',
+      overtimeProof: r.overtimeProof || null,
+      date: r.date,
+      approved_by: r.approved_by,
+    }))
+})
 </script>
 
 <template>

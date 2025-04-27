@@ -6,7 +6,7 @@ import axios from 'axios'
 import { useAuthStore } from '@/stores/Authentication/authStore'
 
 export const useAttendanceStore = defineStore('attendance', () => {
-  const { determineStatus, calculateHours } = useAttendanceLogic()
+  const { determineStatus, calculateHours, calculateOvertime } = useAttendanceLogic()
 
   // State
   const attendanceRecords = ref([])
@@ -62,6 +62,10 @@ export const useAttendanceStore = defineStore('attendance', () => {
       const comparison =
         sortBy.value === 'id' ? a.id - b.id : a.full_name.localeCompare(b.full_name)
       return sortDesc.value ? -comparison : comparison
+    })
+
+    records.forEach((r) => {
+      console.log('Record:', r.full_name, 'overtimeProof:', r.overtimeProof)
     })
 
     return records
@@ -137,12 +141,19 @@ export const useAttendanceStore = defineStore('attendance', () => {
           const [inHours, inMinutes] = existingRecord.signIn.split(':').map(Number)
           const [outHours, outMinutes] = existingRecord.signOut.split(':').map(Number)
 
-          const inTime = inHours * 60 + inMinutes
+          const inTime = inHours * 60 + inMinutesa
           const outTime = outHours * 60 + outMinutes
 
           // Only calculate hours if sign out is after sign in
           if (outTime > inTime) {
-            workingHours = ((outTime - inTime) / 60).toFixed(2)
+            const hours = (outTime - inTime) / 60
+            workingHours = hours
+
+            // Use the new overtime logic (overtime only after 6:00 PM)
+            const overtime = calculateOvertime(existingRecord.signOut)
+            if (overtime > 0) {
+              workingHours += overtime
+            }
           }
         }
 
@@ -203,9 +214,10 @@ export const useAttendanceStore = defineStore('attendance', () => {
           const hours = (outTime - inTime) / 60
           totalHours += hours
 
-          // Overtime
-          if (hours > 8) {
-            totalOvertime += hours - 8
+          // Use the new overtime logic (overtime only after 6:00 PM)
+          const overtime = calculateOvertime(record.signOut)
+          if (overtime > 0) {
+            totalOvertime += overtime
             overtimeDays++
           }
         }
@@ -413,27 +425,48 @@ export const useAttendanceStore = defineStore('attendance', () => {
         const employeeStore = useEmployeeStore()
         await employeeStore.loadEmployees()
 
-        // Format time consistently
-        const formatTime = (time) => {
-          if (!time || time === '-') return '-'
-          const timeParts = time.split(':')
-          return timeParts.slice(0, 2).join(':') // Return HH:mm format
-        }
+        // Separate regular and overtime records
+        const allRecords = response.data.data
+        const regularRecords = allRecords.filter(
+          (r) => r.attendance_type === 'regular' || r.attendanceType === 'regular',
+        )
+        const overtimeRecords = allRecords.filter(
+          (r) => r.attendance_type === 'overtime' || r.attendanceType === 'overtime',
+        )
 
-        // Map the attendance records to include employee details
-        const records = response.data.data.map((record) => ({
-          id: record.id,
-          employee_id: record.employee_id,
-          full_name: record.employee?.full_name || record.full_name,
-          department: record.employee?.department,
-          signIn: formatTime(record.time_in),
-          signOut: formatTime(record.time_out),
-          workingHours: record.working_hours || 0,
-          status: record.status || 'Absent',
-          date: record.date,
-          approvalStatus: record.approval_status || 'Pending',
-        }))
+        // Map regular records, merging overtime proof if present
+        const records = regularRecords.map((record) => {
+          // Find matching overtime record for this employee/date
+          const ot = overtimeRecords.find(
+            (otRec) =>
+              otRec.employee_id === record.employee_id &&
+              otRec.date === record.date &&
+              otRec.overtime_proof,
+          )
+          return {
+            ...record,
+            overtimeProof: ot ? ot.overtime_proof : record.overtime_proof || null,
+            id: record.id,
+            employee_id: record.employee_id,
+            full_name: record.employee?.full_name || record.full_name,
+            department: record.employee?.department,
+            signIn: record.time_in || '-',
+            signOut: record.time_out || '-',
+            workingHours:
+              record.working_hours != null ? Number(record.working_hours).toFixed(2) : '-',
+            status: record.status || 'Absent',
+            date: record.date,
+            approvalStatus: record.approval_status || 'Pending',
+            overtimeHours:
+              record.overtime_hours && record.overtime_hours > 0
+                ? Number(record.overtime_hours).toFixed(2)
+                : '-',
+            attendanceType: record.attendance_type || 'regular',
+            approved_by: record.approved_by || null,
+          }
+        })
 
+        console.log('Mapped attendanceRecords:', records)
         attendanceRecords.value = records
       }
     } catch (error) {
