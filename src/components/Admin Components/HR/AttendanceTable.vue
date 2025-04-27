@@ -33,6 +33,8 @@ const showApprovalModal = ref(false)
 const selectedRecord = ref(null)
 const showDeleteModal = ref(false)
 const recordToDelete = ref(null)
+const showRejectOTModal = ref(false)
+const recordToRejectOT = ref(null)
 
 // Status styling configuration
 const statusClasses = {
@@ -304,6 +306,8 @@ const columns = [
           record.signOut &&
           record.signOut !== '-' &&
           record.signOut !== 'N/A')
+      const hasOT = !!record.overtimeProof
+      const showRejectOT = hasOT && record.approvalStatus !== 'Approved'
       if (isAbsentRecord || !hasAttendance) {
         return ''
       }
@@ -338,6 +342,17 @@ const columns = [
           `
               : ''
           }
+          ${
+            showRejectOT
+              ? `<button 
+                  title="Reject OT"
+                  class="${commonButtonClasses} hover:bg-yellow-500 text-black reject-ot-button">
+                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M18 6 6 18M6 6l12 12" />
+                    </svg>
+                </button>`
+              : ''
+          }
         </div>`
     },
     headerSort: false,
@@ -358,6 +373,8 @@ const columns = [
           return
         }
         openDeleteModal(record)
+      } else if (e.target.closest('.reject-ot-button')) {
+        openRejectOTModal(record)
       }
     },
   },
@@ -669,6 +686,34 @@ const rows = computed(() => {
       approved_by: r.approved_by,
     }))
 })
+
+// Add this new method
+const rejectOvertime = async (record) => {
+  try {
+    await attendanceStore.rejectOvertime(record.id)
+    showToast('Overtime request rejected. Regular attendance is preserved.', 'success')
+  } catch (error) {
+    console.error('Error rejecting overtime:', error)
+    showToast('Failed to reject overtime', 'error')
+  }
+}
+
+const openRejectOTModal = (record) => {
+  recordToRejectOT.value = record
+  showRejectOTModal.value = true
+}
+
+const closeRejectOTModal = () => {
+  showRejectOTModal.value = false
+  recordToRejectOT.value = null
+}
+
+const confirmRejectOT = async () => {
+  if (recordToRejectOT.value) {
+    await rejectOvertime(recordToRejectOT.value)
+    closeRejectOTModal()
+  }
+}
 </script>
 
 <template>
@@ -787,4 +832,26 @@ const rows = computed(() => {
       </div>
     </div>
   </div>
+
+  <!-- Reject OT Confirmation Modal -->
+  <dialog :open="showRejectOTModal" class="modal">
+    <div class="modal-box bg-white text-black">
+      <h3 class="font-bold text-lg">Reject Overtime Request</h3>
+      <div
+        class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
+      />
+      <p class="py-4">
+        Are you sure you want to <b>reject</b> the overtime request for
+        <span class="font-semibold">{{ recordToRejectOT?.full_name }}</span> on
+        <span class="font-semibold">{{ formatDate(recordToRejectOT?.date) }}</span
+        >?
+        <br />
+        <span class="text-warning">This action cannot be undone.</span>
+      </p>
+      <div class="modal-action">
+        <button class="btn-secondaryStyle" @click="closeRejectOTModal">Cancel</button>
+        <button class="btn-errorStyle" @click="confirmRejectOT">Reject OT</button>
+      </div>
+    </div>
+  </dialog>
 </template>

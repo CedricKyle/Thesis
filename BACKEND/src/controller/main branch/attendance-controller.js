@@ -24,12 +24,15 @@ const attendanceController = {
         where: {
           employee_id,
           date: date,
+          status: 'Absent',
           deleted_at: null,
         },
         transaction: t,
       })
 
       if (!attendance) {
+        // Optionally, create a new "Absent" record here if not found
+        // Or return an error if you want to enforce the cron job
         await t.rollback()
         return res.status(404).json({
           success: false,
@@ -700,12 +703,9 @@ const attendanceController = {
     try {
       const { id } = req.params
 
-      // Find the attendance record
+      // 1. Find the attendance record to delete
       const attendance = await EmployeeAttendance.findOne({
-        where: {
-          id,
-          deleted_at: null,
-        },
+        where: { id, deleted_at: null },
         transaction: t,
       })
 
@@ -717,10 +717,27 @@ const attendanceController = {
         })
       }
 
-      // Soft delete the record by setting deleted_at
-      await attendance.update(
+      // Save employee_id and date before deleting
+      const { employee_id, date } = attendance
+
+      // 2. Soft delete the record
+      await attendance.update({ deleted_at: new Date() }, { transaction: t })
+
+      // 3. Insert a new "Absent" record for the same employee and date
+      await EmployeeAttendance.create(
         {
-          deleted_at: new Date(),
+          employee_id,
+          date,
+          status: 'Absent',
+          approval_status: 'Pending',
+          attendance_type: 'regular',
+          working_hours: 0,
+          overtime_hours: 0,
+          time_in: null,
+          time_out: null,
+          overtime_proof: null,
+          created_at: new Date(),
+          // ...add any other default fields as needed
         },
         { transaction: t },
       )
@@ -728,7 +745,7 @@ const attendanceController = {
       await t.commit()
       res.json({
         success: true,
-        message: 'Attendance record deleted successfully',
+        message: 'Attendance record deleted and Absent record created.',
       })
     } catch (error) {
       await t.rollback()
@@ -736,6 +753,114 @@ const attendanceController = {
         success: false,
         message: error.message,
       })
+    }
+  },
+
+  // Add this method to attendanceController
+  async updateAttendance(req, res) {
+    const t = await sequelize.transaction()
+    try {
+      const { id } = req.params
+      const {
+        time_in,
+        time_out,
+        date,
+        status,
+        approval_status,
+        employee_id,
+        department,
+        // ...any other fields you want to allow updating
+      } = req.body
+
+      // Find the attendance record
+      const attendance = await EmployeeAttendance.findOne({
+        where: { id, deleted_at: null },
+        transaction: t,
+      })
+
+      if (!attendance) {
+        await t.rollback()
+        return res.status(404).json({ success: false, message: 'Attendance record not found' })
+      }
+
+      // Prepare update fields
+      const updateFields = {}
+      if (time_in !== undefined) updateFields.time_in = time_in
+      if (time_out !== undefined) updateFields.time_out = time_out
+      if (date !== undefined) updateFields.date = date
+      if (status !== undefined) updateFields.status = status
+      if (approval_status !== undefined) updateFields.approval_status = approval_status
+      if (employee_id !== undefined) updateFields.employee_id = employee_id
+      if (department !== undefined) updateFields.department = department
+
+      // If OT proof image is uploaded
+      if (req.file) {
+        updateFields.overtime_proof = req.file.path
+      }
+
+      // Optionally, recalculate working_hours/overtime_hours if time_in/time_out changed
+      if (updateFields.time_in && updateFields.time_out) {
+        // Calculate working hours (same logic as in timeOut)
+        const parseTimeToMinutes = (timeStr) => {
+          const [hours, minutes, seconds] = timeStr.split(':').map(Number)
+          return hours * 60 + minutes + (seconds || 0) / 60
+        }
+        const inMinutes = parseTimeToMinutes(updateFields.time_in)
+        const outMinutes = parseTimeToMinutes(updateFields.time_out)
+        const regularEnd = 17 * 60 // 17:00 in minutes
+        const workingEnd = Math.min(outMinutes, regularEnd)
+        const totalWorkingMinutes = Math.max(0, workingEnd - inMinutes)
+        updateFields.working_hours = (totalWorkingMinutes / 60 - 1).toFixed(2)
+
+        // Overtime calculation (if time_out >= 18:00)
+        const overtimeStart = 18 * 60
+        let overtimeMinutes = 0
+        if (outMinutes > overtimeStart) {
+          overtimeMinutes = outMinutes - overtimeStart
+        }
+        updateFields.overtime_hours = (overtimeMinutes / 60).toFixed(2)
+      }
+
+      await attendance.update(updateFields, { transaction: t })
+
+      await t.commit()
+      res.json({ success: true, data: attendance })
+    } catch (error) {
+      await t.rollback()
+      res.status(500).json({ success: false, message: error.message })
+    }
+  },
+
+  // Add this method to attendanceController
+  async rejectOvertime(req, res) {
+    const t = await sequelize.transaction()
+    try {
+      const { id } = req.params
+      const attendance = await EmployeeAttendance.findOne({
+        where: { id, deleted_at: null },
+        transaction: t,
+      })
+
+      if (!attendance) {
+        await t.rollback()
+        return res.status(404).json({ success: false, message: 'Attendance record not found' })
+      }
+
+      // Only clear OT fields, not the whole record
+      await attendance.update(
+        {
+          overtime_proof: null,
+          overtime_hours: 0,
+          // Optionally: ot_approval_status: 'Rejected'
+        },
+        { transaction: t },
+      )
+
+      await t.commit()
+      res.json({ success: true, data: attendance })
+    } catch (error) {
+      await t.rollback()
+      res.status(500).json({ success: false, message: error.message })
     }
   },
 }

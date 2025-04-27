@@ -141,19 +141,36 @@ export const useAttendanceStore = defineStore('attendance', () => {
           const [inHours, inMinutes] = existingRecord.signIn.split(':').map(Number)
           const [outHours, outMinutes] = existingRecord.signOut.split(':').map(Number)
 
-          const inTime = inHours * 60 + inMinutesa
+          const inTime = inHours * 60 + inMinutes
           const outTime = outHours * 60 + outMinutes
 
-          // Only calculate hours if sign out is after sign in
-          if (outTime > inTime) {
-            const hours = (outTime - inTime) / 60
-            workingHours = hours
+          // Regular work window: 8:00 AM to 5:00 PM (480 to 1020)
+          const workStart = 8 * 60
+          const workEnd = 17 * 60
+          const breakStart = 17 * 60
+          const otStart = 18 * 60
 
-            // Use the new overtime logic (overtime only after 6:00 PM)
-            const overtime = calculateOvertime(existingRecord.signOut)
-            if (overtime > 0) {
-              workingHours += overtime
-            }
+          // Calculate regular minutes worked (max between 8:00 and 17:00)
+          let regularMinutes = Math.max(0, Math.min(outTime, workEnd) - Math.max(inTime, workStart))
+
+          // Deduct 1 hour break if worked at least 5 hours (300 minutes)
+          if (regularMinutes >= 300) {
+            regularMinutes -= 60
+          }
+
+          // Overtime: only after 6:00 PM
+          let overtimeMinutes = 0
+          if (outTime > otStart) {
+            overtimeMinutes = outTime - otStart
+          }
+
+          // Total hours
+          const regularHours = Math.max(0, regularMinutes / 60)
+          const overtimeHours = Math.max(0, overtimeMinutes / 60)
+
+          workingHours = regularHours
+          if (overtimeHours > 0) {
+            workingHours += overtimeHours
           }
         }
 
@@ -202,7 +219,6 @@ export const useAttendanceStore = defineStore('attendance', () => {
     let perfectAttendanceDays = 0
 
     records.forEach((record) => {
-      // Calculate total hours and count days
       if (record.signIn !== '-' && record.signOut !== '-') {
         const [inHours, inMinutes] = record.signIn.split(':').map(Number)
         const [outHours, outMinutes] = record.signOut.split(':').map(Number)
@@ -210,16 +226,34 @@ export const useAttendanceStore = defineStore('attendance', () => {
         const inTime = inHours * 60 + inMinutes
         const outTime = outHours * 60 + outMinutes
 
-        if (outTime > inTime) {
-          const hours = (outTime - inTime) / 60
-          totalHours += hours
+        // Regular work window: 8:00 AM to 5:00 PM (480 to 1020)
+        const workStart = 8 * 60
+        const workEnd = 17 * 60
+        const breakStart = 17 * 60
+        const otStart = 18 * 60
 
-          // Use the new overtime logic (overtime only after 6:00 PM)
-          const overtime = calculateOvertime(record.signOut)
-          if (overtime > 0) {
-            totalOvertime += overtime
-            overtimeDays++
-          }
+        // Calculate regular minutes worked (max between 8:00 and 17:00)
+        let regularMinutes = Math.max(0, Math.min(outTime, workEnd) - Math.max(inTime, workStart))
+
+        // Deduct 1 hour break if worked at least 5 hours (300 minutes)
+        if (regularMinutes >= 300) {
+          regularMinutes -= 60
+        }
+
+        // Overtime: only after 6:00 PM
+        let overtimeMinutes = 0
+        if (outTime > otStart) {
+          overtimeMinutes = outTime - otStart
+        }
+
+        // Total hours
+        const regularHours = Math.max(0, regularMinutes / 60)
+        const overtimeHours = Math.max(0, overtimeMinutes / 60)
+
+        totalHours += regularHours
+        if (overtimeHours > 0) {
+          totalOvertime += overtimeHours
+          overtimeDays++
         }
 
         // Earliest/Latest Time In
@@ -1055,6 +1089,54 @@ export const useAttendanceStore = defineStore('attendance', () => {
     }))
   })
 
+  // Add this action to update an attendance record (including OT proof)
+  const updateAttendanceRecord = async (id, updates) => {
+    try {
+      let config = {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      }
+      let data = updates
+
+      // If updates is FormData (for file upload), set content type
+      if (updates instanceof FormData) {
+        config.headers['Content-Type'] = 'multipart/form-data'
+      }
+
+      const response = await axios.put(`/api/attendance/${id}`, data, config)
+
+      if (response.data.success) {
+        await loadRecords()
+        return response.data.data
+      } else {
+        throw new Error(response.data.message || 'Failed to update attendance record')
+      }
+    } catch (error) {
+      console.error('Error updating attendance record:', error)
+      throw error
+    }
+  }
+
+  const rejectOvertime = async (attendanceId) => {
+    try {
+      const response = await axios.put(
+        `/api/attendance/attendance/${attendanceId}/reject-ot`,
+        {},
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } },
+      )
+      if (response.data.success) {
+        await loadRecords()
+        return response.data.data
+      } else {
+        throw new Error(response.data.message || 'Failed to reject overtime')
+      }
+    } catch (error) {
+      console.error('Error rejecting overtime:', error)
+      throw error
+    }
+  }
+
   return {
     // State
     attendanceRecords,
@@ -1133,5 +1215,11 @@ export const useAttendanceStore = defineStore('attendance', () => {
 
     // Add this new computed property
     departmentFullEmployeeSummaries,
+
+    // Add this new action
+    updateAttendanceRecord,
+
+    // Add this new action
+    rejectOvertime,
   }
 })

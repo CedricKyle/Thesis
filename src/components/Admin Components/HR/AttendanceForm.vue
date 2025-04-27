@@ -119,6 +119,85 @@ const clearErrorWithTimeout = (message, duration = 2000) => {
   }, duration)
 }
 
+const otProof = ref(null)
+const otProofPreview = ref(null)
+
+function handleOTProof(e) {
+  const file = e.target.files[0]
+  if (file) {
+    otProof.value = file
+    otProofPreview.value = URL.createObjectURL(file)
+  }
+}
+
+const existingAttendance = computed(() => {
+  if (!newAttendance.value.employeeName || !newAttendance.value.date) return null
+  const selectedEmployee = employees.value.find(
+    (emp) => emp.full_name === newAttendance.value.employeeName,
+  )
+  if (!selectedEmployee) return null
+
+  const filtered = attendanceStore.attendanceRecords
+    .filter(
+      (rec) =>
+        rec.employee_id === selectedEmployee.employee_id &&
+        rec.date === newAttendance.value.date &&
+        (!rec.deleted_at || rec.deleted_at === null),
+    )
+    .sort((a, b) => b.id - a.id)
+
+  console.log(
+    'Filtered attendance records for',
+    selectedEmployee.full_name,
+    newAttendance.value.date,
+    filtered,
+  )
+
+  const found = filtered.find((rec) => rec.status === 'Present' || rec.status === 'Late')
+  console.log('existingAttendance found:', found)
+  return found
+})
+
+watch(
+  [() => newAttendance.value.employeeName, () => newAttendance.value.date],
+  ([employeeName, date]) => {
+    const rec = existingAttendance.value
+    if (rec && rec.approvalStatus === 'Rejected') {
+      newAttendance.value.signIn = rec.signIn !== '-' ? rec.signIn?.slice(0, 5) : ''
+      newAttendance.value.signOut = rec.signOut !== '-' ? rec.signOut?.slice(0, 5) : ''
+      if (rec.overtimeProof) {
+        otProofPreview.value = rec.overtimeProof.startsWith('http')
+          ? rec.overtimeProof
+          : `http://localhost:3000/${rec.overtimeProof.replace(/^\//, '')}`
+      } else {
+        otProofPreview.value = null
+      }
+    }
+  },
+)
+
+const showConfirmModal = ref(false)
+
+function openConfirmModal(data) {
+  showConfirmModal.value = true
+  formErrors.value.general = ''
+}
+
+function closeConfirmModal() {
+  showConfirmModal.value = false
+  formErrors.value.general = ''
+}
+
+async function confirmAddAttendance(data) {
+  try {
+    await attendanceStore.addRecord(data)
+    showConfirmModal.value = false
+    formErrors.value.general = ''
+  } catch (e) {
+    // handle error
+  }
+}
+
 const handleSubmit = async () => {
   if (isSubmitting.value) return
 
@@ -126,7 +205,6 @@ const handleSubmit = async () => {
   formErrors.value.general = ''
 
   try {
-    // Validate form first
     if (!validateForm()) {
       isSubmitting.value = false
       return
@@ -142,13 +220,8 @@ const handleSubmit = async () => {
       return
     }
 
-    // Format time to HH:mm:ss
-    const formatTime = (time) => {
-      if (!time) return null
-      return `${time}:00` // Add seconds to match the backend format
-    }
+    const formatTime = (time) => (time ? `${time}:00` : null)
 
-    // Create attendance data object with formatted times
     const attendanceData = {
       employee_id: selectedEmployee.employee_id,
       full_name: selectedEmployee.full_name,
@@ -160,11 +233,27 @@ const handleSubmit = async () => {
       signOut: formatTime(newAttendance.value.signOut),
     }
 
-    // Log the data being emitted
-    console.log('Emitting attendance data:', attendanceData)
+    if (existingAttendance.value) {
+      if (existingAttendance.value.approvalStatus === 'Rejected') {
+        const formData = new FormData()
+        Object.entries(attendanceData).forEach(([key, value]) => {
+          formData.append(key, value)
+        })
+        if (otProof.value) {
+          formData.append('overtime_proof', otProof.value)
+        }
 
-    // Emit the data to parent
-    emit('showConfirm', attendanceData)
+        await attendanceStore.updateAttendanceRecord(existingAttendance.value.id, formData)
+        emit('submit', { ...attendanceData, updated: true })
+      } else {
+        clearErrorWithTimeout('Attendance already exists and cannot be updated.')
+        isSubmitting.value = false
+        return
+      }
+    } else {
+      emit('showConfirm', attendanceData)
+      formErrors.value.general = ''
+    }
   } catch (error) {
     clearErrorWithTimeout(error.message || 'Error submitting attendance')
   } finally {
@@ -189,8 +278,8 @@ const { calculateHours } = useAttendanceLogic() // Import if you need to calcula
 
 const handleFormSubmit = async (attendanceData) => {
   try {
-    // The record has already been added by the form component
-    // Just handle any UI updates or notifications here
+    // ...your add logic...
+    formErrors.value.general = '' // <-- CLEAR ERROR HERE
     showToastMessage('Attendance record added successfully', 'success')
   } catch (error) {
     showToastMessage(error.message || 'Failed to add attendance record', 'error')
@@ -204,6 +293,19 @@ onBeforeUnmount(() => {
     clearTimeout(errorTimeout.value)
   }
 })
+
+const handleManualReset = async () => {
+  if (!existingAttendance.value) return
+  try {
+    if (!confirm('Are you sure you want to reset this attendance record?')) return
+    await attendanceStore.deleteRecord(existingAttendance.value.id)
+    await attendanceStore.loadRecords()
+    resetForm()
+    formErrors.value.general = 'Attendance record reset. You can now re-enter attendance.'
+  } catch (error) {
+    formErrors.value.general = error.message || 'Failed to reset attendance record.'
+  }
+}
 </script>
 
 <template>
@@ -342,6 +444,17 @@ onBeforeUnmount(() => {
               {{ calculateOvertime(newAttendance.signIn, newAttendance.signOut) }} hours
             </div>
           </div>
+
+          <!-- Overtime Proof -->
+          <div class="form-control">
+            <legend class="fieldset-legend text-black !m-0 !text-xs justify-start">
+              Overtime Proof (if any)
+            </legend>
+            <input type="file" accept="image/*" @change="handleOTProof" />
+            <div v-if="otProofPreview" class="mt-2">
+              <img :src="otProofPreview" class="max-h-32 rounded border" />
+            </div>
+          </div>
         </fieldset>
       </div>
       <!-- Add transition wrapper around the error message -->
@@ -356,6 +469,11 @@ onBeforeUnmount(() => {
       <div class="action-buttons flex justify-end mt-5">
         <button @click="handleSubmit" class="btn-primaryStyle" :disabled="isSubmitting">
           {{ isSubmitting ? 'Adding...' : 'Add Attendance' }}
+        </button>
+      </div>
+      <div v-if="existingAttendance" class="flex justify-end mt-2">
+        <button class="btn btn-warning" @click="handleManualReset" type="button">
+          Reset Attendance for this Employee & Date
         </button>
       </div>
     </div>

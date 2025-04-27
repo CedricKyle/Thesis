@@ -254,14 +254,10 @@ const totalPages = computed(() =>
 
 const handleAttendanceSubmit = async (attendanceData) => {
   try {
-    console.log('Submitting attendance data:', attendanceData)
+    const existing = attendanceStore.attendanceRecords.find(
+      (rec) => rec.employee_id === attendanceData.employee_id && rec.date === attendanceData.date,
+    )
 
-    if (!attendanceData || !attendanceData.employee_id) {
-      showToast('Invalid attendance data', 'error')
-      return
-    }
-
-    // Ensure consistent time format by adding seconds if not present
     const formatTime = (time) => {
       if (!time) return null
       return time.includes(':')
@@ -271,7 +267,6 @@ const handleAttendanceSubmit = async (attendanceData) => {
         : `${time}:00`
     }
 
-    // Create the attendance record with consistent format
     const record = {
       employee_id: attendanceData.employee_id,
       date: attendanceData.date,
@@ -279,20 +274,23 @@ const handleAttendanceSubmit = async (attendanceData) => {
       time_out: formatTime(attendanceData.time_out || attendanceData.signOut),
     }
 
-    console.log('Formatted record to submit:', record)
-
-    await attendanceStore.addRecord(record)
-    modalState.value.confirm = false
-    showToast('Attendance added successfully')
-    await loadRecords()
-    resetForm()
+    if (existing && (existing.approvalStatus === 'Rejected' || existing.deleted_at)) {
+      const formData = new FormData()
+      Object.entries(record).forEach(([key, value]) => {
+        formData.append(key, value)
+      })
+      // If you have OT proof, append it here
+      // formData.append('overtime_proof', otProofFile)
+      await attendanceStore.updateAttendanceRecord(existing.id, formData)
+      showToast('Attendance updated successfully', 'success')
+    } else if (!existing) {
+      await attendanceStore.addRecord(record)
+      showToast('Attendance added successfully', 'success')
+    } else {
+      showToast('Attendance already exists and cannot be updated.', 'error')
+    }
   } catch (error) {
-    console.error('Error saving attendance:', {
-      message: error.message,
-      response: error.response?.data,
-      data: error.response?.config?.data,
-    })
-    showToast(error.message || 'Failed to add attendance', 'error')
+    showToast(error.message || 'Failed to save attendance', 'error')
   }
 }
 

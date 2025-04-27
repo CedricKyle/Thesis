@@ -46,4 +46,15 @@ router.post(
   attendanceController.fileOvertime,
 )
 
+// Update attendance route
+router.put(
+  '/:id',
+  verifyToken,
+  uploadOvertime.single('overtime_proof'),
+  attendanceController.updateAttendance,
+)
+
+// Reject OT route
+router.put('/attendance/:id/reject-ot', attendanceController.rejectOvertime)
+
 module.exports = router
