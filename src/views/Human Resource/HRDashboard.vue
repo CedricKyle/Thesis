@@ -46,7 +46,7 @@ const departmentList = computed(() =>
 )
 
 // Trend range state
-const trendRange = ref('7days') // options: '1day', '7days', '1month'
+const trendRange = ref('1day') // options: '1day', '7days', '1month'
 
 // Utility to get date range array
 function getDateRange() {
@@ -671,7 +671,10 @@ const noRecords = computed(() => {
       </div>
     </div>
 
-    <div class="bg-white p-4 rounded shadow mb-6 text-black">
+    <div
+      v-if="trendRange === '7days' || trendRange === '1month'"
+      class="bg-white p-4 rounded shadow mb-6 text-black"
+    >
       <h2 class="font-semibold mb-4">
         Employee Leaderboard ({{
           trendRange === '1day'
@@ -755,7 +758,10 @@ const noRecords = computed(() => {
       </table>
     </div>
 
-    <div class="bg-white p-4 rounded shadow mb-6 text-black">
+    <div
+      v-if="trendRange === '7days' || trendRange === '1month'"
+      class="bg-white p-4 rounded shadow mb-6 text-black"
+    >
       <h2 class="font-semibold mb-4">
         Attendance Alerts ({{
           trendRange === '1day'
