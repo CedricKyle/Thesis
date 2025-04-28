@@ -57,6 +57,9 @@ export function usePermissions(employeeRole) {
   const hasPermission = (permissionId) => {
     if (!employeeRole.value?.permissions) return false
 
+    // Super Admin always has all permissions
+    if (isSuperAdmin.value) return true
+
     // Check for full access first
     if (employeeRole.value.permissions.includes(PERMISSION_IDS.HR_FULL_ACCESS)) {
       // If checking for an HR permission and user has HR_FULL_ACCESS, grant it
@@ -222,6 +225,18 @@ export function usePermissions(employeeRole) {
           },
           Stocks: {
             route: '/admin/inventory/stocks',
+          },
+          'Inventory ': {
+            route: '/admin/inventory/inventory-management',
+          },
+          'Supplier ': {
+            route: '/admin/inventory/supplier-management',
+          },
+          'Purchase ': {
+            route: '/admin/inventory/purchase-management',
+          },
+          'Branch Distribution': {
+            route: '/admin/inventory/branch-distribution-management',
           },
         },
       },

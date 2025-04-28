@@ -33,6 +33,10 @@ export const PERMISSION_IDS = {
   SCM_FULL_ACCESS: 14,
   SCM_VIEW_STOCKS: 15,
   SCM_VIEW_DASHBOARD: 16,
+  SCM_MANAGE_INVENTORY_MANAGEMENT: 19,
+  SCM_MANAGE_SUPPLIERS_MANAGEMENT: 20,
+  SCM_MANAGE_PURCHASE_MANAGEMENT: 21,
+  SCM_MANAGE_BRANCH_DISTRIBUTION_MANAGEMENT: 22,
 
   // CRM Department Permissions
   CRM_FULL_ACCESS: 17,
@@ -82,6 +86,13 @@ export const permissionGroups = [
       { id: PERMISSION_IDS.SCM_FULL_ACCESS, name: 'Full Access' },
       { id: PERMISSION_IDS.SCM_VIEW_DASHBOARD, name: 'View Dashboard' },
       { id: PERMISSION_IDS.SCM_VIEW_STOCKS, name: 'View Stocks' },
+      { id: PERMISSION_IDS.SCM_MANAGE_INVENTORY_MANAGEMENT, name: 'Manage Inventory Management' },
+      { id: PERMISSION_IDS.SCM_MANAGE_SUPPLIERS_MANAGEMENT, name: 'Manage Suppliers Management' },
+      { id: PERMISSION_IDS.SCM_MANAGE_PURCHASE_MANAGEMENT, name: 'Manage Purchase Management' },
+      {
+        id: PERMISSION_IDS.SCM_MANAGE_BRANCH_DISTRIBUTION_MANAGEMENT,
+        name: 'Manage Branch Distribution Management',
+      },
     ],
   },
   {

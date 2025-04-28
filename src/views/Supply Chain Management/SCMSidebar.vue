@@ -16,6 +16,30 @@ const menuItems = [
     icon: Package,
     permission: PERMISSION_IDS.SCM_VIEW_STOCKS,
   },
+  {
+    name: 'Inventory',
+    route: '/scm/inventory-management',
+    icon: Package,
+    permission: PERMISSION_IDS.SCM_MANAGE_INVENTORY_MANAGEMENT,
+  },
+  {
+    name: 'Supplier',
+    route: '/scm/supplier-management',
+    icon: Package,
+    permission: PERMISSION_IDS.SCM_MANAGE_SUPPLIERS_MANAGEMENT,
+  },
+  {
+    name: 'Purchase',
+    route: '/scm/purchase-management',
+    icon: Package,
+    permission: PERMISSION_IDS.SCM_MANAGE_PURCHASE_MANAGEMENT,
+  },
+  {
+    name: 'Branch Distribution',
+    route: '/scm/branch-distribution-management',
+    icon: Package,
+    permission: PERMISSION_IDS.SCM_MANAGE_BRANCH_DISTRIBUTION_MANAGEMENT,
+  },
 ]
 </script>
 

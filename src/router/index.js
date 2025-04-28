@@ -27,6 +27,10 @@ import SCMSidebar from '@/views/Supply Chain Management/SCMSidebar.vue'
 import CRMSidebar from '@/views/CRM Department/CRMASidebar.vue'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import { usePermissions } from '@/composables/Admin Composables/User & Role/role/usePermissions'
+import SCMBranchDistributionManagement from '@/views/Supply Chain Management/SCMBranchDistributionManagement.vue'
+import SCMInventoryManagement from '@/views/Supply Chain Management/SCMInventoryManagement.vue'
+import SCMSupplierManagement from '@/views/Supply Chain Management/SCMSupplierManagement.vue'
+import SCMPurchaseManagement from '@/views/Supply Chain Management/SCMPurchaseManagement.vue'
 import {
   PERMISSION_IDS,
   DEPARTMENTS,
@@ -106,6 +110,26 @@ const routes = [
         path: 'inventory/stocks',
         name: 'AdminStocks',
         component: StockView,
+      },
+      {
+        path: 'inventory/inventory-management',
+        name: 'AdminInventoryManagement',
+        component: SCMInventoryManagement,
+      },
+      {
+        path: 'inventory/supplier-management',
+        name: 'AdminSuppliersManagement',
+        component: SCMSupplierManagement,
+      },
+      {
+        path: 'inventory/purchase-management',
+        name: 'AdminPurchaseManagement',
+        component: SCMPurchaseManagement,
+      },
+      {
+        path: 'inventory/branch-distribution-management',
+        name: 'AdminBranchDistributionManagement',
+        component: SCMBranchDistributionManagement,
       },
       {
         path: 'crm/dashboard',
@@ -279,6 +303,38 @@ const routes = [
           permissions: [PERMISSION_IDS.SCM_VIEW_STOCKS],
         },
       },
+      {
+        path: 'inventory-management',
+        name: 'SCMInventoryManagement',
+        component: SCMInventoryManagement,
+        meta: {
+          permissions: [PERMISSION_IDS.SCM_MANAGE_INVENTORY_MANAGEMENT],
+        },
+      },
+      {
+        path: 'supplier-management',
+        name: 'SCMSupplierManagement',
+        component: SCMSupplierManagement,
+        meta: {
+          permissions: [PERMISSION_IDS.SCM_MANAGE_SUPPLIERS_MANAGEMENT],
+        },
+      },
+      {
+        path: 'purchase-management',
+        name: 'SCMPurchaseManagement',
+        component: SCMPurchaseManagement,
+        meta: {
+          permissions: [PERMISSION_IDS.SCM_MANAGE_PURCHASE_MANAGEMENT],
+        },
+      },
+      {
+        path: 'branch-distribution-management',
+        name: 'SCMBranchDistributionManagement',
+        component: SCMBranchDistributionManagement,
+        meta: {
+          permissions: [PERMISSION_IDS.SCM_MANAGE_BRANCH_DISTRIBUTION_MANAGEMENT],
+        },
+      },
     ],
   },
   // CRM Router
@@ -411,6 +467,7 @@ router.beforeEach(async (to, from, next) => {
     const hasPermission = requiredPermissions.some(
       (permission) =>
         authStore.userPermissions.includes(permission) ||
+        authStore.userPermissions.includes(PERMISSION_IDS.ADMIN_FULL_ACCESS) ||
         authStore.userPermissions.includes(PERMISSION_IDS.SCM_FULL_ACCESS),
     )
 

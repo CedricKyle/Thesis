@@ -564,7 +564,7 @@ function clearOvertimeFile() {
 <template>
   <div class="flex h-screen">
     <!-- Sidebar -->
-    <div class="w-80 bg-primaryColor flex flex-col overflow-hidden">
+    <div class="w-80 bg-primaryColor flex flex-col overflow-hidden p-2">
       <div class="flex-1 overflow-y-auto scrollbar-hide">
         <!-- Logo Section -->
         <div class="logo-section flex items-center mb-5 gap-4">
