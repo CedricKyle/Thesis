@@ -38,14 +38,6 @@ module.exports = (sequelize) => {
         type: DataTypes.STRING(50),
         allowNull: false,
       },
-      role: {
-        type: DataTypes.STRING(50),
-        allowNull: false,
-        references: {
-          model: 'roles',
-          key: 'role_name',
-        },
-      },
       date_of_hire: {
         type: DataTypes.DATE,
         allowNull: false,
@@ -88,6 +80,11 @@ module.exports = (sequelize) => {
         type: DataTypes.DATE,
         allowNull: true,
       },
+      role_id: {
+        type: DataTypes.INTEGER(11),
+        allowNull: true,
+        references: { model: 'roles', key: 'id' },
+      },
     },
     {
       tableName: 'employees',
@@ -101,8 +98,7 @@ module.exports = (sequelize) => {
 
   Employee.associate = (models) => {
     Employee.belongsTo(models.Role, {
-      foreignKey: 'role',
-      targetKey: 'role_name',
+      foreignKey: 'role_id',
       as: 'roleInfo',
     })
   }

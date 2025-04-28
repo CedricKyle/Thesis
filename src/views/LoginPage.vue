@@ -28,7 +28,7 @@ function getDepartmentPath(department) {
     'Human Resource': 'hr',
     Finance: 'finance',
     Sales: 'sales',
-    'Supply Chain Management': 'scm', // Map SCM correctly
+    'Supply Chain Management': 'scm',
     'Customer Relationship Management': 'crm',
   }
 
@@ -70,6 +70,9 @@ const handleSubmit = async (e) => {
           ? response.data.user.permissions
           : JSON.parse(response.data.user.permissions)
       }
+
+      // ADD THIS LINE:
+      console.log('CURRENT USER:', authStore.currentUser)
 
       // Determine redirect path
       const department = response.data.user.department

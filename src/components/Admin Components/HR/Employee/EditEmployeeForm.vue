@@ -61,8 +61,8 @@ const departmentJobs = {
   'HR Department': ['HR Manager'],
   'Finance Department': ['Accountant'],
   'Sales Department': ['Sales Manager'],
-  'Customer Service Department': ['Customer Service Representative'],
-  'Supply Chain Department': ['Supply Chain Manager'],
+  'Customer Relationship Management': ['Customer Service Representative'],
+  'Supply Chain Management': ['Supply Chain Manager'],
 }
 
 // Add departments computed property
@@ -72,8 +72,8 @@ const departments = computed(() => {
     'HR Department',
     'Finance Department',
     'Sales Department',
-    'Customer Service Department',
-    'Supply Chain Department',
+    'Customer Relationship Management',
+    'Supply Chain Management',
   ]
   return isAdminRoute ? ['Admin Department', ...baseDepartments] : baseDepartments
 })
@@ -124,9 +124,13 @@ const availableRoles = computed(() => {
 })
 
 const availableJobs = computed(() => {
-  if (!employeeData.value.department || !employeeData.value.role) return []
+  if (!employeeData.value.department || !employeeData.value.role_id) return []
 
-  const jobTitles = getJobTitles(employeeData.value.department, employeeData.value.role)
+  // Find the selected role object
+  const selectedRole = roles.value.find((role) => role.id === employeeData.value.role_id)
+  const roleName = selectedRole ? selectedRole.role_name : ''
+
+  const jobTitles = getJobTitles(employeeData.value.department, roleName)
 
   // If current job title exists but isn't in the list, add it
   if (employeeData.value.job_title && !jobTitles.includes(employeeData.value.job_title)) {
@@ -190,6 +194,13 @@ const hasProfessionalInfoChanges = computed(() => {
     employeeData.value.job_title !== originalData.value.job_title ||
     employeeData.value.role !== originalData.value.role ||
     employeeData.value.date_of_hire !== originalData.value.date_of_hire
+  )
+})
+
+const filteredRoles = computed(() => {
+  if (!employeeData.value.department) return []
+  return roles.value.filter(
+    (role) => role.department === employeeData.value.department && role.role_name !== 'Super Admin',
   )
 })
 
@@ -300,7 +311,7 @@ const handleUpdate = async () => {
         employeeData.value.department === 'Admin Department'
           ? 'Administrator'
           : employeeData.value.job_title,
-      role: employeeData.value.role,
+      role_id: employeeData.value.role_id,
       dateOfHire: employeeData.value.date_of_hire,
       dateOfBirth: employeeData.value.date_of_birth,
       gender: employeeData.value.gender,
@@ -328,7 +339,7 @@ const handleUpdate = async () => {
       lastName: 'Last Name',
       department: 'Department',
       jobTitle: 'Job Title',
-      role: 'Role',
+      role_id: 'Role',
       dateOfHire: 'Date of Hire',
       dateOfBirth: 'Date of Birth',
       gender: 'Gender',
@@ -346,7 +357,11 @@ const handleUpdate = async () => {
       const value = field.includes('.')
         ? updateData[field.split('.')[0]][field.split('.')[1]]
         : updateData[field]
-      if (!value || value.trim() === '') {
+      if (
+        value === undefined ||
+        value === null ||
+        (typeof value === 'string' ? value.trim() === '' : value === '')
+      ) {
         missingFields.push(label)
       }
     })
@@ -552,14 +567,14 @@ watch(
             <div>
               <legend class="fieldset-legend text-black text-xs justify-start">Role</legend>
               <select
-                v-model="employeeData.role"
+                v-model="employeeData.role_id"
                 class="select focus:outline-none bg-white border-black text-black"
-                @change="handleFieldChange('role', employeeData.role)"
+                @change="handleFieldChange('role_id', employeeData.role_id)"
                 :disabled="!employeeData.department"
               >
                 <option disabled value="">Select Role</option>
-                <option v-for="role in availableRoles" :key="role" :value="role">
-                  {{ role }}
+                <option v-for="role in filteredRoles" :key="role.id" :value="role.id">
+                  {{ role.role_name }}
                 </option>
               </select>
             </div>
@@ -570,7 +585,7 @@ watch(
               <select
                 v-model="employeeData.job_title"
                 class="select focus:outline-none bg-white border-black text-black"
-                :disabled="!employeeData.department || !employeeData.role"
+                :disabled="!employeeData.department || !employeeData.role_id"
                 @change="handleFieldChange('job_title', employeeData.job_title)"
               >
                 <option disabled value="">Select Job Title</option>

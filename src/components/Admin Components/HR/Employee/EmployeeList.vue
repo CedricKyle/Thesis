@@ -37,7 +37,7 @@ const filteredEmployees = computed(() => {
 
   // Filter out Super Admin users if current user is not Super Admin
   if (!isSuperAdmin.value) {
-    employees = employees.filter((emp) => emp.role !== 'Super Admin')
+    employees = employees.filter((emp) => emp.roleInfo?.role_name !== 'Super Admin')
   }
 
   // Apply search filter if there's a search query
@@ -104,6 +104,11 @@ const columns = [
         : `<span class="badge badge-outline badge-success h-5 text-xs">Active</span>`
     },
     width: 100,
+  },
+  {
+    title: 'Role',
+    field: 'role_name',
+    sorter: 'string',
   },
   {
     title: 'Actions',

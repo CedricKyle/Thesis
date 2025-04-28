@@ -30,8 +30,8 @@ const departmentMap = {
   'HR Department': 'HR Department',
   'Finance Department': 'Finance Department',
   'Sales Department': 'Sales Department',
-  'Supply Chain Department': 'Supply Chain Department',
-  'CRM Department': 'CRM Department',
+  'Supply Chain Management': 'Supply Chain Management',
+  'Customer Relationship Management': 'Customer Relationship Management',
 }
 
 // Updated filteredEmployees computed property
@@ -335,8 +335,10 @@ const handleManualReset = async () => {
               <option value="HR Department">HR Department</option>
               <option value="Finance Department">Finance Department</option>
               <option value="Sales Department">Sales Department</option>
-              <option value="Supply Chain Department">Supply Chain Department</option>
-              <option value="CRM Department">CRM Department</option>
+              <option value="Supply Chain Management">Supply Chain Management</option>
+              <option value="Customer Relationship Management">
+                Customer Relationship Management
+              </option>
             </select>
             <span v-if="formErrors.department" class="text-red-500 text-xs mt-1">
               {{ formErrors.department }}

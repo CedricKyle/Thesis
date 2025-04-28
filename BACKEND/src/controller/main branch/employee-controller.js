@@ -36,7 +36,7 @@ const createEmployee = async (req, res) => {
       'lastName',
       'department',
       'jobTitle',
-      'role',
+      'role_id',
       'dateOfHire',
       'dateOfBirth',
       'gender',
@@ -125,10 +125,10 @@ const createEmployee = async (req, res) => {
       })
     }
 
-    // Verify role exists and get its permissions
+    // Verify role exists by ID
     const role = await Role.findOne({
-      where: { role_name: employeeData.role },
-      attributes: ['role_name', 'permissions'],
+      where: { id: employeeData.role_id },
+      attributes: ['id', 'role_name', 'permissions', 'department'],
     })
 
     if (!role) {
@@ -138,7 +138,7 @@ const createEmployee = async (req, res) => {
       })
     }
 
-    // Create employee with verified role
+    // Create employee with verified role_id
     const employee = await Employee.create(
       {
         employee_id: employeeId,
@@ -148,7 +148,7 @@ const createEmployee = async (req, res) => {
         full_name: fullName,
         department: employeeData.department,
         job_title: employeeData.jobTitle,
-        role: role.role_name, // Use the exact role name from the database
+        role_id: role.id, // Use the role's ID
         date_of_hire: employeeData.dateOfHire,
         date_of_birth: employeeData.dateOfBirth,
         gender: employeeData.gender,
@@ -261,7 +261,7 @@ const getAllEmployees = async (req, res) => {
         {
           model: Role,
           as: 'roleInfo',
-          attributes: ['permissions'],
+          attributes: ['role_name', 'permissions', 'department'],
           paranoid: false,
         },
       ],
@@ -273,7 +273,7 @@ const getAllEmployees = async (req, res) => {
       return {
         ...employeeJson,
         permissions: employeeJson.roleInfo?.permissions || [],
-        roleInfo: undefined,
+        role_name: employeeJson.roleInfo?.role_name || '',
       }
     })
 
@@ -311,7 +311,7 @@ const getAllEmployeeById = async (req, res) => {
         {
           model: Role,
           as: 'roleInfo',
-          attributes: ['permissions'],
+          attributes: ['role_name', 'permissions', 'department'],
         },
       ],
     })
@@ -327,7 +327,6 @@ const getAllEmployeeById = async (req, res) => {
       ...employeeData,
       emergencyContact: emergencyContact || null,
       permissions: employeeData.roleInfo?.permissions || [],
-      roleInfo: undefined,
     }
 
     res.json(formattedEmployee)
@@ -388,10 +387,10 @@ const updateEmployee = async (req, res) => {
         first_name: employeeData.firstName,
         middle_name: employeeData.middleName,
         last_name: employeeData.lastName,
-        full_name: fullName, // Use the generated fullName
+        full_name: fullName,
         department: employeeData.department,
         job_title: employeeData.jobTitle,
-        role: employeeData.role,
+        role_id: employeeData.role_id,
         date_of_hire: employeeData.dateOfHire,
         date_of_birth: employeeData.dateOfBirth,
         gender: employeeData.gender,
@@ -427,7 +426,7 @@ const updateEmployee = async (req, res) => {
           first_name: employeeData.emergencyContact.firstName,
           middle_name: employeeData.emergencyContact.middleName,
           last_name: employeeData.emergencyContact.lastName,
-          full_name: emergencyContactFullName, // Use the generated emergency contact fullName
+          full_name: emergencyContactFullName,
           relationship: employeeData.emergencyContact.relationship,
           contact_number: employeeData.emergencyContact.contactNumber,
         },
@@ -601,7 +600,7 @@ const addEmployee = async (req, res) => {
     const [result] = await connection.execute(
       `INSERT INTO employees (
         employee_id, first_name, middle_name, last_name, full_name,
-        department, job_title, role, date_of_hire, date_of_birth,
+        department, job_title, role_id, date_of_hire, date_of_birth,
         gender, contact_number, email, address,
         profile_image_path, resume_path
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -613,7 +612,7 @@ const addEmployee = async (req, res) => {
         employeeData.fullName,
         employeeData.department,
         employeeData.jobTitle,
-        employeeData.role,
+        employeeData.role_id,
         employeeData.dateOfHire,
         employeeData.dateOfBirth,
         employeeData.gender,
@@ -767,17 +766,10 @@ const login = async (req, res) => {
     const employee = await Employee.findOne({
       where: { employee_id: employeeId },
       include: [
-        {
-          model: User,
-          as: 'user',
-        },
-        {
-          model: Role,
-          as: 'roleInfo',
-          attributes: ['permissions', 'role_name', 'department'],
-        },
+        { model: User, as: 'user' },
+        { model: Role, as: 'roleInfo', attributes: ['permissions', 'role_name', 'department'] },
       ],
-      paranoid: false, // Make sure to include soft-deleted employees
+      paranoid: false,
     })
 
     if (!employee) {
@@ -859,8 +851,8 @@ const login = async (req, res) => {
     // Generate token
     const token = generateToken({
       employee_id: employee.employee_id,
-      role: employee.role,
-      department: employee.department,
+      role: employee.roleInfo.role_name,
+      department: employee.roleInfo.department,
       permissions: permissions,
     })
 

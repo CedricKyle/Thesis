@@ -185,7 +185,6 @@ const showSuccessAndRedirect = () => {
   toastMessage.value = 'Role added successfully'
   toastType.value = 'success'
   showToast.value = true
-  roleToAdd.value = null
 
   // Add check for Super Admin
   const isAdmin = route.path.startsWith('/admin')

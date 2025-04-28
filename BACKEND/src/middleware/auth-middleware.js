@@ -27,9 +27,11 @@ const verifyToken = async (req, res, next) => {
     const [employees] = await pool.query(
       `SELECT 
         e.*,
+        r.role_name,
+        r.department,
         r.permissions
       FROM employees e
-      JOIN roles r ON e.role = r.role_name
+      JOIN roles r ON e.role_id = r.id
       WHERE e.employee_id = ?`,
       [decoded.id],
     )
@@ -54,7 +56,7 @@ const verifyToken = async (req, res, next) => {
       })
     }
 
-    if (decoded.role !== currentUser.role) {
+    if (decoded.role !== currentUser.role_name) {
       return res.status(403).json({
         message: 'Your role has been changed',
         code: 'ROLE_CHANGED',
@@ -63,7 +65,8 @@ const verifyToken = async (req, res, next) => {
 
     req.user = {
       ...decoded,
-      role: currentUser.role,
+      role: currentUser.role_name,
+      department: currentUser.department,
       permissions: currentPermissions,
     }
 

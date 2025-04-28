@@ -55,7 +55,9 @@ const commonButtonClasses = 'btn btn-sm btn-circle border-none btn-ghost'
 // Simplify getDefaultAttendanceData to only filter out soft-deleted employees
 const getDefaultAttendanceData = (employees) => {
   // Filter out soft-deleted employees and Super Admin
-  const filteredEmployees = employees.filter((emp) => !emp.deleted_at && emp.role !== 'Super Admin')
+  const filteredEmployees = employees.filter(
+    (emp) => !emp.deleted_at && emp.roleInfo?.role_name !== 'Super Admin',
+  )
 
   const currentDate = new Date()
 
@@ -74,7 +76,9 @@ const getDefaultAttendanceData = (employees) => {
 
 // Simplify mergeAttendanceWithEmployees
 const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
-  const filteredEmployees = employees.filter((emp) => !emp.deleted_at && emp.role !== 'Super Admin')
+  const filteredEmployees = employees.filter(
+    (emp) => !emp.deleted_at && emp.roleInfo?.role_name !== 'Super Admin',
+  )
   const rows = []
 
   filteredEmployees.forEach((employee) => {
@@ -161,6 +165,10 @@ const canManageAttendance = computed(() => {
     )
   )
 })
+
+const attendanceEmployees = computed(() =>
+  employeeStore.employees.filter((emp) => emp.roleInfo?.role_name !== 'Super Admin'),
+)
 
 const columns = [
   {
@@ -670,6 +678,10 @@ const rows = computed(() => {
         (r.attendanceType === 'regular' || r.attendance_type === 'regular') &&
         r.date === selectedDate,
     )
+    .filter((r) => {
+      const emp = employeeStore.employees.find((e) => e.employee_id === r.employee_id)
+      return emp && emp.roleInfo?.role_name !== 'Super Admin'
+    })
     .map((r) => ({
       id: r.id,
       employee_id: r.employee_id,

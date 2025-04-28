@@ -104,7 +104,7 @@ module.exports = (sequelize) => {
       include: [
         {
           association: 'employee',
-          attributes: ['first_name', 'last_name', 'role'],
+          attributes: ['first_name', 'last_name', 'role_id'],
         },
       ],
     })

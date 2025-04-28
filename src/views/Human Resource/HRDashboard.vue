@@ -77,7 +77,7 @@ const filteredStats = computed(() => {
   }
   const dateRange = getDateRange()
   const activeEmployees = employees.value.filter(
-    (employee) => !employee.deleted_at && employee.role !== 'Super Admin',
+    (employee) => !employee.deleted_at && employee.roleInfo?.role_name !== 'Super Admin',
   )
   let present = 0
   let absent = 0
@@ -242,7 +242,7 @@ const departmentStats = computed(() => {
   const dateRange = getDateRange()
   return departmentList.value.map((dept) => {
     const deptEmployees = employees.value.filter(
-      (e) => e.department === dept && !e.deleted_at && e.role !== 'Super Admin',
+      (e) => e.department === dept && !e.deleted_at && e.roleInfo?.role_name !== 'Super Admin',
     )
     let present = 0
     let absent = 0
@@ -305,7 +305,9 @@ const attendanceTrendData = computed(() => {
   const absent = []
   const late = []
   trendLabels.value.forEach((date) => {
-    const activeEmployees = employees.value.filter((e) => !e.deleted_at && e.role !== 'Super Admin')
+    const activeEmployees = employees.value.filter(
+      (e) => !e.deleted_at && e.roleInfo?.role_name !== 'Super Admin',
+    )
     const records = attendanceRecords.value.filter((r) => r.date === date)
     const attendanceMap = new Map(records.map((r) => [r.employee_id, r]))
     let presentCount = 0,
@@ -349,7 +351,7 @@ const employeeMap = computed(() => {
   const map = new Map()
   if (employees.value) {
     employees.value.forEach((e) => {
-      if (!e.deleted_at && e.role !== 'Super Admin') map.set(e.employee_id, e)
+      if (!e.deleted_at && e.roleInfo?.role_name !== 'Super Admin') map.set(e.employee_id, e)
     })
   }
   return map
@@ -395,7 +397,7 @@ const topLate = computed(() => {
 const topAbsent = computed(() => {
   const range = leaderboardDateRange.value
   const activeEmployees = employees.value
-    ? employees.value.filter((e) => !e.deleted_at && e.role !== 'Super Admin')
+    ? employees.value.filter((e) => !e.deleted_at && e.roleInfo?.role_name !== 'Super Admin')
     : []
   const absentCounts = {}
   activeEmployees.forEach((emp) => {
@@ -421,7 +423,9 @@ const topAbsent = computed(() => {
 
 // Helper: Get active employees
 const activeEmployees = computed(() =>
-  employees.value ? employees.value.filter((e) => !e.deleted_at && e.role !== 'Super Admin') : [],
+  employees.value
+    ? employees.value.filter((e) => !e.deleted_at && e.roleInfo?.role_name !== 'Super Admin')
+    : [],
 )
 
 // Helper: Get all attendance records in range

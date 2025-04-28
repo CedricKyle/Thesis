@@ -170,16 +170,9 @@ export const useRolesStore = defineStore('roles', {
           return
         }
 
-        // If we have complete role data
-        if (employeeData.role_name && Array.isArray(employeeData.permissions)) {
-          this.currentEmployeeRole = employeeData
-          return
-        }
-
-        // If we have a role name, fetch the complete role data
-        const roleName = employeeData.role || employeeData.role_name
-        if (roleName) {
-          const roleData = await this.getRoleByName(roleName)
+        const roleId = employeeData.role_id
+        if (roleId) {
+          const roleData = await this.getRoleById(roleId)
           if (roleData) {
             if (typeof roleData.permissions === 'string') {
               roleData.permissions = JSON.parse(roleData.permissions)

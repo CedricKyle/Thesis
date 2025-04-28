@@ -49,7 +49,7 @@ const newEmployee = ref({
   lastName: '',
   department: '',
   jobTitle: '',
-  role: '',
+  role_id: '',
   dateOfHire: '',
   dateOfBirth: '',
   gender: '',
@@ -112,8 +112,9 @@ const availableRoles = computed(() => {
 
 // Update the availableJobs computed property
 const availableJobs = computed(() => {
-  if (!newEmployee.value.department || !newEmployee.value.role) return []
-  return getJobTitles(newEmployee.value.department, newEmployee.value.role)
+  if (!newEmployee.value.department || !newEmployee.value.role_id) return []
+  const role = roles.value.find((r) => r.id === newEmployee.value.role_id)
+  return getJobTitles(newEmployee.value.department, role?.role_name)
 })
 
 // Update the department watcher
@@ -122,10 +123,10 @@ watch(
   (newDepartment) => {
     if (newDepartment === DEPARTMENTS.ADMIN) {
       newEmployee.value.jobTitle = 'Administrator'
-      newEmployee.value.role = 'Admin'
+      newEmployee.value.role_id = 'Admin'
     } else {
       // Reset role and job title when department changes
-      newEmployee.value.role = ''
+      newEmployee.value.role_id = ''
       newEmployee.value.jobTitle = ''
     }
   },
@@ -133,7 +134,7 @@ watch(
 
 // Add watch for role changes
 watch(
-  () => newEmployee.value.role,
+  () => newEmployee.value.role_id,
   (newRole) => {
     // Reset job title when role changes
     if (newRole && newEmployee.value.department !== DEPARTMENTS.ADMIN) {
@@ -253,8 +254,8 @@ const handleFormSubmit = async () => {
     if (!newEmployee.value.jobTitle && newEmployee.value.department !== DEPARTMENTS.ADMIN) {
       formErrors.value.professional.jobTitle = 'Job Title is required'
     }
-    if (!newEmployee.value.role) {
-      formErrors.value.professional.role = 'Role is required'
+    if (!newEmployee.value.role_id) {
+      formErrors.value.professional.role_id = 'Role is required'
     }
     if (!newEmployee.value.dateOfHire) {
       formErrors.value.professional.dateOfHire = 'Date of Hire is required'
@@ -383,7 +384,7 @@ const createEmployeeData = (employee) => {
       department: employee.department.trim(),
       jobTitle:
         employee.department === DEPARTMENTS.ADMIN ? 'Administrator' : employee.jobTitle.trim(),
-      role: employee.role.trim(),
+      role_id: Number(employee.role_id),
       dateOfHire: formatDate(employee.dateOfHire),
       dateOfBirth: formatDate(employee.dateOfBirth),
       gender: employee.gender.trim(),
@@ -446,7 +447,7 @@ const resetForm = () => {
     lastName: '',
     department: '',
     jobTitle: '',
-    role: '',
+    role_id: '',
     dateOfHire: '',
     dateOfBirth: '',
     gender: '',
@@ -472,6 +473,13 @@ onMounted(async () => {
   } catch (error) {
     showToastMessage('Failed to load roles', 'error')
   }
+})
+
+const filteredRoles = computed(() => {
+  if (!newEmployee.value.department) return []
+  return roles.value.filter(
+    (role) => role.department === newEmployee.value.department && role.role_name !== 'Super Admin',
+  )
 })
 </script>
 
@@ -561,18 +569,18 @@ onMounted(async () => {
               Role <span class="text-red-500">*</span>
             </legend>
             <select
-              v-model="newEmployee.role"
+              v-model="newEmployee.role_id"
               class="select focus:outline-none bg-white border-black text-black"
-              :class="{ 'border-red-500': formErrors.professional.role }"
+              :class="{ 'border-red-500': formErrors.professional.role_id }"
               :disabled="!newEmployee.department"
             >
               <option disabled value="">Select Role</option>
-              <option v-for="role in availableRoles" :key="role" :value="role">
-                {{ role }}
+              <option v-for="role in filteredRoles" :key="role.id" :value="role.id">
+                {{ role.role_name }}
               </option>
             </select>
-            <span v-if="formErrors.professional.role" class="text-red-500 text-xs mt-1">
-              {{ formErrors.professional.role }}
+            <span v-if="formErrors.professional.role_id" class="text-red-500 text-xs mt-1">
+              {{ formErrors.professional.role_id }}
             </span>
           </div>
 
@@ -585,7 +593,7 @@ onMounted(async () => {
               v-model="newEmployee.jobTitle"
               class="select focus:outline-none bg-white border-black text-black"
               :class="{ 'border-red-500': formErrors.professional.jobTitle }"
-              :disabled="!newEmployee.department || !newEmployee.role"
+              :disabled="!newEmployee.department || !newEmployee.role_id"
             >
               <option disabled value="">Select Job Title</option>
               <option v-for="job in availableJobs" :key="job" :value="job">
@@ -916,7 +924,7 @@ onMounted(async () => {
 
             <div class="flex flex-row">
               <div class="w-32 text-gray-500">Role:</div>
-              <div class="text-black">{{ newEmployee.role }}</div>
+              <div class="text-black">{{ newEmployee.role_id }}</div>
             </div>
 
             <!-- Personal Information -->

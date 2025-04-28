@@ -32,13 +32,13 @@ User.belongsTo(Employee, {
 })
 
 Employee.belongsTo(Role, {
-  foreignKey: 'role',
-  targetKey: 'role_name',
+  foreignKey: 'role_id',
+  targetKey: 'id',
   as: 'roleInfo',
 })
 Role.hasMany(Employee, {
-  foreignKey: 'role',
-  sourceKey: 'role_name',
+  foreignKey: 'role_id',
+  sourceKey: 'id',
 })
 
 // Add Attendance relationships

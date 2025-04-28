@@ -15,15 +15,15 @@ import LoginPage from '@/views/LoginPage.vue'
 import FinanceDashboard from '@/views/Finance/FinanceDashboard.vue'
 import FinancePayroll from '@/views/Finance/FinancePayroll.vue'
 import FinanceReport from '@/views/Finance/FinanceReport.vue'
-import BaseProductTable from '@/views/Supply Chain Management Department/BaseProductTable.vue'
-import SCMDashboard from '@/views/Supply Chain Management Department/SCMDashboard.vue'
-import StockView from '@/views/Supply Chain Management Department/StockView.vue'
+import BaseProductTable from '@/views/Supply Chain Management/BaseProductTable.vue'
+import SCMDashboard from '@/views/Supply Chain Management/SCMDashboard.vue'
+import StockView from '@/views/Supply Chain Management/StockView.vue'
 import CRMDashboard from '@/views/CRM Department/CRMDashboard.vue'
 import SalesDashboard from '@/views/Sales Department/SalesDashboard.vue'
 import HRMSidebar from '@/views/Human Resource/HRMSidebar.vue'
 import FinanceSideBar from '@/views/Finance/FinanceSideBar.vue'
 import SalesSidebar from '@/views/Sales Department/SalesSidebar.vue'
-import SCMSidebar from '@/views/Supply Chain Management Department/SCMSidebar.vue'
+import SCMSidebar from '@/views/Supply Chain Management/SCMSidebar.vue'
 import CRMSidebar from '@/views/CRM Department/CRMASidebar.vue'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import { usePermissions } from '@/composables/Admin Composables/User & Role/role/usePermissions'
@@ -429,10 +429,10 @@ function getDepartmentPath(department) {
   if (!department) return ''
 
   const deptMap = {
-    'Super Admin': 'admin',
-    'Human Resource': 'hr',
-    Finance: 'finance',
-    Sales: 'sales',
+    'Admin Department': 'admin',
+    'HR Department': 'hr',
+    'Finance Department': 'finance',
+    'Sales Department': 'sales',
     'Supply Chain Management': 'scm',
     'Customer Relationship Management': 'crm',
   }

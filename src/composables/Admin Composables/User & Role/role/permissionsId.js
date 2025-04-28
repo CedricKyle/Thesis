@@ -3,8 +3,8 @@ export const DEPARTMENTS = {
   HR: 'HR Department',
   FINANCE: 'Finance Department',
   SALES: 'Sales Department',
-  SCM: 'Supply Chain Department',
-  CRM: 'Customer Service Department',
+  SCM: 'Supply Chain Management',
+  CRM: 'Customer Relationship Management',
 }
 
 export const PERMISSION_IDS = {
@@ -14,7 +14,7 @@ export const PERMISSION_IDS = {
   // HR Department Permissions
   HR_FULL_ACCESS: 2,
   HR_VIEW_DASHBOARD: 3,
-  HR_MANAGE_EMPLOYEES: 4, 
+  HR_MANAGE_EMPLOYEES: 4,
   HR_MANAGE_ATTENDANCE: 5,
   HR_VIEW_ATTENDANCE_REPORT: 6,
   HR_MANAGE_ROLES: 7,
@@ -77,7 +77,7 @@ export const permissionGroups = [
   },
   {
     department: DEPARTMENTS.SCM,
-    name: 'Supply Chain Department',
+    name: 'Supply Chain Management',
     permissions: [
       { id: PERMISSION_IDS.SCM_FULL_ACCESS, name: 'Full Access' },
       { id: PERMISSION_IDS.SCM_VIEW_DASHBOARD, name: 'View Dashboard' },
@@ -86,7 +86,7 @@ export const permissionGroups = [
   },
   {
     department: DEPARTMENTS.CRM,
-    name: 'Customer Service Department',
+    name: 'Customer Relationship Management',
     permissions: [
       { id: PERMISSION_IDS.CRM_FULL_ACCESS, name: 'Full Access' },
       { id: PERMISSION_IDS.CRM_VIEW_DASHBOARD, name: 'View Dashboard' },

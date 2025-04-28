@@ -191,8 +191,8 @@ const deleteRole = async (req, res) => {
 
     // Check if role is assigned to any active employees
     const employeesWithRole = await Employee.findOne({
-      where: { role: id },
-      paranoid: true, // Only check active employees
+      where: { role_id: id },
+      paranoid: true,
     })
 
     if (employeesWithRole) {

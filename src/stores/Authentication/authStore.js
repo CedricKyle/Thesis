@@ -17,8 +17,8 @@ function getDepartmentPath(department) {
     'HR Department': 'hr',
     'Finance Department': 'finance',
     'Sales Department': 'sales',
-    'Supply Chain Department': 'scm',
-    'Customer Service Department': 'crm',
+    'Supply Chain Management': 'scm',
+    'Customer Relationship Management': 'crm',
   }
 
   return deptMap[department] || department.toLowerCase().split(' ')[0]
