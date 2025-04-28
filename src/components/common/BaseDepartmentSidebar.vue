@@ -416,6 +416,8 @@ const loadTodayAttendance = async () => {
         time_out: '-',
         status: 'Absent',
         approvalStatus: 'Not Submitted',
+        overtime: 0,
+        workingHours: 0,
       }
 
       const attendance = await attendanceStore.getTodayAttendance(
@@ -440,6 +442,8 @@ const loadTodayAttendance = async () => {
           time_out: attendance.time_out || '-',
           approvedBy: attendance.approved_by || '-',
           approvedAt: attendance.approved_at || '-',
+          overtime_hours: attendance.overtime_hours || 0,
+          working_hours: attendance.working_hours || 0,
         }
 
         console.log('Mapped attendance:', mappedAttendance)
@@ -543,6 +547,16 @@ async function submitOvertime() {
     showToastMessage(err.response?.data?.message || 'Failed to file overtime', 'error')
   } finally {
     isFilingOvertime.value = false
+  }
+}
+
+const overtimeFileInput = ref(null)
+
+function clearOvertimeFile() {
+  overtimeImage.value = null
+  overtimeImagePreview.value = null
+  if (overtimeFileInput.value) {
+    overtimeFileInput.value.value = ''
   }
 }
 </script>
@@ -725,7 +739,7 @@ async function submitOvertime() {
             <!-- Employee Info -->
             <div class="flex flex-row">
               <div class="w-40 text-gray-500">Employee:</div>
-              <div class="text-primaryColor">
+              <div class="text-gray-700">
                 {{
                   attendanceStore.todayAttendance?.full_name ||
                   currentUserEmployee.value?.full_name ||
@@ -737,7 +751,7 @@ async function submitOvertime() {
             <!-- Department -->
             <div class="flex flex-row">
               <div class="w-40 text-gray-500">Department:</div>
-              <div class="text-primaryColor">
+              <div class="text-gray-700">
                 {{
                   attendanceStore.todayAttendance?.department ||
                   currentUserEmployee.value?.department ||
@@ -749,7 +763,7 @@ async function submitOvertime() {
             <!-- Time In -->
             <div class="flex flex-row">
               <div class="w-40 text-gray-500">Time In:</div>
-              <div class="text-green-600">
+              <div class="text-secondaryColor">
                 {{
                   attendanceStore.todayAttendance?.signIn ||
                   attendanceStore.todayAttendance?.time_in ||
@@ -787,6 +801,13 @@ async function submitOvertime() {
                     ? 'Absent'
                     : attendanceStore.todayAttendance?.status || 'Absent'
                 }}
+              </div>
+            </div>
+            <!-- Working Hours -->
+            <div class="flex flex-row">
+              <div class="w-40 text-gray-500">Working Hours:</div>
+              <div class="text-blue-600">
+                {{ attendanceStore.todayAttendance.working_hours }} hours
               </div>
             </div>
 
@@ -869,13 +890,35 @@ async function submitOvertime() {
 
             <!-- Overtime Filing Section -->
             <div v-if="canFileOvertime" class="flex flex-col gap-2 mt-4 border-t pt-4">
-              <h4 class="font-semibold text-base text-black">File Overtime</h4>
-              <div class="flex flex-row items-center gap-2">
-                <label class="w-40 text-gray-500">Proof of Overtime:</label>
-                <input type="file" accept="image/*" @change="handleOvertimeImage" />
+              <h4 class="font-semibold text-sm text-black">File Overtime</h4>
+              <div class="flex flex-col">
+                <div>
+                  <label class="w-40 text-gray-500 text-sm">Proof of Overtime:</label>
+                </div>
+                <div class="relative w-full flex items-center">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    class="file-input file-input-sm bg-white text-gray-500 w-full focus:outline-none focus:ring-0 overtime-file-input"
+                    @change="handleOvertimeImage"
+                    ref="overtimeFileInput"
+                  />
+                  <button
+                    v-if="overtimeImage"
+                    type="button"
+                    class="absolute right-2 top-1/2 -translate-y-1/2 text-gray-900 hover:text-red-500 text-lg cursor-pointer px-2 py-0.5"
+                    @click="clearOvertimeFile"
+                    aria-label="Clear file"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
               <div v-if="overtimeImagePreview" class="mt-2">
                 <img :src="overtimeImagePreview" class="max-h-40 rounded border" />
+                <span class="text-red-400 text-xs"
+                  >Note: The file must be a valid image contain date and time</span
+                >
               </div>
               <button
                 class="btn-primaryStyle mt-2"
@@ -1025,5 +1068,30 @@ async function submitOvertime() {
 .modal-leave-from {
   opacity: 1;
   transform: scale(1);
+}
+
+/* Add this to your <style scoped> section */
+input[type='file']::file-selector-button {
+  color: #fff !important; /* White text */
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  background-color: #466114 !important; /* Optional: match DaisyUI's success color */
+  border-color: #466114 !important;
+}
+
+/* In your <style scoped> */
+.overtime-file-input::file-selector-button {
+  color: #fff !important;
+  background-color: #466114 !important;
+  border-color: #466114 !important;
+}
+
+.overtime-file-input {
+  border-color: #466114 !important;
+}
+
+.overtime-file-input:focus {
+  border-color: #466114 !important;
+  box-shadow: 0 0 0 1.5px #46611433; /* Optional: subtle focus ring */
 }
 </style>

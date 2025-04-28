@@ -742,7 +742,6 @@ const noRecords = computed(() => {
             <th class="text-center px-2 py-1">Late</th>
             <th class="text-center px-2 py-1">Absent</th>
             <th class="text-center px-2 py-1">On Leave</th>
-            <th class="text-center px-2 py-1">Total Slots</th>
           </tr>
         </thead>
         <tbody>
@@ -752,7 +751,6 @@ const noRecords = computed(() => {
             <td class="text-center px-2 py-1">{{ dept.late }}</td>
             <td class="text-center px-2 py-1">{{ dept.absent }}</td>
             <td class="text-center px-2 py-1">{{ dept.onLeave }}</td>
-            <td class="text-center px-2 py-1">{{ dept.total }}</td>
           </tr>
         </tbody>
       </table>
