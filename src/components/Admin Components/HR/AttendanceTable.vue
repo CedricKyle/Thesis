@@ -113,9 +113,7 @@ const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
         signIn: regular.signIn || regular.time_in || '-',
         signOut: regular.signOut || regular.time_out || '-',
         workingHours: regular.workingHours ?? regular.working_hours ?? '-',
-        overtimeHours: overtime
-          ? (overtime.overtimeHours ?? overtime.overtime_hours ?? '-')
-          : (regular.overtimeHours ?? regular.overtime_hours ?? '-'),
+        overtimeHours: overtime ? (overtime.overtimeHours ?? overtime.overtime_hours ?? '-') : '-',
         status: regular.status || 'Present',
         approvalStatus: regular.approvalStatus || regular.approval_status || 'Pending',
         overtimeProof:
