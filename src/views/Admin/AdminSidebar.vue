@@ -241,7 +241,7 @@ const cancelLogout = () => {
         <div class="p-4">
           <div class="logo-section flex items-center mb-5 gap-4">
             <div class="logo-content">
-              <img src="/public/countryside-logo.png" alt="this is logo" class="w-15 h-15" />
+              <img src="/countryside-logo.png" alt="this is logo" class="w-15 h-15" />
             </div>
             <div class="text-log">
               <h1 class="text-[25px] text-secondaryColor">Countryside</h1>

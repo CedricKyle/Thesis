@@ -206,7 +206,7 @@ export function usePermissions(employeeRole) {
           },
         },
       },
-      Sales: {
+      'Sales Management': {
         icon: ChartNoAxesColumnIncreasing,
         submenu: {
           Dashboard: {
@@ -214,7 +214,7 @@ export function usePermissions(employeeRole) {
           },
         },
       },
-      Inventory: {
+      'Supply Chain Management': {
         icon: Archive,
         submenu: {
           Dashboard: {
@@ -225,7 +225,7 @@ export function usePermissions(employeeRole) {
           },
         },
       },
-      CRM: {
+      'Customer Service Management': {
         icon: Mail,
         submenu: {
           Dashboard: {

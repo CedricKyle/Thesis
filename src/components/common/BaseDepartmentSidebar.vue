@@ -569,11 +569,7 @@ function clearOvertimeFile() {
         <!-- Logo Section -->
         <div class="logo-section flex items-center mb-5 gap-4">
           <div class="logo-content">
-            <img
-              src="/public/countryside-logo.png"
-              alt="Countryside logo"
-              class="w-[60px] h-[60px]"
-            />
+            <img src="/countryside-logo.png" alt="Countryside logo" class="w-[60px] h-[60px]" />
           </div>
           <div class="text-log">
             <h1 class="text-[25px] text-secondaryColor font-bold">Countryside</h1>
