@@ -2,6 +2,10 @@
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { Bar } from 'vue-chartjs'
+import ProfitImage from '@/assets/Images/profit (1).png';
+import BalanceImage from '@/assets/Images/balance.png';
+import ExpensesImage from '@/assets/Images/expenses.png';
+import BudgetImage from '@/assets/Images/money-bag.png';
 import {
   Chart as ChartJS,
   Title,
@@ -96,38 +100,72 @@ const transactions = ref([
 </script>
 
 <template>
-  <div class="p-1">
-    <h1 class="text-2xl font-bold text-brownColor mb-4">Payroll Dashboard</h1>
 
-      <!-- Dashboard Boxes (Total Employees, Time-In, Time-Out) -->
-    <div class="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 gap-7 mb-5">
-      <!-- Total Employees Box -->
-      <div class="bg-white p-6 rounded-lg shadow-md flex flex-col items-start justify-between">
-        <h2 class="text-lg font-semibold mb-2 text-left">Total Employees</h2>
-        <p class="text-3xl font-bold text-primaryColor">150</p>
-        <p class="text-sm text-gray-500 mt-2">April 2025</p> <!-- Date Below the Number -->
+<div class="stats shadow bg-white mb-3 gap-8.5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+    <!-- Balance Stat -->
+    <div class="stat">
+      <div class="stat-figure text-secondary">
+        <div class="avatar online">
+          <div class="w-11">
+            <img :src="BalanceImage" />
+          </div>
+        </div>
       </div>
-
-      <!-- Time-In Employees Box -->
-      <div class="bg-white p-6 rounded-lg shadow-md flex flex-col items-start justify-between">
-        <h2 class="text-lg font-semibold mb-2 text-left">Time-In Employees</h2>
-        <p class="text-3xl font-bold text-green-600">130</p>
-        <p class="text-sm text-gray-500 mt-2">April 2025</p> <!-- Date Below the Number -->
-      </div>
-
-      <!-- Time-Out Employees Box -->
-      <div class="bg-white p-6 rounded-lg shadow-md flex flex-col items-start justify-between">
-        <h2 class="text-lg font-semibold mb-2 text-left">Time-Out Employees</h2>
-        <p class="text-3xl font-bold text-red-600">120</p>
-        <p class="text-sm text-gray-500 mt-2">April 2025</p> <!-- Date Below the Number -->
-      </div>
+      <div class="stat-value mb-5">Balance</div>
+      <div class="text-3xl font-bold text-primaryColor">120</div>
+      <div class="text-sm text-gray-500 mt-2">April 2025</div>
     </div>
+
+    <!-- Expenses Stat -->
+    <div class="stat">
+      <div class="stat-figure text-secondary">
+        <div class="avatar online">
+          <div class="w-11">
+            <img :src="ExpensesImage" />
+          </div>
+        </div>
+      </div>
+      <div class="stat-value mb-5">Expenses</div>
+      <div class="text-3xl font-bold text-primaryColor">120</div>
+      <div class="text-sm text-gray-500 mt-2">April 2025</div>
+    </div>
+
+    <!-- Budget Stat -->
+    <div class="stat">
+      <div class="stat-figure text-secondary">
+        <div class="avatar online">
+          <div class="w-11">
+            <img :src="BudgetImage" />
+          </div>
+        </div>
+      </div>
+      <div class="stat-value mb-5">Budget</div>
+      <div class="text-3xl font-bold text-primaryColor">120</div>
+      <div class="text-sm text-gray-500 mt-2">April 2025</div>
+    </div>
+
+    <!-- Income Stat -->
+    <div class="stat">
+      <div class="stat-figure text-secondary">
+        <div class="avatar online">
+          <div class="w-11">
+            <img :src="ProfitImage" />
+          </div>
+        </div>
+      </div>
+      <div class="stat-value mb-5">Income</div>
+      <div class="text-3xl font-bold text-primaryColor">120</div>
+      <div class="text-sm text-gray-500 mt-2">April 2025</div>
+    </div>
+  </div>
+  
+     
 
    
     <!-- Main Dashboard Layout (Two sections side by side) -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
       <!-- Left Column: Payroll Chart -->
-      <div class="bg-white pt-2 pr-2 pl-2 pb-0 rounded-lg shadow-md ">
+      <div class="bg-white border-gray-300  p-6 border-1 pt-2 pr-2 pl-2 pb-0 rounded-lg shadow-md ">
         <!-- Bar Chart component with full width and height -->
         <div class="w-full h-96"> <!-- Adjust height to a larger value -->
   <Bar :data="chartData" :options="chartOptions" />
@@ -136,7 +174,7 @@ const transactions = ref([
       </div>
 
       <!-- Right Column: Transaction History -->
-      <div class="bg-white p-6 rounded-lg shadow-md">
+      <div class="bg-white border-gray-300  p-6 border-1 rounded-lg shadow-md">
         <h2 class="text-xl font-semibold text-left mb-4">Transaction History</h2>
         <div class="overflow-y-auto max-h-80"> <!-- Adjusted max height -->
           <div v-for="(transaction, index) in transactions" :key="index" class="border-b py-2">
@@ -149,6 +187,5 @@ const transactions = ref([
         </div>
       </div>
     </div>
-  </div>
 </template>
 
