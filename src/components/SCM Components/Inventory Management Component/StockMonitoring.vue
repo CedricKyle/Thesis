@@ -2,122 +2,26 @@
 import { ref, computed } from 'vue'
 import BaseTable from '@/components/common/BaseTable.vue'
 import { useInventoryPDFGenerator } from '@/composables/SCM Composables/useInvetoryPDFGenerator'
-// Import your Pinia store here when ready
-// import { useSCMStore } from '@/stores/SCM Stores/Inventory Management Stores/scmInventoryStores.js'
+import { useInventoryStore } from '@/stores/SCM Stores/scmInventoryStores.js'
 
-// Example mock data (remove the static 'status' field)
-const products = ref([
-  {
-    id: 1,
-    name: 'Beef Steak',
-    category: 'Raw Material',
-    quantity: 50,
-    unit: 'kg',
-    maxQuantity: 100,
-    dateCreated: '2024-01-01',
-    expiryDate: '2024-06-01',
-  },
-  {
-    id: 2,
-    name: 'Potatoes',
-    category: 'Raw Material',
-    quantity: 10,
-    unit: 'kg',
-    maxQuantity: 100,
-    dateCreated: '2024-01-01',
-    expiryDate: '2025-07-01',
-  },
-  {
-    id: 3,
-    name: 'Soy Sauce',
-    category: 'Condiment',
-    quantity: 20,
-    unit: 'L',
-    maxQuantity: 100,
-    dateCreated: '2024-01-01',
-    expiryDate: '2025-05-15',
-  },
-  {
-    id: 4,
-    name: 'Beef Steak',
-    category: 'Raw Material',
-    quantity: 0,
-    unit: 'kg',
-    maxQuantity: 100,
-    dateCreated: '2024-01-01',
-    expiryDate: '2025-06-01',
-  },
-  {
-    id: 5,
-    name: 'Pork Steak',
-    category: 'Raw Material',
-    quantity: 100,
-    unit: 'kg',
-    maxQuantity: 100,
-    dateCreated: '2024-01-01',
-    expiryDate: '2025-06-01',
-  },
-  {
-    id: 6,
-    name: 'Pork Steak',
-    category: 'Raw Material',
-    quantity: 100,
-    unit: 'kg',
-    maxQuantity: 100,
-    dateCreated: '2024-01-01',
-    expiryDate: '2025-06-01',
-  },
-  {
-    id: 7,
-    name: 'Pork Steak',
-    category: 'Raw Material',
-    quantity: 100,
-    unit: 'kg',
-    maxQuantity: 100,
-    dateCreated: '2024-01-01',
-    expiryDate: '2025-06-01',
-  },
-  {
-    id: 8,
-    name: 'Pork Steak',
-    category: 'Raw Material',
-    quantity: 100,
-    unit: 'kg',
-    maxQuantity: 100,
-    dateCreated: '2024-01-01',
-    expiryDate: '2025-06-01',
-  },
-  {
-    id: 9,
-    name: 'Pork Steak',
-    category: 'Raw Material',
-    quantity: 100,
-    unit: 'kg',
-    maxQuantity: 100,
-    dateCreated: '2024-01-01',
-    expiryDate: '2025-06-01',
-  },
-  {
-    id: 10,
-    name: 'Pork Steak',
-    category: 'RTC',
-    quantity: 100,
-    unit: 'kg',
-    maxQuantity: 100,
-    dateCreated: '2024-01-01',
-    expiryDate: '2025-06-01',
-  },
-  {
-    id: 11,
-    name: 'Pork Steak',
-    category: 'RTC',
-    quantity: 100,
-    unit: 'kg',
-    maxQuantity: 100,
-    dateCreated: '2024-01-01',
-    expiryDate: '2025-06-01',
-  },
-])
+const store = useInventoryStore()
+store.fetchProducts()
+const products = computed(() => store.products)
+
+const uniqueCategories = computed(() => {
+  const categories = new Set(products.value.map((p) => p.category))
+  return Array.from(categories)
+})
+
+const mappedProducts = computed(() =>
+  products.value.map((p) => ({
+    ...p,
+    maxQuantity: p.max_quantity,
+    expiryDate: p.expiry_date,
+    price: `₱${Number(p.price).toFixed(2)}`,
+    // Add more mappings if needed
+  })),
+)
 
 const search = ref('')
 const selectedCategory = ref('')
@@ -136,6 +40,7 @@ const addProductForm = ref({
   unit: '',
   maxQuantity: '',
   expiryDate: '',
+  price: '',
   image: null,
 })
 const addProductErrors = ref({})
@@ -143,8 +48,12 @@ const addProductImagePreview = ref(null)
 const addProductIsDragging = ref(false)
 const addProductFileInput = ref(null)
 
-// Category options (can be dynamic in the future)
-const categoryOptions = ref(['Raw Material', 'Condiment', 'RTC', 'Beverages'])
+const backendUrl = 'http://localhost:3000' // or use import.meta.env.VITE_BACKEND_URL
+
+// New category modal state
+const showNewCategoryModal = ref(false)
+const newCategory = ref('')
+const newCategoryError = ref('')
 
 // Helper to compute status
 function computeStatus(product) {
@@ -158,7 +67,7 @@ function computeStatus(product) {
 
 // Add status to each product for display
 const filteredProducts = computed(() => {
-  let filtered = products.value
+  let filtered = mappedProducts.value
   if (search.value) {
     filtered = filtered.filter(
       (p) =>
@@ -177,11 +86,43 @@ const filteredProducts = computed(() => {
 })
 
 const columns = [
+  {
+    title: 'No.',
+    field: 'no',
+    headerSort: false,
+    formatter: function (cell) {
+      const row = cell.getRow().getData()
+      let imgSrc = row.image ? row.image.replace(/\\/g, '/') : '/default-product.png'
+      if (imgSrc && !imgSrc.startsWith('http')) {
+        imgSrc = `${backendUrl}/${imgSrc.replace(/^\//, '')}`
+      }
+      return `
+        <div class="flex justify-evenly items-center gap-2">
+          <span>${cell.getRow().getPosition() + 1}.</span>
+          <img 
+            src="${imgSrc}" 
+            alt="Product" 
+            style="width:32px;height:32px;object-fit:cover;border-radius:4px;border:1px solid #ccc;cursor:pointer;"
+            data-img-src="${imgSrc}"
+            class="product-img-preview"
+          >
+        </div>
+      `
+    },
+    cellClick: function (e, cell) {
+      // Check if the image was clicked
+      const img = e.target.closest('.product-img-preview')
+      if (img) {
+        previewImageSrc.value = img.getAttribute('data-img-src')
+        showImageModal.value = true
+      }
+    },
+  },
   { title: 'Product Name', field: 'name', headerSort: true },
   { title: 'Quantity', field: 'quantity', headerSort: true },
+  { title: 'Price', field: 'price', headerSort: true },
   { title: 'Max Qty', field: 'maxQuantity', headerSort: true },
   { title: 'Unit', field: 'unit', headerSort: true },
-  { title: 'Date Created', field: 'dateCreated', headerSort: true },
   { title: 'Expiry Date', field: 'expiryDate', headerSort: true },
   { title: 'Category', field: 'category', headerSort: true },
   {
@@ -259,15 +200,15 @@ function handleDelete(product) {
   alert('Delete: ' + product.name)
 }
 
-function handleViewHistory(product) {
+async function handleViewHistory(product) {
   selectedProduct.value = product
-  // Example mock data for movement history
-  movementHistory.value = [
-    { date: '2024-05-01', type: 'Stock In', quantity: 20, remarks: 'Supplier Delivery' },
-    { date: '2024-05-03', type: 'Stock Out', quantity: 5, remarks: 'Branch Transfer' },
-    { date: '2024-05-05', type: 'Adjustment', quantity: -2, remarks: 'Spoilage' },
-  ]
-  showHistoryModal.value = true
+  // Wait for store to be ready
+  if (typeof store.fetchProductMovements === 'function') {
+    movementHistory.value = await store.fetchProductMovements(product.id)
+    showHistoryModal.value = true
+  } else {
+    alert('fetchProductMovements is not available! Restart your dev server.')
+  }
 }
 
 const movementHistory = ref([])
@@ -411,6 +352,7 @@ function openAddProductModal() {
     unit: '',
     maxQuantity: '',
     expiryDate: '',
+    price: '',
     image: null,
   }
   addProductErrors.value = {}
@@ -457,6 +399,12 @@ function validateAddProductForm() {
   if (!addProductForm.value.category) errors.category = 'Category is required'
   if (!addProductForm.value.unit) errors.unit = 'Unit is required'
   if (
+    !addProductForm.value.price ||
+    isNaN(addProductForm.value.price) ||
+    Number(addProductForm.value.price) <= 0
+  )
+    errors.price = 'Valid price is required'
+  if (
     !addProductForm.value.maxQuantity ||
     isNaN(addProductForm.value.maxQuantity) ||
     Number(addProductForm.value.maxQuantity) <= 0
@@ -477,12 +425,40 @@ function submitAddProduct() {
     category: addProductForm.value.category,
     quantity: 0,
     unit: addProductForm.value.unit,
+    price: Number(addProductForm.value.price).toFixed(2),
     maxQuantity: Number(addProductForm.value.maxQuantity),
     dateCreated: new Date().toISOString().split('T')[0],
     expiryDate: addProductForm.value.expiryDate,
     image: addProductForm.value.image ? addProductImagePreview.value : null,
   })
   showAddProductModal.value = false
+}
+
+const showImageModal = ref(false)
+const previewImageSrc = ref('')
+
+function addNewCategory() {
+  if (!newCategory.value.trim()) {
+    newCategoryError.value = 'Category name is required'
+    return
+  }
+
+  // Check if category already exists
+  if (uniqueCategories.value.includes(newCategory.value.trim())) {
+    newCategoryError.value = 'Category already exists'
+    return
+  }
+
+  // Add to store/backend later
+  store.addCategory(newCategory.value.trim())
+
+  // Set the new category as selected
+  addProductForm.value.category = newCategory.value.trim()
+
+  // Reset and close modal
+  newCategory.value = ''
+  newCategoryError.value = ''
+  showNewCategoryModal.value = false
 }
 </script>
 
@@ -508,10 +484,9 @@ function submitAddProduct() {
         >
           <option disabled selected>Select Category</option>
           <option value="">All Categories</option>
-          <option value="RTC">RTC</option>
-          <option value="Beverages">Beverages</option>
-          <option value="Raw Materials">Raw Materials</option>
-          <option value="Condiments">Condiments</option>
+          <option v-for="category in uniqueCategories" :key="category" :value="category">
+            {{ category }}
+          </option>
         </select>
       </div>
     </div>
@@ -590,9 +565,9 @@ function submitAddProduct() {
 
     <!-- Stock Movement History Modal -->
     <dialog v-if="showHistoryModal" open class="modal text-black">
-      <div class="modal-box bg-white w-[500px]">
-        <div class="flex justify-between items-center border-b pb-4">
-          <h3 class="text-md font-bold text-black">Stock Movement History</h3>
+      <div class="modal-box bg-white w-full max-w-2xl p-6 rounded-xl shadow-2xl">
+        <div class="flex justify-between items-center border-b pb-4 mb-4">
+          <h3 class="text-xl font-bold text-gray-900">Stock Movement History</h3>
           <button
             class="btn btn-xs btn-circle hover:bg-red-400 btn-ghost hover:border-red-400"
             @click="showHistoryModal = false"
@@ -600,28 +575,64 @@ function submitAddProduct() {
             ✕
           </button>
         </div>
-        <div class="mt-4">
-          <div class="font-semibold mb-2 text-sm">Product: {{ selectedProduct?.name }}</div>
-          <table class="w-full text-left border">
-            <thead>
+        <div class="mb-4">
+          <span class="font-semibold text-gray-700 text-sm mr-2">Product:</span>
+          <span class="font-bold text-primaryColor text-sm">{{ selectedProduct?.name }}</span>
+        </div>
+        <div class="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+          <table class="min-w-full text-sm text-left">
+            <thead class="bg-primaryColor/90 text-white">
               <tr>
-                <th class="border-b p-2 text-sm">Date</th>
-                <th class="border-b p-2 text-sm">Type</th>
-                <th class="border-b p-2 text-sm">Quantity</th>
-                <th class="border-b p-2 text-sm">Remarks</th>
+                <th class="px-4 py-2 font-semibold">Date</th>
+                <th class="px-4 py-2 font-semibold">Type</th>
+                <th class="px-4 py-2 font-semibold">Quantity</th>
+                <th class="px-4 py-2 font-semibold">Remarks</th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="(entry, idx) in movementHistory" :key="idx">
-                <td class="border-b p-2 text-sm">{{ entry.date }}</td>
-                <td class="border-b p-2 text-sm">{{ entry.type }}</td>
-                <td class="border-b p-2 text-sm">{{ entry.quantity }}</td>
-                <td class="border-b p-2 text-sm">{{ entry.remarks }}</td>
+              <tr
+                v-for="(entry, idx) in movementHistory"
+                :key="idx"
+                :class="idx % 2 === 0 ? 'bg-gray-50' : 'bg-white'"
+              >
+                <td class="px-4 py-2 border-b">{{ entry.date }}</td>
+                <td class="px-4 py-2 border-b">
+                  <span
+                    :class="[
+                      'inline-block px-2 py-1 rounded-full text-xs',
+                      entry.type === 'Stock In'
+                        ? 'badge badge-success badge-outline'
+                        : entry.type === 'Stock Out'
+                          ? 'badge badge-error badge-outline'
+                          : 'badge badge-info badge-outline',
+                    ]"
+                  >
+                    {{ entry.type }}
+                  </span>
+                </td>
+                <td
+                  class="border-b font-mono text-center"
+                  :class="[
+                    Number(entry.quantity) > 0
+                      ? 'text-green-600'
+                      : Number(entry.quantity) < 0
+                        ? 'text-red-600'
+                        : 'text-gray-500',
+                  ]"
+                >
+                  {{ Number(entry.quantity).toFixed(2) }}
+                </td>
+                <td class="px-4 py-2 border-b text-gray-700">{{ entry.remarks }}</td>
+              </tr>
+              <tr v-if="!movementHistory.length">
+                <td colspan="4" class="text-center py-6 text-gray-400">
+                  No movement history found.
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
-        <div class="modal-action justify-end">
+        <div class="flex justify-end mt-6">
           <button class="btn-secondaryStyle" @click="showHistoryModal = false">Close</button>
         </div>
       </div>
@@ -646,6 +657,19 @@ function submitAddProduct() {
             }}</span>
           </div>
           <div>
+            <label class="text-xs font-semibold">Price <span class="text-red-500">*</span></label>
+            <input
+              v-model="addProductForm.price"
+              type="number"
+              step="0.01"
+              min="0"
+              class="input w-full border-black text-black bg-white"
+            />
+            <span v-if="addProductErrors.price" class="text-red-500 text-xs">
+              {{ addProductErrors.price }}
+            </span>
+          </div>
+          <div>
             <label class="text-xs font-semibold"
               >Category <span class="text-red-500">*</span></label
             >
@@ -654,7 +678,9 @@ function submitAddProduct() {
               class="select w-full border-black text-black bg-white"
             >
               <option disabled value="">Select Category</option>
-              <option v-for="cat in categoryOptions" :key="cat" :value="cat">{{ cat }}</option>
+              <option v-for="category in uniqueCategories" :key="category" :value="category">
+                {{ category }}
+              </option>
             </select>
           </div>
           <div>
@@ -744,6 +770,23 @@ function submitAddProduct() {
             <button class="btn-primaryStyle px-6" @click="submitAddProduct">Add Product</button>
           </div>
         </div>
+      </div>
+    </dialog>
+
+    <!-- Image Preview Modal -->
+    <dialog
+      v-if="showImageModal"
+      open
+      class="modal text-black"
+      @click.self="showImageModal = false"
+    >
+      <div class="modal-box bg-white p-4 rounded-lg shadow-lg flex flex-col items-center">
+        <img
+          :src="previewImageSrc"
+          alt="Product Preview"
+          class="max-h-96 max-w-full rounded border mb-4"
+        />
+        <button class="btn-secondaryStyle" @click="showImageModal = false">Close</button>
       </div>
     </dialog>
   </div>

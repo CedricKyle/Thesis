@@ -1,12 +1,11 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { useInventoryStore } from '@/stores/SCM Stores/scmInventoryStores.js'
 
-// Mock data for products and reasons (replace with Pinia store/API later)
-const products = ref([
-  { id: 1, name: 'Beef Steak', unit: 'kg' },
-  { id: 2, name: 'Potatoes', unit: 'kg' },
-  { id: 3, name: 'Soy Sauce', unit: 'L' },
-])
+const store = useInventoryStore()
+store.fetchProducts()
+
+const products = computed(() => store.products)
 const reasons = ref(['Sales', 'Branch Transfer', 'Spoilage', 'Lost', 'Other'])
 
 const form = ref({
@@ -88,21 +87,31 @@ function handleSubmit() {
     showConfirmModal.value = true
   }
 }
-function confirmStockOut() {
-  // TODO: Save to backend or Pinia store
-  alert('Stock Out successful!\n' + JSON.stringify(form.value, null, 2))
-  showConfirmModal.value = false
-  // Reset form
-  form.value = {
-    productId: '',
-    quantity: '',
-    unit: '',
-    date: '',
-    reason: '',
-    remarks: '',
-    document: null,
-  }
-  documentPreview.value = null
+
+async function confirmStockOut() {
+  const fd = new FormData()
+  fd.append('product_id', form.value.productId)
+  fd.append('quantity', form.value.quantity)
+  fd.append('unit', form.value.unit)
+  fd.append('date', form.value.date)
+  fd.append('reason', form.value.reason)
+  fd.append('remarks', form.value.remarks)
+  if (form.value.document) fd.append('document', form.value.document)
+
+  try {
+    await store.createStockOut(fd)
+    showConfirmModal.value = false
+    form.value = {
+      productId: '',
+      quantity: '',
+      unit: '',
+      date: '',
+      reason: '',
+      remarks: '',
+      document: null,
+    }
+    documentPreview.value = null
+  } catch (err) {}
 }
 </script>
 

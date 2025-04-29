@@ -1,12 +1,13 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
+import { useInventoryStore } from '@/stores/SCM Stores/scmInventoryStores.js'
 
-// Mock data for products and suppliers
-const products = ref([
-  { id: 1, name: 'Beef Steak', unit: 'kg' },
-  { id: 2, name: 'Potatoes', unit: 'kg' },
-  { id: 3, name: 'Soy Sauce', unit: 'L' },
-])
+const store = useInventoryStore()
+
+// Fetch products on mount
+store.fetchProducts()
+
+const products = computed(() => store.products)
 const suppliers = ref(['Supplier A', 'Supplier B', 'Supplier C'])
 
 const form = ref({
@@ -71,20 +72,35 @@ function handleSubmit() {
   }
 }
 
-function confirmStockIn() {
-  // TODO: Save to backend or Pinia store
-  alert('Stock In successful!\n' + JSON.stringify(form.value, null, 2))
-  showConfirmModal.value = false
-  // Reset form
-  form.value = {
-    productId: '',
-    quantity: '',
-    unit: '',
-    dateReceived: '',
-    supplier: '',
-    purchaseOrderNo: '',
-    remarks: '',
-    document: null,
+async function confirmStockIn() {
+  // Prepare FormData for file upload
+  const fd = new FormData()
+  fd.append('product_id', form.value.productId)
+  fd.append('quantity', form.value.quantity)
+  fd.append('unit', form.value.unit)
+  fd.append('date', form.value.dateReceived)
+  fd.append('supplier', form.value.supplier)
+  fd.append('purchase_order_no', form.value.purchaseOrderNo)
+  fd.append('remarks', form.value.remarks)
+  if (form.value.document) fd.append('document', form.value.document)
+
+  try {
+    await store.createStockIn(fd)
+    showConfirmModal.value = false
+    // Reset form
+    form.value = {
+      productId: '',
+      quantity: '',
+      unit: '',
+      dateReceived: '',
+      supplier: '',
+      purchaseOrderNo: '',
+      remarks: '',
+      document: null,
+    }
+    documentPreview.value = null
+  } catch (err) {
+    // Error handled by store
   }
 }
 

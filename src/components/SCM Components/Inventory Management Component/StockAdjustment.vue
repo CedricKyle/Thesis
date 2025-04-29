@@ -1,40 +1,13 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
+import { useInventoryStore } from '@/stores/SCM Stores/scmInventoryStores.js'
 
-// Mock products (replace with Pinia store/API later)
-const products = ref([
-  { id: 1, name: 'Beef Steak', unit: 'kg', stock: 50 },
-  { id: 2, name: 'Potatoes', unit: 'kg', stock: 100 },
-  { id: 3, name: 'Soy Sauce', unit: 'L', stock: 20 },
-])
+const store = useInventoryStore()
+store.fetchProducts()
+store.fetchStockAdjustments()
 
-// Mock adjustment history (replace with Pinia store/API later)
-const adjustmentHistory = ref([
-  {
-    id: 1,
-    product: 'Beef Steak',
-    type: 'add',
-    quantity: 5,
-    unit: 'kg',
-    date: '2024-06-01',
-    reason: 'Inventory audit',
-    remarks: 'Physical count matched',
-    user: 'Admin',
-    fileName: '',
-  },
-  {
-    id: 2,
-    product: 'Potatoes',
-    type: 'set',
-    quantity: 80,
-    unit: 'kg',
-    date: '2024-06-02',
-    reason: 'Correction',
-    remarks: 'Set to actual count',
-    user: 'Kyle',
-    fileName: '',
-  },
-])
+const products = computed(() => store.products)
+const adjustmentHistory = computed(() => store.stockAdjustments)
 
 const form = ref({
   productId: '',
@@ -106,41 +79,39 @@ function handleSubmit() {
     showConfirmModal.value = true
   }
 }
-function confirmAdjustment() {
-  // Compute new stock for display (mock logic)
-  let newStock = selectedProduct.value?.stock ?? 0
-  const qty = Number(form.value.quantity)
-  if (form.value.adjustmentType === 'add') newStock += qty
-  else if (form.value.adjustmentType === 'subtract') newStock -= qty
-  else if (form.value.adjustmentType === 'set') newStock = qty
+async function confirmAdjustment() {
+  const fd = new FormData()
+  fd.append('product_id', form.value.productId)
+  fd.append(
+    'adjustment_type',
+    form.value.adjustmentType === 'add'
+      ? 'increase'
+      : form.value.adjustmentType === 'subtract'
+        ? 'decrease'
+        : 'set',
+  )
+  fd.append('new_quantity', form.value.quantity)
+  fd.append('date', form.value.date)
+  fd.append('reason', form.value.reason)
+  fd.append('remarks', form.value.remarks)
+  fd.append('user', form.value.user)
+  if (form.value.file) fd.append('document', form.value.file)
 
-  // Add to adjustment history (mock, replace with API/store)
-  adjustmentHistory.value.unshift({
-    id: Date.now(),
-    product: selectedProduct.value?.name,
-    type: form.value.adjustmentType,
-    quantity: qty,
-    unit: selectedProduct.value?.unit,
-    date: form.value.date,
-    reason: form.value.reason,
-    remarks: form.value.remarks,
-    user: form.value.user,
-    fileName: form.value.file ? form.value.file.name : '',
-  })
-
-  // Reset form
-  showConfirmModal.value = false
-  form.value = {
-    productId: '',
-    adjustmentType: 'add',
-    quantity: '',
-    date: '',
-    reason: '',
-    remarks: '',
-    user: '',
-    file: null,
-  }
-  filePreview.value = null
+  try {
+    await store.createStockAdjustment(fd)
+    showConfirmModal.value = false
+    form.value = {
+      productId: '',
+      adjustmentType: 'add',
+      quantity: '',
+      date: '',
+      reason: '',
+      remarks: '',
+      user: '',
+      file: null,
+    }
+    filePreview.value = null
+  } catch (err) {}
 }
 </script>
 
