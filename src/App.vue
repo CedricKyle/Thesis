@@ -8,7 +8,7 @@ import NotificationModal from '/src/components/common/NotificationModal.vue'
   <div>
     <router-view />
     <NotificationModal />
-    <!-- <LoginPage /> -->
+    
   </div>
 </template>
   
