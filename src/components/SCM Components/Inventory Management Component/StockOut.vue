@@ -1,9 +1,11 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useInventoryStore } from '@/stores/SCM Stores/scmInventoryStores.js'
 
 const store = useInventoryStore()
-store.fetchProducts()
+const isLoading = ref(false)
+const errorMessage = ref('')
+const successMessage = ref('')
 
 const products = computed(() => store.products)
 const reasons = ref(['Sales', 'Branch Transfer', 'Spoilage', 'Lost', 'Other'])
@@ -44,6 +46,7 @@ function handleFileUpload(e) {
     documentPreview.value = null
   }
 }
+
 function removeDocument() {
   form.value.document = null
   documentPreview.value = null
@@ -51,9 +54,11 @@ function removeDocument() {
 
 const isDragging = ref(false)
 const fileInput = ref(null)
+
 function openFileDialog() {
   if (fileInput.value) fileInput.value.click()
 }
+
 function handleDrop(e) {
   e.preventDefault()
   isDragging.value = false
@@ -61,10 +66,12 @@ function handleDrop(e) {
     handleFileUpload({ target: { files: e.dataTransfer.files } })
   }
 }
+
 function handleDragOver(e) {
   e.preventDefault()
   isDragging.value = true
 }
+
 function handleDragLeave(e) {
   e.preventDefault()
   isDragging.value = false
@@ -75,6 +82,12 @@ function validateForm() {
   if (!form.value.productId) errors.productId = 'Product is required'
   if (!form.value.quantity || isNaN(form.value.quantity) || Number(form.value.quantity) <= 0)
     errors.quantity = 'Valid quantity is required'
+  if (
+    selectedProduct.value &&
+    Number(form.value.quantity) > Number(selectedProduct.value.quantity)
+  ) {
+    errors.quantity = `Cannot stock out more than current stock (${selectedProduct.value.quantity})`
+  }
   if (!form.value.date) errors.date = 'Date is required'
   if (!form.value.reason) errors.reason = 'Reason is required'
   return errors
@@ -82,6 +95,8 @@ function validateForm() {
 
 const showConfirmModal = ref(false)
 function handleSubmit() {
+  errorMessage.value = ''
+  successMessage.value = ''
   formErrors.value = validateForm()
   if (Object.keys(formErrors.value).length === 0) {
     showConfirmModal.value = true
@@ -89,18 +104,24 @@ function handleSubmit() {
 }
 
 async function confirmStockOut() {
-  const fd = new FormData()
-  fd.append('product_id', form.value.productId)
-  fd.append('quantity', form.value.quantity)
-  fd.append('unit', form.value.unit)
-  fd.append('date', form.value.date)
-  fd.append('reason', form.value.reason)
-  fd.append('remarks', form.value.remarks)
-  if (form.value.document) fd.append('document', form.value.document)
-
   try {
+    isLoading.value = true
+    errorMessage.value = ''
+    successMessage.value = ''
+
+    const fd = new FormData()
+    fd.append('product_id', form.value.productId)
+    fd.append('quantity', form.value.quantity)
+    fd.append('unit', form.value.unit)
+    fd.append('date', form.value.date)
+    fd.append('reason', form.value.reason)
+    fd.append('remarks', form.value.remarks)
+    if (form.value.document) fd.append('document', form.value.document)
+
     await store.createStockOut(fd)
+    successMessage.value = 'Stock out recorded successfully'
     showConfirmModal.value = false
+
     form.value = {
       productId: '',
       quantity: '',
@@ -111,15 +132,37 @@ async function confirmStockOut() {
       document: null,
     }
     documentPreview.value = null
-  } catch (err) {}
+  } catch (err) {
+    errorMessage.value =
+      err.response?.data?.message || 'An error occurred while recording stock out'
+  } finally {
+    isLoading.value = false
+  }
 }
+
+onMounted(() => {
+  store.fetchProducts()
+})
 </script>
 
 <template>
   <div class="bg-white p-4 rounded-lg shadow-md text-black mx-auto">
     <h2 class="text-lg font-bold mb-4">Stock Out</h2>
+
+    <div
+      v-if="errorMessage"
+      class="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded mb-4"
+    >
+      {{ errorMessage }}
+    </div>
+    <div
+      v-if="successMessage"
+      class="bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded mb-4"
+    >
+      {{ successMessage }}
+    </div>
+
     <div class="grid grid-cols-2 gap-4">
-      <!-- Product -->
       <div>
         <label class="text-xs font-semibold">Product <span class="text-red-500">*</span></label>
         <select v-model="form.productId" class="select w-full border-black bg-white text-black">
@@ -130,7 +173,17 @@ async function confirmStockOut() {
           formErrors.productId
         }}</span>
       </div>
-      <!-- Quantity -->
+
+      <div>
+        <label class="text-xs font-semibold">Current Stock</label>
+        <input
+          :value="selectedProduct ? selectedProduct.quantity + ' ' + selectedProduct.unit : ''"
+          type="text"
+          class="input w-full border-black !text-black !bg-white"
+          disabled
+        />
+      </div>
+
       <div>
         <label class="text-xs font-semibold">Quantity <span class="text-red-500">*</span></label>
         <input
@@ -143,7 +196,7 @@ async function confirmStockOut() {
           formErrors.quantity
         }}</span>
       </div>
-      <!-- Unit (auto-filled) -->
+
       <div>
         <label class="text-xs font-semibold">Unit</label>
         <input
@@ -153,7 +206,7 @@ async function confirmStockOut() {
           disabled
         />
       </div>
-      <!-- Date -->
+
       <div>
         <label class="text-xs font-semibold">Date <span class="text-red-500">*</span></label>
         <input
@@ -163,7 +216,7 @@ async function confirmStockOut() {
         />
         <span v-if="formErrors.date" class="text-red-500 text-xs">{{ formErrors.date }}</span>
       </div>
-      <!-- Reason -->
+
       <div>
         <label class="text-xs font-semibold">Reason <span class="text-red-500">*</span></label>
         <select v-model="form.reason" class="select w-full border-black bg-white text-black">
@@ -172,7 +225,7 @@ async function confirmStockOut() {
         </select>
         <span v-if="formErrors.reason" class="text-red-500 text-xs">{{ formErrors.reason }}</span>
       </div>
-      <!-- Remarks -->
+
       <div class="col-span-2">
         <label class="text-xs font-semibold">Remarks</label>
         <textarea
@@ -180,7 +233,7 @@ async function confirmStockOut() {
           class="textarea w-full border-black text-black bg-white"
         ></textarea>
       </div>
-      <!-- Upload Document (Consistent UI) -->
+
       <div class="col-span-2">
         <label class="text-xs font-semibold block mb-1">Upload Supporting Document</label>
         <div
@@ -224,13 +277,14 @@ async function confirmStockOut() {
         </div>
         <p class="text-xs text-gray-500 mt-1">* PDF or image files, max 5MB</p>
       </div>
-      <!-- Submit Button -->
+
       <div class="flex justify-end col-span-2">
-        <button class="btn-primaryStyle" @click="handleSubmit">Stock Out</button>
+        <button class="btn-primaryStyle" @click="handleSubmit" :disabled="isLoading">
+          {{ isLoading ? 'Processing...' : 'Stock Out' }}
+        </button>
       </div>
     </div>
 
-    <!-- Confirmation Modal -->
     <dialog v-if="showConfirmModal" open class="modal">
       <div class="modal-box bg-white w-96">
         <h3 class="font-bold text-lg text-black">Confirm Stock Out</h3>
@@ -245,8 +299,16 @@ async function confirmStockOut() {
           <p v-if="form.remarks">Remarks: {{ form.remarks }}</p>
         </div>
         <div class="modal-action flex justify-end gap-2">
-          <button class="btn-secondaryStyle" @click="showConfirmModal = false">Cancel</button>
-          <button class="btn-primaryStyle" @click="confirmStockOut">Confirm</button>
+          <button
+            class="btn-secondaryStyle"
+            @click="showConfirmModal = false"
+            :disabled="isLoading"
+          >
+            Cancel
+          </button>
+          <button class="btn-primaryStyle" @click="confirmStockOut" :disabled="isLoading">
+            {{ isLoading ? 'Processing...' : 'Confirm' }}
+          </button>
         </div>
       </div>
     </dialog>

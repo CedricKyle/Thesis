@@ -27,10 +27,12 @@ export const useInventoryStore = defineStore('inventory', {
     },
 
     // ============ INVENTORY PRODUCTS ============
-    async fetchProducts() {
+    async fetchProducts(showArchived = false) {
       try {
         this.loading = true
-        const response = await axios.get('/api/inventory')
+        const response = await axios.get('/api/inventory', {
+          params: { showArchived },
+        })
         this.products = response.data.data
       } catch (err) {
         this.error = err.response?.data?.message || 'Failed to fetch products'
@@ -72,11 +74,14 @@ export const useInventoryStore = defineStore('inventory', {
     async deleteProduct(id) {
       try {
         this.loading = true
+        // Change PATCH to DELETE
         await axios.delete(`/api/inventory/${id}`)
+        // Remove from local products array
         this.products = this.products.filter((p) => p.id !== id)
         this.success = 'Product deleted successfully'
       } catch (err) {
         this.error = err.response?.data?.message || 'Failed to delete product'
+        throw err
       } finally {
         this.loading = false
       }
@@ -85,11 +90,15 @@ export const useInventoryStore = defineStore('inventory', {
     async restoreProduct(id) {
       try {
         this.loading = true
+        // Call restore endpoint
         const response = await axios.patch(`/api/inventory/restore/${id}`)
+        // Add back to products array
         this.products.push(response.data.data)
         this.success = 'Product restored successfully'
+        return response.data
       } catch (err) {
         this.error = err.response?.data?.message || 'Failed to restore product'
+        throw err
       } finally {
         this.loading = false
       }

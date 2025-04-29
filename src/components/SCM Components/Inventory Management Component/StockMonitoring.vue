@@ -1,12 +1,18 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import BaseTable from '@/components/common/BaseTable.vue'
 import { useInventoryPDFGenerator } from '@/composables/SCM Composables/useInvetoryPDFGenerator'
 import { useInventoryStore } from '@/stores/SCM Stores/scmInventoryStores.js'
 
+// First declare all your refs
 const store = useInventoryStore()
-store.fetchProducts()
+const showArchived = ref(false)
+const search = ref('')
+const selectedCategory = ref('')
 const products = computed(() => store.products)
+
+// Then do the initial fetch
+// store.fetchProducts(showArchived.value)
 
 const uniqueCategories = computed(() => {
   const categories = new Set(products.value.map((p) => p.category))
@@ -22,9 +28,6 @@ const mappedProducts = computed(() =>
     // Add more mappings if needed
   })),
 )
-
-const search = ref('')
-const selectedCategory = ref('')
 
 const { generateInventoryPDF } = useInventoryPDFGenerator()
 
@@ -50,10 +53,24 @@ const addProductFileInput = ref(null)
 
 const backendUrl = 'http://localhost:3000' // or use import.meta.env.VITE_BACKEND_URL
 
-// New category modal state
-const showNewCategoryModal = ref(false)
-const newCategory = ref('')
-const newCategoryError = ref('')
+// Add these with your other refs
+const showDeleteModal = ref(false)
+const productToDelete = ref(null)
+const showEditModal = ref(false)
+const editProductForm = ref({
+  name: '',
+  category: '',
+  unit: '',
+  maxQuantity: '',
+  expiryDate: '',
+  price: '',
+  image: null,
+  changed_by: 'Admin', // You might want to get this from your auth system
+  reason: '',
+})
+const editProductErrors = ref({})
+const editProductImagePreview = ref(null)
+const productToEdit = ref(null)
 
 // Helper to compute status
 function computeStatus(product) {
@@ -68,6 +85,8 @@ function computeStatus(product) {
 // Add status to each product for display
 const filteredProducts = computed(() => {
   let filtered = mappedProducts.value
+
+  // Apply search filter
   if (search.value) {
     filtered = filtered.filter(
       (p) =>
@@ -75,9 +94,12 @@ const filteredProducts = computed(() => {
         p.category.toLowerCase().includes(search.value.toLowerCase()),
     )
   }
+
+  // Apply category filter
   if (selectedCategory.value) {
     filtered = filtered.filter((p) => p.category === selectedCategory.value)
   }
+
   // Map to add status
   return filtered.map((p) => ({
     ...p,
@@ -140,31 +162,54 @@ const columns = [
     },
   },
   {
+    title: 'Archive Status',
+    field: 'deleted_at',
+    formatter: function (cell) {
+      const isDeleted = cell.getValue() !== null
+      return `<span class="badge ${isDeleted ? 'badge-outline badge-error h-5 text-xs' : 'badge-outline badge-success h-5 text-xs'}">${isDeleted ? 'Archived' : 'Active'}</span>`
+    },
+    width: 100,
+  },
+  {
     title: 'Action',
     field: 'action',
     headerSort: false,
-    formatter: function () {
+    formatter: function (cell) {
+      const row = cell.getRow().getData()
+      const isDeleted = row.deleted_at !== null
       return `
         <div class="flex gap-2">
-          <button class="btn btn-xs btn-circle btn-ghost view-history-btn" title="View History">
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path d="M12 8v4l3 3"/>
-              <circle cx="12" cy="12" r="10"/>
-            </svg>
-          </button>
-          <button class="btn btn-xs btn-circle btn-ghost edit-btn" title="Edit">
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-            </svg>
-          </button>
-          <button class="btn btn-xs btn-circle btn-ghost delete-btn" title="Delete">
-            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-              <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
-            </svg>
-          </button>
-        </div>
-      `
+          ${
+            isDeleted
+              ? `
+            <button class="btn btn-xs btn-circle hover:bg-green-500 border-none btn-ghost restore-button" title="Restore Product">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 14l-4-4 4-4"/>
+                <path d="M5 10h11a4 4 0 1 1 0 8h-1"/>
+              </svg>
+            </button>
+          `
+              : `
+            <button class="btn btn-xs btn-circle btn-ghost view-history-btn" title="View History">
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M12 8v4l3 3"/>
+                <circle cx="12" cy="12" r="10"/>
+              </svg>
+            </button>
+            <button class="btn btn-xs btn-circle btn-ghost edit-btn" title="Edit">
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+            <button class="btn btn-xs btn-circle hover:bg-red-400 border-none btn-ghost delete-button" title="Archive Product">
+              <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M3 6h18M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>
+              </svg>
+            </button>
+          `
+          }
+        </div>`
     },
     cellClick: function (e, cell) {
       const product = cell.getRow().getData()
@@ -172,8 +217,10 @@ const columns = [
         handleViewHistory(product)
       } else if (e.target.closest('.edit-btn')) {
         handleEdit(product)
-      } else if (e.target.closest('.delete-btn')) {
+      } else if (e.target.closest('.delete-button')) {
         handleDelete(product)
+      } else if (e.target.closest('.restore-button')) {
+        handleRestore(product)
       }
     },
   },
@@ -191,13 +238,34 @@ function rowFormatter(row) {
 }
 
 function handleEdit(product) {
-  // Open your edit modal or emit an event
-  alert('Edit: ' + product.name)
+  productToEdit.value = product
+  editProductForm.value = {
+    name: product.name,
+    category: product.category,
+    unit: product.unit,
+    maxQuantity: product.maxQuantity,
+    expiryDate: product.expiryDate,
+    price: product.price.replace('₱', ''), // Remove the peso sign
+    image: null, // Reset image
+    changed_by: 'Admin',
+    reason: '',
+  }
+
+  // Set the image preview
+  if (product.image) {
+    editProductImagePreview.value = product.image.startsWith('http')
+      ? product.image
+      : `${backendUrl}/${product.image.replace(/^\//, '')}`
+  } else {
+    editProductImagePreview.value = null
+  }
+
+  showEditModal.value = true
 }
 
 function handleDelete(product) {
-  // Open your delete confirmation modal or emit an event
-  alert('Delete: ' + product.name)
+  productToDelete.value = product
+  showDeleteModal.value = true
 }
 
 async function handleViewHistory(product) {
@@ -437,28 +505,103 @@ function submitAddProduct() {
 const showImageModal = ref(false)
 const previewImageSrc = ref('')
 
-function addNewCategory() {
-  if (!newCategory.value.trim()) {
-    newCategoryError.value = 'Category name is required'
-    return
+async function confirmDelete() {
+  if (!productToDelete.value) return
+
+  try {
+    await store.deleteProduct(productToDelete.value.id)
+    showDeleteModal.value = false
+    productToDelete.value = null
+    await refreshProducts()
+  } catch (error) {
+    console.error('Error archiving product:', error)
   }
+}
 
-  // Check if category already exists
-  if (uniqueCategories.value.includes(newCategory.value.trim())) {
-    newCategoryError.value = 'Category already exists'
-    return
+async function handleRestore(product) {
+  try {
+    await store.restoreProduct(product.id)
+    await refreshProducts()
+  } catch (error) {
+    console.error('Error restoring product:', error)
   }
+}
 
-  // Add to store/backend later
-  store.addCategory(newCategory.value.trim())
+// Add this function to handle refresh
+const refreshProducts = async () => {
+  try {
+    await store.fetchProducts(showArchived.value)
+  } catch (error) {
+    console.error('Error fetching products:', error)
+  }
+}
 
-  // Set the new category as selected
-  addProductForm.value.category = newCategory.value.trim()
+// Update your watch
+watch(showArchived, refreshProducts)
 
-  // Reset and close modal
-  newCategory.value = ''
-  newCategoryError.value = ''
-  showNewCategoryModal.value = false
+// Update your onMounted
+onMounted(async () => {
+  await refreshProducts()
+})
+
+function validateEditProductForm() {
+  const errors = {}
+  if (!editProductForm.value.name) errors.name = 'Product name is required'
+  if (!editProductForm.value.category) errors.category = 'Category is required'
+  if (!editProductForm.value.unit) errors.unit = 'Unit is required'
+  if (
+    !editProductForm.value.price ||
+    isNaN(editProductForm.value.price) ||
+    Number(editProductForm.value.price) <= 0
+  )
+    errors.price = 'Valid price is required'
+  if (
+    !editProductForm.value.maxQuantity ||
+    isNaN(editProductForm.value.maxQuantity) ||
+    Number(editProductForm.value.maxQuantity) <= 0
+  )
+    errors.maxQuantity = 'Valid max quantity is required'
+  if (!editProductForm.value.expiryDate) errors.expiryDate = 'Expiry date is required'
+  if (!editProductForm.value.reason) errors.reason = 'Reason for update is required'
+  return errors
+}
+
+function handleEditProductFileUpload(e) {
+  const file = e.target.files[0]
+  if (file && file.type.startsWith('image/')) {
+    editProductForm.value.image = file
+    editProductImagePreview.value = URL.createObjectURL(file)
+  }
+}
+
+async function submitEditProduct() {
+  editProductErrors.value = validateEditProductForm()
+  if (Object.keys(editProductErrors.value).length > 0) return
+
+  try {
+    const formData = new FormData()
+
+    // Append all form fields
+    formData.append('name', editProductForm.value.name)
+    formData.append('category', editProductForm.value.category)
+    formData.append('unit', editProductForm.value.unit)
+    formData.append('max_quantity', editProductForm.value.maxQuantity)
+    formData.append('expiry_date', editProductForm.value.expiryDate)
+    formData.append('price', editProductForm.value.price)
+    formData.append('changed_by', editProductForm.value.changed_by)
+    formData.append('reason', editProductForm.value.reason)
+
+    // Only append image if a new one was selected
+    if (editProductForm.value.image instanceof File) {
+      formData.append('image', editProductForm.value.image)
+    }
+
+    await store.updateProduct(productToEdit.value.id, formData)
+    showEditModal.value = false
+    await refreshProducts()
+  } catch (error) {
+    console.error('Error updating product:', error)
+  }
 }
 </script>
 
@@ -466,7 +609,6 @@ function addNewCategory() {
   <div class="bg-white rounded shadow p-4">
     <div class="flex justify-between items-center mb-2">
       <h2 class="text-lg font-bold text-black">Stock Monitoring</h2>
-      <button class="btn-primaryStyle" @click="openAddProductModal">+ Add Product</button>
     </div>
     <div class="flex gap-2">
       <div class="w-full">
@@ -477,17 +619,22 @@ function addNewCategory() {
           class="input-search input-sm"
         />
       </div>
-      <div class="">
-        <select
-          v-model="selectedCategory"
-          class="select !input-search bg-white text-black border border-black input-sm outline-none"
-        >
-          <option disabled selected>Select Category</option>
-          <option value="">All Categories</option>
-          <option v-for="category in uniqueCategories" :key="category" :value="category">
-            {{ category }}
-          </option>
-        </select>
+      <div class="flex gap-2 flex-row-reverse w-full">
+        <div class="">
+          <button class="btn-primaryStyle" @click="openAddProductModal">+ Add Product</button>
+        </div>
+        <div class="">
+          <select
+            v-model="selectedCategory"
+            class="select !input-search bg-white text-black border border-black input-sm outline-none"
+          >
+            <option disabled selected>Select Category</option>
+            <option value="">All Categories</option>
+            <option v-for="category in uniqueCategories" :key="category" :value="category">
+              {{ category }}
+            </option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -559,7 +706,15 @@ function addNewCategory() {
       :showExport="false"
       :rowFormatter="rowFormatter"
     />
-    <div class="flex justify-end mt-4">
+    <div class="flex justify-end mt-4 gap-4">
+      <label class="flex items-center gap-2">
+        <input
+          type="checkbox"
+          v-model="showArchived"
+          class="checkbox checkbox-xs checkbox-neutral"
+        />
+        <span class="text-sm cursor-pointer hover:text-gray-500 text-black">Show Archived</span>
+      </label>
       <button class="btn-secondaryStyle" @click="prepareExportPreview">Export as PDF</button>
     </div>
 
@@ -787,6 +942,147 @@ function addNewCategory() {
           class="max-h-96 max-w-full rounded border mb-4"
         />
         <button class="btn-secondaryStyle" @click="showImageModal = false">Close</button>
+      </div>
+    </dialog>
+
+    <!-- Delete Confirmation Modal -->
+    <dialog v-if="showDeleteModal" open class="modal text-black">
+      <div class="modal-box bg-white w-[420px] p-6 rounded-lg shadow-lg">
+        <h3 class="font-bold text-lg text-black">Archive Product</h3>
+        <div
+          class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
+        ></div>
+
+        <p class="py-4 text-center text-black">
+          Are you sure you want to archive the product
+          <span class="font-bold">{{ productToDelete?.name }}</span
+          >?
+        </p>
+
+        <div class="modal-action justify-center gap-4">
+          <button class="btn-errorStyle" @click="confirmDelete">Archive</button>
+          <button class="btn-secondaryStyle" @click="showDeleteModal = false">Cancel</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Edit Product Modal -->
+    <dialog v-if="showEditModal" open class="modal text-black">
+      <div class="modal-box bg-white w-[420px] p-6 rounded-lg shadow-lg">
+        <h3 class="text-lg font-bold mb-4">Edit Product</h3>
+        <div class="flex flex-col gap-3">
+          <div>
+            <label class="text-xs font-semibold"
+              >Product Name <span class="text-red-500">*</span></label
+            >
+            <input
+              v-model="editProductForm.name"
+              type="text"
+              class="input w-full border-black text-black bg-white"
+            />
+            <span v-if="editProductErrors.name" class="text-red-500 text-xs">{{
+              editProductErrors.name
+            }}</span>
+          </div>
+          <div>
+            <label class="text-xs font-semibold">Price <span class="text-red-500">*</span></label>
+            <input
+              v-model="editProductForm.price"
+              type="number"
+              step="0.01"
+              min="0"
+              class="input w-full border-black text-black bg-white"
+            />
+            <span v-if="editProductErrors.price" class="text-red-500 text-xs">{{
+              editProductErrors.price
+            }}</span>
+          </div>
+          <div>
+            <label class="text-xs font-semibold"
+              >Category <span class="text-red-500">*</span></label
+            >
+            <select
+              v-model="editProductForm.category"
+              class="select w-full border-black text-black bg-white"
+            >
+              <option disabled value="">Select Category</option>
+              <option v-for="category in uniqueCategories" :key="category" :value="category">
+                {{ category }}
+              </option>
+            </select>
+          </div>
+          <div>
+            <label class="text-xs font-semibold">Unit <span class="text-red-500">*</span></label>
+            <input
+              v-model="editProductForm.unit"
+              type="text"
+              class="input w-full border-black text-black bg-white"
+            />
+            <span v-if="editProductErrors.unit" class="text-red-500 text-xs">{{
+              editProductErrors.unit
+            }}</span>
+          </div>
+          <div>
+            <label class="text-xs font-semibold"
+              >Max Quantity <span class="text-red-500">*</span></label
+            >
+            <input
+              v-model="editProductForm.maxQuantity"
+              type="number"
+              min="0"
+              class="input w-full border-black text-black bg-white"
+            />
+            <span v-if="editProductErrors.maxQuantity" class="text-red-500 text-xs">{{
+              editProductErrors.maxQuantity
+            }}</span>
+          </div>
+          <div>
+            <label class="text-xs font-semibold"
+              >Expiry Date <span class="text-red-500">*</span></label
+            >
+            <input
+              v-model="editProductForm.expiryDate"
+              type="date"
+              class="input w-full border-black text-black bg-white"
+            />
+            <span v-if="editProductErrors.expiryDate" class="text-red-500 text-xs">{{
+              editProductErrors.expiryDate
+            }}</span>
+          </div>
+          <div>
+            <label class="text-xs font-semibold"
+              >Reason for Update <span class="text-red-500">*</span></label
+            >
+            <textarea
+              v-model="editProductForm.reason"
+              class="textarea w-full border-black text-black bg-white"
+              rows="2"
+            ></textarea>
+            <span v-if="editProductErrors.reason" class="text-red-500 text-xs">{{
+              editProductErrors.reason
+            }}</span>
+          </div>
+          <div>
+            <label class="text-xs font-semibold block mb-1">Product Image</label>
+            <div class="flex items-center gap-4">
+              <img
+                v-if="editProductImagePreview"
+                :src="editProductImagePreview"
+                class="w-20 h-20 object-cover rounded border"
+              />
+              <input
+                type="file"
+                accept="image/*"
+                @change="handleEditProductFileUpload"
+                class="file-input file-input-bordered w-full max-w-xs"
+              />
+            </div>
+          </div>
+          <div class="flex justify-end gap-2 mt-4">
+            <button class="btn-secondaryStyle px-6" @click="showEditModal = false">Cancel</button>
+            <button class="btn-primaryStyle px-6" @click="submitEditProduct">Update Product</button>
+          </div>
+        </div>
       </div>
     </dialog>
   </div>

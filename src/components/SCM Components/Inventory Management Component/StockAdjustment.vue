@@ -1,10 +1,12 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useInventoryStore } from '@/stores/SCM Stores/scmInventoryStores.js'
 
 const store = useInventoryStore()
-store.fetchProducts()
-store.fetchStockAdjustments()
+onMounted(async () => {
+  await store.fetchProducts()
+  await store.fetchStockAdjustments()
+})
 
 const products = computed(() => store.products)
 const adjustmentHistory = computed(() => store.stockAdjustments)
@@ -113,6 +115,14 @@ async function confirmAdjustment() {
     filePreview.value = null
   } catch (err) {}
 }
+
+function getChangeColor(change) {
+  if (change > 0) return 'text-green-600'
+  if (change < 0) return 'text-red-600'
+  return 'text-gray-600'
+}
+
+const backendUrl = 'http://localhost:3000'
 </script>
 
 <template>
@@ -306,8 +316,9 @@ async function confirmAdjustment() {
             <th class="p-2 border">Date</th>
             <th class="p-2 border">Product</th>
             <th class="p-2 border">Type</th>
-            <th class="p-2 border">Qty</th>
-            <th class="p-2 border">Unit</th>
+            <th class="p-2 border">Old Qty</th>
+            <th class="p-2 border">New Qty</th>
+            <th class="p-2 border">Change</th>
             <th class="p-2 border">Reason</th>
             <th class="p-2 border">Remarks</th>
             <th class="p-2 border">User</th>
@@ -316,18 +327,47 @@ async function confirmAdjustment() {
         </thead>
         <tbody>
           <tr v-for="adj in adjustmentHistory" :key="adj.id">
-            <td class="p-2 border">{{ adj.date }}</td>
-            <td class="p-2 border">{{ adj.product }}</td>
-            <td class="p-2 border">{{ adj.type }}</td>
-            <td class="p-2 border">{{ adj.quantity }}</td>
-            <td class="p-2 border">{{ adj.unit }}</td>
+            <td class="p-2 border">{{ new Date(adj.created_at).toLocaleDateString() }}</td>
+            <td class="p-2 border">{{ adj.InventoryProduct?.name || '-' }}</td>
+            <td class="p-2 border">
+              <span
+                :class="[
+                  'px-2 py-1 rounded-full text-xs',
+                  adj.adjustment_type === 'increase'
+                    ? 'badge badge-success badge-outline'
+                    : adj.adjustment_type === 'decrease'
+                      ? 'badge badge-error badge-outline'
+                      : 'badge badge-info badge-outline',
+                ]"
+              >
+                {{ adj.adjustment_type }}
+              </span>
+            </td>
+            <td class="p-2 border text-right">{{ adj.old_quantity }}</td>
+            <td class="p-2 border text-right">{{ adj.new_quantity }}</td>
+            <td
+              class="p-2 border text-right"
+              :class="getChangeColor(adj.new_quantity - adj.old_quantity)"
+            >
+              {{ (adj.new_quantity - adj.old_quantity).toFixed(2) }}
+            </td>
             <td class="p-2 border">{{ adj.reason }}</td>
-            <td class="p-2 border">{{ adj.remarks }}</td>
+            <td class="p-2 border">{{ adj.remarks || '-' }}</td>
             <td class="p-2 border">{{ adj.user }}</td>
             <td class="p-2 border">
-              <span v-if="adj.fileName">{{ adj.fileName }}</span>
+              <a
+                v-if="adj.document"
+                :href="`${backendUrl}/${adj.document}`"
+                target="_blank"
+                class="text-blue-600 hover:underline"
+              >
+                View
+              </a>
               <span v-else>-</span>
             </td>
+          </tr>
+          <tr v-if="!adjustmentHistory.length">
+            <td colspan="10" class="text-center py-4 text-gray-500">No adjustment history found</td>
           </tr>
         </tbody>
       </table>

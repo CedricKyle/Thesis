@@ -32,7 +32,7 @@ const props = defineProps({
 
 const emit = defineEmits(['row-click', 'row-edit', 'row-delete'])
 const tableRef = ref(null)
-let table = null
+let table = ref(null)
 
 const defaultOptions = {
   height: '100%',
@@ -57,11 +57,16 @@ onMounted(() => {
   if (props.rowFormatter) {
     options.rowFormatter = props.rowFormatter
   }
-  table = new Tabulator(tableRef.value, options)
 
-  // Handle row clicks
-  table.on('rowClick', (e, row) => {
-    emit('row-click', row.getData())
+  // Initialize table
+  table.value = new Tabulator(tableRef.value, options)
+
+  // Wait for table to be built before setting up events
+  table.value.on('tableBuilt', function () {
+    // Handle row clicks
+    table.value.on('rowClick', (e, row) => {
+      emit('row-click', row.getData())
+    })
   })
 })
 
@@ -69,18 +74,18 @@ onMounted(() => {
 watch(
   () => props.data,
   (newData) => {
-    if (table) {
-      table.setData(newData)
+    if (table.value && table.value.initialized) {
+      table.value.setData(newData)
     }
   },
   { deep: true },
 )
 
 defineExpose({
-  table,
-  refreshData: () => table?.setData(props.data),
-  clearFilters: () => table?.clearFilter(true),
-  clearSort: () => table?.clearSort(),
+  table: table.value,
+  refreshData: () => table.value?.setData(props.data),
+  clearFilters: () => table.value?.clearFilter(true),
+  clearSort: () => table.value?.clearSort(),
 })
 </script>
 

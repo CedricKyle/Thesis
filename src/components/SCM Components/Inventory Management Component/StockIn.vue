@@ -1,11 +1,11 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useInventoryStore } from '@/stores/SCM Stores/scmInventoryStores.js'
 
 const store = useInventoryStore()
-
-// Fetch products on mount
-store.fetchProducts()
+const isLoading = ref(false)
+const errorMessage = ref('')
+const successMessage = ref('')
 
 const products = computed(() => store.products)
 const suppliers = ref(['Supplier A', 'Supplier B', 'Supplier C'])
@@ -60,12 +60,21 @@ function validateForm() {
   if (!form.value.productId) errors.productId = 'Product is required'
   if (!form.value.quantity || isNaN(form.value.quantity) || Number(form.value.quantity) <= 0)
     errors.quantity = 'Valid quantity is required'
+  if (
+    selectedProduct.value &&
+    Number(form.value.quantity) + Number(selectedProduct.value.quantity) >
+      Number(selectedProduct.value.max_quantity)
+  ) {
+    errors.quantity = `Total quantity cannot exceed max quantity (${selectedProduct.value.max_quantity})`
+  }
   if (!form.value.dateReceived) errors.dateReceived = 'Date received is required'
   return errors
 }
 
 const showConfirmModal = ref(false)
 function handleSubmit() {
+  errorMessage.value = ''
+  successMessage.value = ''
   formErrors.value = validateForm()
   if (Object.keys(formErrors.value).length === 0) {
     showConfirmModal.value = true
@@ -73,20 +82,25 @@ function handleSubmit() {
 }
 
 async function confirmStockIn() {
-  // Prepare FormData for file upload
-  const fd = new FormData()
-  fd.append('product_id', form.value.productId)
-  fd.append('quantity', form.value.quantity)
-  fd.append('unit', form.value.unit)
-  fd.append('date', form.value.dateReceived)
-  fd.append('supplier', form.value.supplier)
-  fd.append('purchase_order_no', form.value.purchaseOrderNo)
-  fd.append('remarks', form.value.remarks)
-  if (form.value.document) fd.append('document', form.value.document)
-
   try {
+    isLoading.value = true
+    errorMessage.value = ''
+    successMessage.value = ''
+
+    const fd = new FormData()
+    fd.append('product_id', form.value.productId)
+    fd.append('quantity', form.value.quantity)
+    fd.append('unit', form.value.unit)
+    fd.append('date', form.value.dateReceived)
+    fd.append('supplier', form.value.supplier)
+    fd.append('purchase_order_no', form.value.purchaseOrderNo)
+    fd.append('remarks', form.value.remarks)
+    if (form.value.document) fd.append('document', form.value.document)
+
     await store.createStockIn(fd)
+    successMessage.value = 'Stock in recorded successfully'
     showConfirmModal.value = false
+
     // Reset form
     form.value = {
       productId: '',
@@ -100,7 +114,9 @@ async function confirmStockIn() {
     }
     documentPreview.value = null
   } catch (err) {
-    // Error handled by store
+    errorMessage.value = err.response?.data?.message || 'An error occurred while recording stock in'
+  } finally {
+    isLoading.value = false
   }
 }
 
@@ -130,11 +146,30 @@ function openFileDialog() {
     fileInput.value.click()
   }
 }
+
+onMounted(() => {
+  store.fetchProducts()
+})
 </script>
 
 <template>
   <div class="bg-white p-4 rounded-lg shadow-md text-black mx-auto">
     <h2 class="text-lg font-bold mb-4">Stock In</h2>
+
+    <!-- Messages -->
+    <div
+      v-if="errorMessage"
+      class="bg-red-100 border border-red-400 text-red-700 px-4 py-2 rounded mb-4"
+    >
+      {{ errorMessage }}
+    </div>
+    <div
+      v-if="successMessage"
+      class="bg-green-100 border border-green-400 text-green-700 px-4 py-2 rounded mb-4"
+    >
+      {{ successMessage }}
+    </div>
+
     <div class="grid grid-cols-2 gap-4">
       <!-- Product -->
       <div>
@@ -147,6 +182,18 @@ function openFileDialog() {
           formErrors.productId
         }}</span>
       </div>
+
+      <!-- Current Stock -->
+      <div>
+        <label class="text-xs font-semibold">Current Stock</label>
+        <input
+          :value="selectedProduct ? selectedProduct.quantity + ' ' + selectedProduct.unit : ''"
+          type="text"
+          class="input w-full border-black !text-black !bg-white"
+          disabled
+        />
+      </div>
+
       <!-- Quantity -->
       <div>
         <label class="text-xs font-semibold">Quantity <span class="text-red-500">*</span></label>
@@ -160,6 +207,7 @@ function openFileDialog() {
           formErrors.quantity
         }}</span>
       </div>
+
       <!-- Unit (auto-filled) -->
       <div>
         <label class="text-xs font-semibold">Unit</label>
@@ -170,6 +218,7 @@ function openFileDialog() {
           disabled
         />
       </div>
+
       <!-- Date Received -->
       <div>
         <label class="text-xs font-semibold"
@@ -184,6 +233,7 @@ function openFileDialog() {
           formErrors.dateReceived
         }}</span>
       </div>
+
       <!-- Supplier -->
       <div>
         <label class="text-xs font-semibold">Supplier</label>
@@ -192,6 +242,7 @@ function openFileDialog() {
           <option v-for="s in suppliers" :key="s" :value="s">{{ s }}</option>
         </select>
       </div>
+
       <!-- Purchase Order No. -->
       <div>
         <label class="text-xs font-semibold">Purchase Order No.</label>
@@ -201,6 +252,7 @@ function openFileDialog() {
           class="input w-full border-black !text-black !bg-white"
         />
       </div>
+
       <!-- Remarks -->
       <div class="col-span-2">
         <label class="text-xs font-semibold">Remarks</label>
@@ -209,7 +261,8 @@ function openFileDialog() {
           class="textarea w-full border-black text-black bg-white"
         ></textarea>
       </div>
-      <!-- Upload Document (Consistent UI) -->
+
+      <!-- Upload Document -->
       <div class="col-span-2">
         <label class="text-xs font-semibold block mb-1">Upload Receiving Document</label>
         <div
@@ -253,9 +306,12 @@ function openFileDialog() {
         </div>
         <p class="text-xs text-gray-500 mt-1">* PDF or image files, max 5MB</p>
       </div>
+
       <!-- Submit Button -->
       <div class="flex justify-end col-span-2">
-        <button class="btn-primaryStyle" @click="handleSubmit">Stock In</button>
+        <button class="btn-primaryStyle" @click="handleSubmit" :disabled="isLoading">
+          {{ isLoading ? 'Processing...' : 'Stock In' }}
+        </button>
       </div>
     </div>
 
@@ -275,8 +331,16 @@ function openFileDialog() {
           <p v-if="form.remarks">Remarks: {{ form.remarks }}</p>
         </div>
         <div class="modal-action flex justify-end gap-2">
-          <button class="btn-secondaryStyle" @click="showConfirmModal = false">Cancel</button>
-          <button class="btn-primaryStyle" @click="confirmStockIn">Confirm</button>
+          <button
+            class="btn-secondaryStyle"
+            @click="showConfirmModal = false"
+            :disabled="isLoading"
+          >
+            Cancel
+          </button>
+          <button class="btn-primaryStyle" @click="confirmStockIn" :disabled="isLoading">
+            {{ isLoading ? 'Processing...' : 'Confirm' }}
+          </button>
         </div>
       </div>
     </dialog>

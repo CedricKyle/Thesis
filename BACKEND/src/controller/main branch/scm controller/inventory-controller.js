@@ -5,8 +5,20 @@ const { Op } = require('sequelize')
 const inventoryController = {
   // List all products (not deleted)
   async getAll(req, res) {
-    const products = await InventoryProduct.findAll({ where: { deleted_at: null } })
-    res.json({ success: true, data: products })
+    try {
+      const { showArchived } = req.query
+      let where = {}
+
+      // If showArchived is false or not provided, only show non-deleted items
+      if (!showArchived || showArchived === 'false') {
+        where.deleted_at = null
+      }
+
+      const products = await InventoryProduct.findAll({ where })
+      res.json({ success: true, data: products })
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message })
+    }
   },
 
   // Get single product
