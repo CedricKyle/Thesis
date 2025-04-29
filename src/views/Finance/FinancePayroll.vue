@@ -1,7 +1,17 @@
-<script setup></script>
+<script setup>
+import PayrollTable from '@/components/Finance/Payroll/PayrollTable.vue'
+
+
+</script>
+
+
 
 <template>
-  <div>
-    <h1 class="text-2xl font-bold text-brownColor">This is Payroll</h1>
+  <div class="p-4">
+    <h1 class="text-4xl font-bold text-gray-800 mb-4">Payroll</h1>
+
+
+    <PayrollTable />
   </div>
 </template>
+
