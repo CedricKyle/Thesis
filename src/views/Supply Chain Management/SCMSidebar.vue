@@ -1,7 +1,7 @@
 <script setup>
 import BaseDepartmentSidebar from '@/components/common/BaseDepartmentSidebar.vue'
 import { PERMISSION_IDS } from '@/composables/Admin Composables/User & Role/role/permissionsId'
-import { LayoutDashboard, Package } from 'lucide-vue-next'
+import { LayoutDashboard, Package, Truck, Building2, Landmark } from 'lucide-vue-next'
 
 const menuItems = [
   {
@@ -23,21 +23,21 @@ const menuItems = [
     permission: PERMISSION_IDS.SCM_MANAGE_INVENTORY_MANAGEMENT,
   },
   {
-    name: 'Supplier',
+    name: 'Suppliers',
     route: '/scm/supplier-management',
-    icon: Package,
+    icon: Truck,
     permission: PERMISSION_IDS.SCM_MANAGE_SUPPLIERS_MANAGEMENT,
   },
   {
     name: 'Purchase',
     route: '/scm/purchase-management',
-    icon: Package,
+    icon: Landmark,
     permission: PERMISSION_IDS.SCM_MANAGE_PURCHASE_MANAGEMENT,
   },
   {
     name: 'Branch Distribution',
     route: '/scm/branch-distribution-management',
-    icon: Package,
+    icon: Building2,
     permission: PERMISSION_IDS.SCM_MANAGE_BRANCH_DISTRIBUTION_MANAGEMENT,
   },
 ]

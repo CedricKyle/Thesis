@@ -24,6 +24,10 @@ const props = defineProps({
     type: Boolean,
     default: true,
   },
+  rowFormatter: {
+    type: Function,
+    default: null,
+  },
 })
 
 const emit = defineEmits(['row-click', 'row-edit', 'row-delete'])
@@ -44,12 +48,16 @@ const defaultOptions = {
 }
 
 onMounted(() => {
-  table = new Tabulator(tableRef.value, {
+  const options = {
     ...defaultOptions,
     ...props.options,
     columns: props.columns,
     data: props.data,
-  })
+  }
+  if (props.rowFormatter) {
+    options.rowFormatter = props.rowFormatter
+  }
+  table = new Tabulator(tableRef.value, options)
 
   // Handle row clicks
   table.on('rowClick', (e, row) => {
