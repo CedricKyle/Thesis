@@ -22,6 +22,24 @@ const menuItems = [
     icon: FileText,
     permission: PERMISSION_IDS.FINANCE_VIEW_REPORTS,
   },
+  {
+    name: 'Tax',
+    route: '/finance/tax-management',
+    icon: FileText,
+    permission: PERMISSION_IDS.FINANCE_MANAGE_TAX_MANAGEMENT,
+  },
+  {
+    name: 'Treasury',
+    route: '/finance/treasury-management',
+    icon: FileText,
+    permission: PERMISSION_IDS.FINANCE_MANAGE_TREASURY_MANAGEMENT,
+  },
+  {
+    name: 'Accounting',
+    route: '/finance/accounting-management',
+    icon: FileText,
+    permission: PERMISSION_IDS.FINANCE_MANAGE_ACCOUNTING_MANAGEMENT,
+  },
 ]
 </script>
 

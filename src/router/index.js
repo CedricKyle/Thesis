@@ -31,6 +31,9 @@ import SCMBranchDistributionManagement from '@/views/Supply Chain Management/SCM
 import SCMInventoryManagement from '@/views/Supply Chain Management/SCMInventoryManagement.vue'
 import SCMSupplierManagement from '@/views/Supply Chain Management/SCMSupplierManagement.vue'
 import SCMPurchaseManagement from '@/views/Supply Chain Management/SCMPurchaseManagement.vue'
+import FinanceAccountingManagement from '@/views/Finance/FinanceAccountingManagement.vue'
+import FinanceTreasuryManagement from '@/views/Finance/FinanceTreasuryManagement.vue'
+import FinanceTaxManagement from '@/views/Finance/FinanceTaxManagement.vue'
 import {
   PERMISSION_IDS,
   DEPARTMENTS,
@@ -95,6 +98,21 @@ const routes = [
         path: 'finance/report',
         name: 'AdminFinanceReport',
         component: FinanceReport,
+      },
+      {
+        path: 'finance/tax-management',
+        name: 'AdminFinanceTaxManagement',
+        component: FinanceTaxManagement,
+      },
+      {
+        path: 'finance/treasury-management',
+        name: 'AdminFinanceTreasuryManagement',
+        component: FinanceTreasuryManagement,
+      },
+      {
+        path: 'finance/accounting-management',
+        name: 'AdminFinanceAccountingManagement',
+        component: FinanceAccountingManagement,
       },
       {
         path: 'sales/dashboard',
@@ -243,6 +261,21 @@ const routes = [
         path: 'reports',
         name: 'FinanceReport',
         component: FinanceReport,
+      },
+      {
+        path: 'tax-management',
+        name: 'FinanceTaxManagement',
+        component: FinanceTaxManagement,
+      },
+      {
+        path: 'treasury-management',
+        name: 'FinanceTreasuryManagement',
+        component: FinanceTreasuryManagement,
+      },
+      {
+        path: 'accounting-management',
+        name: 'FinanceAccountingManagement',
+        component: FinanceAccountingManagement,
       },
     ],
   },
