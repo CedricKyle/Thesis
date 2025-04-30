@@ -34,9 +34,10 @@ module.exports = (sequelize) => {
         type: DataTypes.STRING(50),
         allowNull: false,
       },
-      job_title: {
-        type: DataTypes.STRING(50),
-        allowNull: false,
+      position_id: {
+        type: DataTypes.INTEGER(11),
+        allowNull: true,
+        references: { model: 'positions', key: 'id' },
       },
       date_of_hire: {
         type: DataTypes.DATE,
@@ -100,6 +101,10 @@ module.exports = (sequelize) => {
     Employee.belongsTo(models.Role, {
       foreignKey: 'role_id',
       as: 'roleInfo',
+    })
+    Employee.belongsTo(models.Position, {
+      foreignKey: 'position_id',
+      as: 'positionInfo',
     })
   }
 

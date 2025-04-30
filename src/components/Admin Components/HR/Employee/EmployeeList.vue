@@ -35,10 +35,8 @@ const filteredEmployees = computed(() => {
 
   let employees = [...store.employees] // Create a copy of the array
 
-  // Filter out Super Admin users if current user is not Super Admin
-  if (!isSuperAdmin.value) {
-    employees = employees.filter((emp) => emp.roleInfo?.role_name !== 'Super Admin')
-  }
+  // Always filter out Super Admin users
+  employees = employees.filter((emp) => emp.roleInfo?.role_name !== 'Super Admin')
 
   // Apply search filter if there's a search query
   if (searchQuery.value) {
@@ -48,7 +46,7 @@ const filteredEmployees = computed(() => {
         employee.employee_id.toLowerCase().includes(query) ||
         employee.full_name.toLowerCase().includes(query) ||
         employee.department.toLowerCase().includes(query) ||
-        employee.job_title?.toLowerCase().includes(query) ||
+        (employee.positionInfo?.position_title || '').toLowerCase().includes(query) ||
         employee.email.toLowerCase().includes(query) ||
         employee.contact_number.toLowerCase().includes(query),
     )
@@ -81,8 +79,12 @@ const columns = [
   },
   {
     title: 'Job Title',
-    field: 'job_title',
+    field: 'position_title',
     sorter: 'string',
+    formatter: function (cell) {
+      const employee = cell.getRow().getData()
+      return employee.positionInfo?.position_title || ''
+    },
   },
   {
     title: 'Email Address',
@@ -249,15 +251,8 @@ const cancelRestore = () => {
   employeeToRestore.value = null
 }
 
-onMounted(async () => {
-  try {
-    if (authStore.isAuthenticated) {
-      await store.loadEmployees()
-    }
-  } catch (error) {
-    console.error('Error loading employees:', error)
-    showToastMessage('Error loading employees', 'error')
-  }
+onMounted(() => {
+  store.loadEmployees()
 })
 
 // Add a watch for authentication state

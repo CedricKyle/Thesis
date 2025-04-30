@@ -7,6 +7,7 @@ import axios from 'axios'
 export const useEmployeeStore = defineStore('employee', () => {
   // State
   const employees = ref([])
+  const positions = ref([])
   const currentPage = ref(1)
   const itemsPerPage = ref(8)
   const searchQuery = ref('')
@@ -30,16 +31,18 @@ export const useEmployeeStore = defineStore('employee', () => {
       const query = searchQuery.value.toLowerCase()
       records = records.filter(
         (employee) =>
-          employee.fullName.toLowerCase().includes(query) ||
+          employee.full_name.toLowerCase().includes(query) ||
           employee.department.toLowerCase().includes(query) ||
-          employee.jobTitle.toLowerCase().includes(query) ||
+          (employee.positionInfo?.position_title || '').toLowerCase().includes(query) ||
           employee.email.toLowerCase().includes(query),
       )
     }
 
     records.sort((a, b) => {
       const comparison =
-        sortBy.value === 'id' ? a.id.localeCompare(b.id) : a.fullName.localeCompare(b.fullName)
+        sortBy.value === 'id'
+          ? a.id.toString().localeCompare(b.id.toString())
+          : a.full_name.localeCompare(b.full_name)
       return sortDesc.value ? -comparison : comparison
     })
 
@@ -90,6 +93,18 @@ export const useEmployeeStore = defineStore('employee', () => {
       throw err
     } finally {
       loading.value = false
+    }
+  }
+
+  // Load positions from backend
+  async function loadPositions() {
+    try {
+      const response = await axios.get('/api/positions')
+      positions.value = response.data
+      return response.data
+    } catch (err) {
+      console.error('Error loading positions:', err)
+      throw err
     }
   }
 
@@ -298,6 +313,7 @@ export const useEmployeeStore = defineStore('employee', () => {
   return {
     // State
     employees,
+    positions,
     currentPage,
     itemsPerPage,
     searchQuery,
@@ -316,6 +332,7 @@ export const useEmployeeStore = defineStore('employee', () => {
 
     // Actions
     loadEmployees,
+    loadPositions,
     createEmployee,
     updateEmployee,
     deleteEmployee,

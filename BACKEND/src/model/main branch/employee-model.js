@@ -12,7 +12,7 @@ class Employee {
       const [employeeResult] = await connection.execute(
         `INSERT INTO employees (
           employee_id, first_name, middle_name, last_name, full_name,
-          department, job_title, role, date_of_hire, date_of_birth,
+          department, position_id, role, date_of_hire, date_of_birth,
           gender, contact_number, email, address, profile_image_path, resume_path
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
@@ -22,16 +22,16 @@ class Employee {
           employeeData.lastName,
           employeeData.fullName,
           employeeData.department,
-          employeeData.jobTitle,
+          employeeData.position_id,
           employeeData.role,
-          employeeData.dateOfHire,
-          employeeData.dateOfBirth,
+          employeeData.date_of_hire,
+          employeeData.date_of_birth,
           employeeData.gender,
-          employeeData.contactNumber,
+          employeeData.contact_number,
           employeeData.email,
           employeeData.address,
-          employeeData.profile_image_path || null, // Changed from profileImage
-          employeeData.resume_path || null, // Changed from resume
+          employeeData.profile_image_path || null,
+          employeeData.resume_path || null,
         ],
       )
 
@@ -48,7 +48,7 @@ class Employee {
           emergencyContact.lastName,
           emergencyContact.fullName,
           emergencyContact.relationship,
-          emergencyContact.contactNumber,
+          emergencyContact.contact_number,
         ],
       )
 

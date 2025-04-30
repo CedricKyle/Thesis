@@ -1,4 +1,11 @@
-const { Employee, User, Role, EmergencyContact, sequelize } = require('../../model/Index.js')
+const {
+  Employee,
+  User,
+  Role,
+  EmergencyContact,
+  sequelize,
+  Position,
+} = require('../../model/Index.js')
 const pool = require('../../config/database.js')
 const { deleteFile, saveFile } = require('../../utils/main branch/fileHandler.js')
 const path = require('path')
@@ -35,7 +42,7 @@ const createEmployee = async (req, res) => {
       'firstName',
       'lastName',
       'department',
-      'jobTitle',
+      'position_id',
       'role_id',
       'dateOfHire',
       'dateOfBirth',
@@ -147,7 +154,7 @@ const createEmployee = async (req, res) => {
         last_name: employeeData.lastName,
         full_name: fullName,
         department: employeeData.department,
-        job_title: employeeData.jobTitle,
+        position_id: employeeData.position_id,
         role_id: role.id, // Use the role's ID
         date_of_hire: employeeData.dateOfHire,
         date_of_birth: employeeData.dateOfBirth,
@@ -264,6 +271,11 @@ const getAllEmployees = async (req, res) => {
           attributes: ['role_name', 'permissions', 'department'],
           paranoid: false,
         },
+        {
+          model: Position,
+          as: 'positionInfo',
+          paranoid: false,
+        },
       ],
       order: [['created_at', 'DESC']],
     })
@@ -312,6 +324,10 @@ const getAllEmployeeById = async (req, res) => {
           model: Role,
           as: 'roleInfo',
           attributes: ['role_name', 'permissions', 'department'],
+        },
+        {
+          model: Position,
+          as: 'positionInfo',
         },
       ],
     })
@@ -389,7 +405,7 @@ const updateEmployee = async (req, res) => {
         last_name: employeeData.lastName,
         full_name: fullName,
         department: employeeData.department,
-        job_title: employeeData.jobTitle,
+        position_id: employeeData.position_id,
         role_id: employeeData.role_id,
         date_of_hire: employeeData.dateOfHire,
         date_of_birth: employeeData.dateOfBirth,
@@ -454,6 +470,10 @@ const updateEmployee = async (req, res) => {
             'relationship',
             'contact_number',
           ],
+        },
+        {
+          model: Position,
+          as: 'positionInfo',
         },
       ],
     })
@@ -600,7 +620,7 @@ const addEmployee = async (req, res) => {
     const [result] = await connection.execute(
       `INSERT INTO employees (
         employee_id, first_name, middle_name, last_name, full_name,
-        department, job_title, role_id, date_of_hire, date_of_birth,
+        department, position_id, role_id, date_of_hire, date_of_birth,
         gender, contact_number, email, address,
         profile_image_path, resume_path
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -611,7 +631,7 @@ const addEmployee = async (req, res) => {
         employeeData.lastName,
         employeeData.fullName,
         employeeData.department,
-        employeeData.jobTitle,
+        employeeData.position_id,
         employeeData.role_id,
         employeeData.dateOfHire,
         employeeData.dateOfBirth,

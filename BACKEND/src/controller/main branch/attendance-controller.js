@@ -314,7 +314,7 @@ const attendanceController = {
           {
             model: Employee,
             as: 'employee',
-            attributes: ['full_name', 'department'],
+            attributes: ['full_name', 'department', 'position_id'],
           },
           {
             model: Employee,
@@ -360,7 +360,7 @@ const attendanceController = {
       // 1. Get employee info
       const employee = await Employee.findOne({
         where: { employee_id, deleted_at: null },
-        attributes: ['employee_id', 'full_name', 'department'],
+        attributes: ['employee_id', 'full_name', 'department', 'position_id'],
       })
       if (!employee) {
         return res.status(404).json({ success: false, message: 'Employee not found' })
@@ -453,7 +453,7 @@ const attendanceController = {
           deleted_at: null,
           role_id: { [Op.ne]: 1 }, // Exclude Super Admin
         },
-        attributes: ['employee_id', 'full_name', 'department'],
+        attributes: ['employee_id', 'full_name', 'department', 'position_id'],
       })
 
       // Get attendance records for these employees
@@ -467,7 +467,7 @@ const attendanceController = {
           {
             model: Employee,
             as: 'employee',
-            attributes: ['employee_id', 'full_name', 'department'],
+            attributes: ['employee_id', 'full_name', 'department', 'position_id'],
             where: {
               role_id: { [Op.ne]: 1 }, // Double-check to ensure no Super Admin records
             },
@@ -675,10 +675,7 @@ const attendanceController = {
           {
             model: Employee,
             as: 'employee',
-            attributes: ['full_name', 'department'],
-            where: {
-              role_id: { [Op.ne]: 1 }, // Exclude Super Admin
-            },
+            attributes: ['full_name', 'department', 'position_id', 'role_id'],
           },
           {
             model: Employee,
@@ -899,7 +896,7 @@ async function getMonthData(employee_id, month, year) {
       {
         model: Employee,
         as: 'employee',
-        attributes: ['full_name', 'department', 'job_title'],
+        attributes: ['full_name', 'department', 'position_id'],
         where: {
           role_id: { [Op.ne]: 1 }, // Double-check Super Admin exclusion
         },

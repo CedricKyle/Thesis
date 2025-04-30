@@ -11,7 +11,7 @@ const employees = ref([
   {
     employee_id: 1,
     full_name: 'John Doe',
-    job_title: 'HR Manager',
+    position_id: 1,
     signIn: null,
     signOut: null,
     status: 'Active',
@@ -68,7 +68,7 @@ const updatePayroll = async () => {
 
 // Filter employees and exclude 'Admin'
 const filteredEmployees = computed(() => {
-  return employees.value.filter((employee) => employee.job_title !== 'Admin')
+  return employees.value.filter((employee) => employee.positionInfo?.position_title !== 'Admin')
 })
 </script>
 
@@ -93,7 +93,7 @@ const filteredEmployees = computed(() => {
           <!-- Display Payroll Data -->
           <tr v-for="(employee, index) in filteredEmployees" :key="employee.employee_id">
             <td>{{ employee.full_name }}</td>
-            <td>{{ employee.job_title }}</td>
+            <td>{{ employee.positionInfo?.position_title }}</td>
             <td>{{ employee.signIn || 'Not Checked In' }}</td>
             <td>{{ employee.signOut || 'Not Checked Out' }}</td>
             <td>{{ employee.status }}</td>

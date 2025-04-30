@@ -15,10 +15,12 @@ import {
   DEPARTMENTS,
   permissionGroups,
 } from '@/composables/Admin Composables/User & Role/role/permissionsId'
+import { usePositionStore } from '@/stores/HR Management/positionStore'
 
 // Store and composable setup
 const store = useEmployeeStore()
 const rolesStore = useRolesStore()
+const positionStore = usePositionStore()
 const { roles } = storeToRefs(rolesStore)
 const { formErrors, validateProfessionalInfo, validatePersonalInfo, validateEmergencyContact } =
   useEmployeeValidation()
@@ -48,7 +50,7 @@ const newEmployee = ref({
   middleName: '',
   lastName: '',
   department: '',
-  jobTitle: '',
+  position_id: '',
   role_id: '',
   dateOfHire: '',
   dateOfBirth: '',
@@ -112,9 +114,9 @@ const availableRoles = computed(() => {
 
 // Update the availableJobs computed property
 const availableJobs = computed(() => {
-  if (!newEmployee.value.department || !newEmployee.value.role_id) return []
-  const role = roles.value.find((r) => r.id === newEmployee.value.role_id)
-  return getJobTitles(newEmployee.value.department, role?.role_name)
+  if (!newEmployee.value.department) return []
+  // Filter positions by department
+  return positionStore.positions.filter((pos) => pos.department === newEmployee.value.department)
 })
 
 // Update the department watcher
@@ -122,12 +124,12 @@ watch(
   () => newEmployee.value.department,
   (newDepartment) => {
     if (newDepartment === DEPARTMENTS.ADMIN) {
-      newEmployee.value.jobTitle = 'Administrator'
+      newEmployee.value.position_id = 'Admin'
       newEmployee.value.role_id = 'Admin'
     } else {
       // Reset role and job title when department changes
       newEmployee.value.role_id = ''
-      newEmployee.value.jobTitle = ''
+      newEmployee.value.position_id = ''
     }
   },
 )
@@ -138,7 +140,7 @@ watch(
   (newRole) => {
     // Reset job title when role changes
     if (newRole && newEmployee.value.department !== DEPARTMENTS.ADMIN) {
-      newEmployee.value.jobTitle = ''
+      newEmployee.value.position_id = ''
     }
   },
 )
@@ -251,8 +253,8 @@ const handleFormSubmit = async () => {
     if (!newEmployee.value.department) {
       formErrors.value.professional.department = 'Department is required'
     }
-    if (!newEmployee.value.jobTitle && newEmployee.value.department !== DEPARTMENTS.ADMIN) {
-      formErrors.value.professional.jobTitle = 'Job Title is required'
+    if (!newEmployee.value.position_id && newEmployee.value.department !== DEPARTMENTS.ADMIN) {
+      formErrors.value.professional.position_id = 'Job Title is required'
     }
     if (!newEmployee.value.role_id) {
       formErrors.value.professional.role_id = 'Role is required'
@@ -382,8 +384,7 @@ const createEmployeeData = (employee) => {
       middleName: (employee.middleName || '').trim(),
       lastName: employee.lastName.trim(),
       department: employee.department.trim(),
-      jobTitle:
-        employee.department === DEPARTMENTS.ADMIN ? 'Administrator' : employee.jobTitle.trim(),
+      position_id: Number(employee.position_id),
       role_id: Number(employee.role_id),
       dateOfHire: formatDate(employee.dateOfHire),
       dateOfBirth: formatDate(employee.dateOfBirth),
@@ -446,7 +447,7 @@ const resetForm = () => {
     middleName: '',
     lastName: '',
     department: '',
-    jobTitle: '',
+    position_id: '',
     role_id: '',
     dateOfHire: '',
     dateOfBirth: '',
@@ -470,6 +471,7 @@ const resetForm = () => {
 onMounted(async () => {
   try {
     await rolesStore.fetchRoles()
+    positionStore.loadPositions()
   } catch (error) {
     showToastMessage('Failed to load roles', 'error')
   }
@@ -590,18 +592,17 @@ const filteredRoles = computed(() => {
               Job Title <span class="text-red-500">*</span>
             </legend>
             <select
-              v-model="newEmployee.jobTitle"
+              v-model="newEmployee.position_id"
               class="select focus:outline-none bg-white border-black text-black"
-              :class="{ 'border-red-500': formErrors.professional.jobTitle }"
-              :disabled="!newEmployee.department || !newEmployee.role_id"
+              :disabled="!newEmployee.department"
             >
               <option disabled value="">Select Job Title</option>
-              <option v-for="job in availableJobs" :key="job" :value="job">
-                {{ job }}
+              <option v-for="position in availableJobs" :key="position.id" :value="position.id">
+                {{ position.position_title }}
               </option>
             </select>
-            <span v-if="formErrors.professional.jobTitle" class="text-red-500 text-xs mt-1">
-              {{ formErrors.professional.jobTitle }}
+            <span v-if="formErrors.professional.position_id" class="text-red-500 text-xs mt-1">
+              {{ formErrors.professional.position_id }}
             </span>
           </div>
 
@@ -919,7 +920,7 @@ const filteredRoles = computed(() => {
 
             <div class="flex flex-row">
               <div class="w-32 text-gray-500">Job Title:</div>
-              <div class="text-black">{{ newEmployee.jobTitle }}</div>
+              <div class="text-black">{{ newEmployee.position_id }}</div>
             </div>
 
             <div class="flex flex-row">
