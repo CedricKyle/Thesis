@@ -2,10 +2,10 @@
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { Bar } from 'vue-chartjs'
-import ProfitImage from '@/assets/Images/profit (1).png';
-import BalanceImage from '@/assets/Images/balance.png';
-import ExpensesImage from '@/assets/Images/expenses.png';
-import BudgetImage from '@/assets/Images/money-bag.png';
+import ProfitImage from '@/assets/Images/profit (1).png'
+import BalanceImage from '@/assets/Images/balance.png'
+import ExpensesImage from '@/assets/Images/expenses.png'
+import BudgetImage from '@/assets/Images/money-bag.png'
 import {
   Chart as ChartJS,
   Title,
@@ -30,7 +30,7 @@ const payrollRecords = ref([
 
 // Compute chart labels (dates)
 const chartLabels = computed(() => {
-  return payrollRecords.value.map(record => record.date)
+  return payrollRecords.value.map((record) => record.date)
 })
 
 // Prepare chart data for Base Salary, Overtime, Deductions, and Net Pay
@@ -40,28 +40,28 @@ const chartData = computed(() => {
     datasets: [
       {
         label: 'Base Salary (₱)',
-        data: payrollRecords.value.map(record => record.baseSalary),
+        data: payrollRecords.value.map((record) => record.baseSalary),
         backgroundColor: 'rgba(54, 162, 235, 0.5)',
         borderColor: 'rgba(54, 162, 235, 1)',
         borderWidth: 1,
       },
       {
         label: 'Overtime (₱)',
-        data: payrollRecords.value.map(record => record.overtime),
+        data: payrollRecords.value.map((record) => record.overtime),
         backgroundColor: 'rgba(255, 159, 64, 0.5)',
         borderColor: 'rgba(255, 159, 64, 1)',
         borderWidth: 1,
       },
       {
         label: 'Deductions (₱)',
-        data: payrollRecords.value.map(record => record.deductions),
+        data: payrollRecords.value.map((record) => record.deductions),
         backgroundColor: 'rgba(255, 99, 132, 0.5)',
         borderColor: 'rgba(255, 99, 132, 1)',
         borderWidth: 1,
       },
       {
         label: 'Net Pay (₱)',
-        data: payrollRecords.value.map(record => record.netPay),
+        data: payrollRecords.value.map((record) => record.netPay),
         backgroundColor: 'rgba(75, 192, 192, 0.5)',
         borderColor: 'rgba(75, 192, 192, 1)',
         borderWidth: 1,
@@ -100,8 +100,9 @@ const transactions = ref([
 </script>
 
 <template>
-
-<div class="stats shadow bg-white mb-3 gap-8.5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+  <div
+    class="stats shadow bg-white mb-3 gap-8.5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 text-black"
+  >
     <!-- Balance Stat -->
     <div class="stat">
       <div class="stat-figure text-secondary">
@@ -158,34 +159,31 @@ const transactions = ref([
       <div class="text-sm text-gray-500 mt-2">April 2025</div>
     </div>
   </div>
-  
-     
 
-   
-    <!-- Main Dashboard Layout (Two sections side by side) -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-      <!-- Left Column: Payroll Chart -->
-      <div class="bg-white border-gray-300  p-6 border-1 pt-2 pr-2 pl-2 pb-0 rounded-lg shadow-md ">
-        <!-- Bar Chart component with full width and height -->
-        <div class="w-full h-96"> <!-- Adjust height to a larger value -->
-  <Bar :data="chartData" :options="chartOptions" />
-</div>
-
+  <!-- Main Dashboard Layout (Two sections side by side) -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+    <!-- Left Column: Payroll Chart -->
+    <div class="bg-white border-gray-300 p-6 border-1 pt-2 pr-2 pl-2 pb-0 rounded-lg shadow-md">
+      <!-- Bar Chart component with full width and height -->
+      <div class="w-full h-96">
+        <!-- Adjust height to a larger value -->
+        <Bar :data="chartData" :options="chartOptions" />
       </div>
+    </div>
 
-      <!-- Right Column: Transaction History -->
-      <div class="bg-white border-gray-300  p-6 border-1 rounded-lg shadow-md">
-        <h2 class="text-xl font-semibold text-left mb-4">Transaction History</h2>
-        <div class="overflow-y-auto max-h-80"> <!-- Adjusted max height -->
-          <div v-for="(transaction, index) in transactions" :key="index" class="border-b py-2">
-            <div class="flex justify-between">
-              <div>{{ transaction.name }}</div>
-              <div class="font-bold">{{ transaction.amount | currency }}</div>
-            </div>
-            <div class="text-sm text-gray-500">{{ transaction.date }}</div>
+    <!-- Right Column: Transaction History -->
+    <div class="bg-white border-gray-300 p-6 border-1 rounded-lg shadow-md text-black">
+      <h2 class="text-xl font-semibold text-left mb-4">Transaction History</h2>
+      <div class="overflow-y-auto max-h-80">
+        <!-- Adjusted max height -->
+        <div v-for="(transaction, index) in transactions" :key="index" class="border-b py-2">
+          <div class="flex justify-between">
+            <div>{{ transaction.name }}</div>
+            <div class="font-bold">{{ transaction.amount | currency }}</div>
           </div>
+          <div class="text-sm text-gray-500">{{ transaction.date }}</div>
         </div>
       </div>
     </div>
+  </div>
 </template>
-
