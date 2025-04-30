@@ -6,8 +6,8 @@ import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
 import EmployeePositions from '@/components/Admin Components/HR/Employee/EmployeePostions.vue'
 import EmployeeSchedules from '@/components/Admin Components/HR/Employee/EmployeeSchedules.vue'
 import EmployeeManageSchedules from '@/components/Admin Components/HR/Employee/EmployeeManageSchedules.vue'
-import EmployeeOvertime from '@/components/Admin Components/HR/Employee/EmpployeeOvertime.vue'
 import EmployeeCashAdvance from '@/components/Admin Components/HR/Employee/EmployeeCashAdvance.vue'
+import EmployeeDeduction from '@/components/Admin Components/HR/Employee/EmplyeeDeduction.vue'
 const store = useEmployeeStore()
 </script>
 
@@ -26,28 +26,28 @@ const store = useEmployeeStore()
         <EmployeeList />
       </div>
 
-      <!-- Employee Schedules Tab -->
-      <input type="radio" name="my_tabs_2" class="tab" aria-label="Schedules" />
-      <div class="tab-content bg-white p-5">
-        <EmployeeSchedules />
-      </div>
-
       <!-- Employee Manage Schedules Tab -->
       <input type="radio" name="my_tabs_2" class="tab" aria-label="Manage Schedules" />
       <div class="tab-content bg-white p-5">
         <EmployeeManageSchedules />
       </div>
 
-      <!-- Employee Overtime Tab -->
-      <input type="radio" name="my_tabs_2" class="tab" aria-label="Overtime" />
+      <!-- Employee Schedules Tab -->
+      <input type="radio" name="my_tabs_2" class="tab" aria-label="Schedules" />
       <div class="tab-content bg-white p-5">
-        <EmployeeOvertime />
+        <EmployeeSchedules />
       </div>
 
       <!-- Employee Cash Advance Tab -->
       <input type="radio" name="my_tabs_2" class="tab" aria-label="Cash Advance" />
       <div class="tab-content bg-white p-5">
         <EmployeeCashAdvance />
+      </div>
+
+      <!-- Employee Deduction Tab -->
+      <input type="radio" name="my_tabs_2" class="tab" aria-label="Deduction" />
+      <div class="tab-content bg-white p-5">
+        <EmployeeDeduction />
       </div>
 
       <!-- Employee Positions Tab -->

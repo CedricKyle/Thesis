@@ -4,9 +4,7 @@ import BaseTable from '@/components/common/BaseTable.vue'
 
 // Table columns
 const columns = [
-  { title: 'Date', field: 'date', sorter: 'date', hozAlign: 'left' },
-  { title: 'Name', field: 'name', sorter: 'string' },
-  { title: 'Department', field: 'department', sorter: 'string' },
+  { title: 'Description', field: 'description', sorter: 'string' },
   {
     title: 'Amount',
     field: 'amount',
@@ -47,50 +45,29 @@ const columns = [
       if (e.target.closest('.view-button')) {
         openViewModal(record)
       }
-      // You can add edit/delete logic here as well
+      // Add edit/delete logic here if needed
     },
   },
 ]
 
 // Example data
-const advances = ref([
-  {
-    date: '2024-06-01',
-    name: 'Juan Dela Cruz',
-    department: 'IT',
-    amount: 1500.0,
-    remarks: 'For family emergency',
-  },
-  {
-    date: '2024-06-03',
-    name: 'Maria Santos',
-    department: 'HR',
-    amount: 2000.0,
-    remarks: 'Medical assistance',
-  },
-  {
-    date: '2024-06-05',
-    name: 'Pedro Reyes',
-    department: 'Finance',
-    amount: 1000.0,
-    remarks: 'Tuition fee',
-  },
+const deductions = ref([
+  { description: 'SSS Contribution', amount: 500.0 },
+  { description: 'Pag-IBIG Loan', amount: 1200.0 },
+  { description: 'PhilHealth', amount: 350.0 },
 ])
 
 // Modal logic
 const createModal = ref(null)
 const viewModal = ref(null)
-const newAdvance = ref({
-  date: '',
-  name: '',
-  department: '',
+const newDeduction = ref({
+  description: '',
   amount: '',
-  remarks: '',
 })
-const selectedAdvance = ref(null)
+const selectedDeduction = ref(null)
 
 const openCreateModal = () => {
-  newAdvance.value = { date: '', name: '', department: '', amount: '', remarks: '' }
+  newDeduction.value = { description: '', amount: '' }
   createModal.value?.showModal()
 }
 
@@ -98,20 +75,15 @@ const closeCreateModal = () => {
   createModal.value?.close()
 }
 
-const addAdvance = () => {
-  if (
-    newAdvance.value.date &&
-    newAdvance.value.name &&
-    newAdvance.value.department &&
-    newAdvance.value.amount
-  ) {
-    advances.value.push({ ...newAdvance.value })
+const addDeduction = () => {
+  if (newDeduction.value.description && newDeduction.value.amount) {
+    deductions.value.push({ ...newDeduction.value })
     closeCreateModal()
   }
 }
 
-function openViewModal(advance) {
-  selectedAdvance.value = advance
+function openViewModal(deduction) {
+  selectedDeduction.value = deduction
   viewModal.value?.showModal()
 }
 
@@ -124,38 +96,30 @@ function closeViewModal() {
   <div class="flex flex-col mt-4">
     <!-- Header and Create Button -->
     <div class="flex justify-between items-center mb-4">
-      <h2 class="text-xl font-semibold text-black">Employee Cash Advance</h2>
-      <button class="btn-primaryStyle" @click="openCreateModal">Add Cash Advance</button>
+      <h2 class="text-xl font-semibold text-black">Employee Deduction</h2>
+      <button class="btn-primaryStyle" @click="openCreateModal">Add Deduction</button>
     </div>
 
     <!-- Table -->
-    <BaseTable :columns="columns" :data="advances" :showExport="false" />
+    <BaseTable :columns="columns" :data="deductions" :showExport="false" />
     <div class="flex justify-end gap-2 mt-4">
       <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
       <span class="text-sm cursor-pointer hover:text-gray-500 text-black"
-        >Show Archived Cash Advances</span
+        >Show Archived Deductions</span
       >
     </div>
 
-    <!-- Create Cash Advance Modal -->
+    <!-- Create Deduction Modal -->
     <dialog ref="createModal" class="modal">
       <div class="modal-box bg-white w-96">
-        <h3 class="font-bold text-md text-black">Add Cash Advance</h3>
+        <h3 class="font-bold text-md text-black">Add Deduction</h3>
         <div
           class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
         ></div>
-        <form @submit.prevent="addAdvance" class="flex flex-col gap-4 mt-2">
+        <form @submit.prevent="addDeduction" class="flex flex-col gap-4 mt-2">
           <div>
-            <label class="block text-sm text-black mb-1">Date</label>
-            <input v-model="newAdvance.date" type="date" class="input-search" required />
-          </div>
-          <div>
-            <label class="block text-sm text-black mb-1">Name</label>
-            <input v-model="newAdvance.name" type="text" class="input-search" required />
-          </div>
-          <div>
-            <label class="block text-sm text-black mb-1">Department</label>
-            <input v-model="newAdvance.department" type="text" class="input-search" required />
+            <label class="block text-sm text-black mb-1">Description</label>
+            <input v-model="newDeduction.description" type="text" class="input-search" required />
           </div>
           <div>
             <label class="block text-sm text-black mb-1">Amount</label>
@@ -164,7 +128,7 @@ function closeViewModal() {
                 >₱</span
               >
               <input
-                v-model="newAdvance.amount"
+                v-model="newDeduction.amount"
                 type="number"
                 min="0"
                 step="0.01"
@@ -173,15 +137,6 @@ function closeViewModal() {
                 required
               />
             </div>
-          </div>
-          <div>
-            <label class="block text-sm text-black mb-1">Remarks</label>
-            <textarea
-              v-model="newAdvance.remarks"
-              class="input-search"
-              rows="2"
-              placeholder="Enter remarks here..."
-            ></textarea>
           </div>
           <div class="modal-action justify-center gap-4 mt-2">
             <button type="submit" class="btn-primaryStyle">Add</button>
@@ -193,42 +148,28 @@ function closeViewModal() {
       </div>
     </dialog>
 
-    <!-- View Cash Advance Modal (Styled like EmployeeList) -->
+    <!-- View Deduction Modal (Styled like EmployeeList) -->
     <dialog ref="viewModal" class="modal">
       <div class="modal-box bg-white w-96">
-        <h3 class="font-bold text-md text-black">Cash Advance Details</h3>
+        <h3 class="font-bold text-md text-black">Deduction Details</h3>
         <div
           class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
         ></div>
-        <div v-if="selectedAdvance" class="flex flex-col gap-2 mt-2 text-black">
+        <div v-if="selectedDeduction" class="flex flex-col gap-2 mt-2 text-black">
           <div class="flex justify-between">
-            <span class="text-sm text-gray-500">Date:</span>
-            <span class="text-sm">{{ selectedAdvance.date }}</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-sm text-gray-500">Name:</span>
-            <span class="text-sm">{{ selectedAdvance.name }}</span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-sm text-gray-500">Department:</span>
-            <span class="text-sm">{{ selectedAdvance.department }}</span>
+            <span class="text-sm text-gray-500">Description:</span>
+            <span class="text-sm">{{ selectedDeduction.description }}</span>
           </div>
           <div class="flex justify-between">
             <span class="text-sm text-gray-500">Amount:</span>
             <span class="text-sm">
               ₱
               {{
-                Number(selectedAdvance.amount).toLocaleString('en-PH', {
+                Number(selectedDeduction.amount).toLocaleString('en-PH', {
                   minimumFractionDigits: 2,
                   maximumFractionDigits: 2,
                 })
               }}
-            </span>
-          </div>
-          <div class="flex justify-between">
-            <span class="text-sm text-gray-500">Remarks:</span>
-            <span class="text-right whitespace-pre-line break-words max-w-[180px]">
-              {{ selectedAdvance.remarks || '-' }}
             </span>
           </div>
         </div>
