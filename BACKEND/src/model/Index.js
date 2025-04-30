@@ -18,6 +18,7 @@ const ProductPriceHistory = require('./SCM Model/ProductPriceHistory.js')(sequel
 const StockIn = require('./SCM Model/StockIn.js')(sequelize)
 const StockOut = require('./SCM Model/StockOut.js')(sequelize)
 const StockAdjustment = require('./SCM Model/StockAdjustment')(sequelize)
+const Position = require('./EmployeePositions')(sequelize)
 
 // Define relationships
 Employee.hasOne(EmergencyContact, {
@@ -83,4 +84,5 @@ module.exports = {
   StockIn,
   StockOut,
   StockAdjustment,
+  Position,
 }
