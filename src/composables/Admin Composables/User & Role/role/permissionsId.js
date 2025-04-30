@@ -24,6 +24,9 @@ export const PERMISSION_IDS = {
   FINANCE_VIEW_DASHBOARD: 9,
   FINANCE_MANAGE_PAYROLL: 10,
   FINANCE_VIEW_REPORTS: 11,
+  FINANCE_MANAGE_TAX_MANAGEMENT: 23,
+  FINANCE_MANAGE_TREASURY_MANAGEMENT: 24,
+  FINANCE_MANAGE_ACCOUNTING_MANAGEMENT: 25,
 
   // Sales Department Permissions
   SALES_FULL_ACCESS: 12,
@@ -69,6 +72,12 @@ export const permissionGroups = [
       { id: PERMISSION_IDS.FINANCE_VIEW_DASHBOARD, name: 'View Dashboard' },
       { id: PERMISSION_IDS.FINANCE_MANAGE_PAYROLL, name: 'Manage Payroll' },
       { id: PERMISSION_IDS.FINANCE_VIEW_REPORTS, name: 'View Reports' },
+      { id: PERMISSION_IDS.FINANCE_MANAGE_TAX_MANAGEMENT, name: 'Manage Tax Management' },
+      { id: PERMISSION_IDS.FINANCE_MANAGE_TREASURY_MANAGEMENT, name: 'Manage Treasury Management' },
+      {
+        id: PERMISSION_IDS.FINANCE_MANAGE_ACCOUNTING_MANAGEMENT,
+        name: 'Manage Accounting Management',
+      },
     ],
   },
   {

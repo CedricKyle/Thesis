@@ -13,6 +13,11 @@ const EmergencyContact = require('./EmergencyContact')(sequelize)
 const Role = require('./Role')(sequelize)
 const User = require('./User')(sequelize)
 const EmployeeAttendance = require('./EmployeeAttendance')(sequelize)
+const InventoryProduct = require('./SCM Model/InventoryProduct')(sequelize)
+const ProductPriceHistory = require('./SCM Model/ProductPriceHistory.js')(sequelize)
+const StockIn = require('./SCM Model/StockIn.js')(sequelize)
+const StockOut = require('./SCM Model/StockOut.js')(sequelize)
+const StockAdjustment = require('./SCM Model/StockAdjustment')(sequelize)
 
 // Define relationships
 Employee.hasOne(EmergencyContact, {
@@ -61,6 +66,10 @@ EmployeeAttendance.belongsTo(Employee, {
   as: 'approver',
 })
 
+// Associations
+StockAdjustment.belongsTo(InventoryProduct, { foreignKey: 'product_id' })
+InventoryProduct.hasMany(StockAdjustment, { foreignKey: 'product_id' })
+
 // Export models and sequelize instance
 module.exports = {
   sequelize,
@@ -69,4 +78,9 @@ module.exports = {
   Role,
   User,
   EmployeeAttendance,
+  InventoryProduct,
+  ProductPriceHistory,
+  StockIn,
+  StockOut,
+  StockAdjustment,
 }

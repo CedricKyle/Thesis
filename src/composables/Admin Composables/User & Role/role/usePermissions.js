@@ -134,6 +134,24 @@ export function usePermissions(employeeRole) {
         icon: FileText,
         permission: PERMISSION_IDS.FINANCE_VIEW_REPORTS,
       },
+      {
+        name: 'Tax',
+        route: '/finance/tax-management',
+        icon: FileText,
+        permission: PERMISSION_IDS.FINANCE_MANAGE_TAX_MANAGEMENT,
+      },
+      {
+        name: 'Treasury',
+        route: '/finance/treasury-management',
+        icon: FileText,
+        permission: PERMISSION_IDS.FINANCE_MANAGE_TREASURY_MANAGEMENT,
+      },
+      {
+        name: 'Accounting',
+        route: '/finance/accounting-management',
+        icon: FileText,
+        permission: PERMISSION_IDS.FINANCE_MANAGE_ACCOUNTING_MANAGEMENT,
+      },
     ],
     [DEPARTMENTS.SALES]: [
       {
@@ -206,6 +224,15 @@ export function usePermissions(employeeRole) {
           },
           'Finance Report': {
             route: '/admin/finance/report',
+          },
+          Tax: {
+            route: '/admin/finance/tax-management',
+          },
+          Treasury: {
+            route: '/admin/finance/treasury-management',
+          },
+          Accounting: {
+            route: '/admin/finance/accounting-management',
           },
         },
       },
