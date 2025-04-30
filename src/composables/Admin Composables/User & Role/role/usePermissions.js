@@ -109,6 +109,12 @@ export function usePermissions(employeeRole) {
         permission: PERMISSION_IDS.HR_VIEW_ATTENDANCE_REPORT,
       },
       {
+        name: 'Payroll',
+        route: '/hr/payroll',
+        icon: Wallet,
+        permission: PERMISSION_IDS.HR_MANAGE_PAYROLL,
+      },
+      {
         name: 'Roles',
         route: '/hr/roles',
         icon: Shield,
@@ -207,6 +213,9 @@ export function usePermissions(employeeRole) {
           },
           'Attendance Report': {
             route: '/admin/hr/attendance-report',
+          },
+          Payroll: {
+            route: '/admin/hr/payroll',
           },
           Roles: {
             route: '/admin/hr/roles',

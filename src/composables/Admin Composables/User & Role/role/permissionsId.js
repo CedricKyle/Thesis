@@ -18,6 +18,7 @@ export const PERMISSION_IDS = {
   HR_MANAGE_ATTENDANCE: 5,
   HR_VIEW_ATTENDANCE_REPORT: 6,
   HR_MANAGE_ROLES: 7,
+  HR_MANAGE_PAYROLL: 26,
 
   // Finance Department Permissions
   FINANCE_FULL_ACCESS: 8,
@@ -62,6 +63,7 @@ export const permissionGroups = [
       { id: PERMISSION_IDS.HR_MANAGE_ATTENDANCE, name: 'Manage Attendance' },
       { id: PERMISSION_IDS.HR_VIEW_ATTENDANCE_REPORT, name: 'View Attendance Report' },
       { id: PERMISSION_IDS.HR_MANAGE_ROLES, name: 'Manage Roles' },
+      { id: PERMISSION_IDS.HR_MANAGE_PAYROLL, name: 'Manage Payroll' },
     ],
   },
   {

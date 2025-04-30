@@ -3,7 +3,11 @@ import EmployeeList from '@/components/Admin Components/HR/Employee/EmployeeList
 import EmployeeForm from '@/components/Admin Components/HR/Employee/EmployeeForm.vue'
 import EmployeeView from '@/components/Admin Components/HR/Employee/EmployeeView.vue'
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
-
+import EmployeePositions from '@/components/Admin Components/HR/Employee/EmployeePostions.vue'
+import EmployeeSchedules from '@/components/Admin Components/HR/Employee/EmployeeSchedules.vue'
+import EmployeeManageSchedules from '@/components/Admin Components/HR/Employee/EmployeeManageSchedules.vue'
+import EmployeeOvertime from '@/components/Admin Components/HR/Employee/EmpployeeOvertime.vue'
+import EmployeeCashAdvance from '@/components/Admin Components/HR/Employee/EmployeeCashAdvance.vue'
 const store = useEmployeeStore()
 </script>
 
@@ -20,6 +24,36 @@ const store = useEmployeeStore()
       />
       <div class="tab-content bg-white p-2">
         <EmployeeList />
+      </div>
+
+      <!-- Employee Schedules Tab -->
+      <input type="radio" name="my_tabs_2" class="tab" aria-label="Schedules" />
+      <div class="tab-content bg-white p-5">
+        <EmployeeSchedules />
+      </div>
+
+      <!-- Employee Manage Schedules Tab -->
+      <input type="radio" name="my_tabs_2" class="tab" aria-label="Manage Schedules" />
+      <div class="tab-content bg-white p-5">
+        <EmployeeManageSchedules />
+      </div>
+
+      <!-- Employee Overtime Tab -->
+      <input type="radio" name="my_tabs_2" class="tab" aria-label="Overtime" />
+      <div class="tab-content bg-white p-5">
+        <EmployeeOvertime />
+      </div>
+
+      <!-- Employee Cash Advance Tab -->
+      <input type="radio" name="my_tabs_2" class="tab" aria-label="Cash Advance" />
+      <div class="tab-content bg-white p-5">
+        <EmployeeCashAdvance />
+      </div>
+
+      <!-- Employee Positions Tab -->
+      <input type="radio" name="my_tabs_2" class="tab" aria-label="Positions" />
+      <div class="tab-content bg-white p-5">
+        <EmployeePositions />
       </div>
 
       <!-- Add Employee Tab -->

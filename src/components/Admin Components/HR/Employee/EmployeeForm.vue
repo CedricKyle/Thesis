@@ -484,10 +484,10 @@ const filteredRoles = computed(() => {
 </script>
 
 <template>
-  <div class="flex gap-4 container h-[600px] text-black">
+  <div class="flex gap-4 container h-auto text-black">
     <!-- Professional Information -->
     <div
-      class="professional-container w-[30%] border border-gray-200 p-5 rounded-md shadow-md overflow-y-auto bg-white"
+      class="professional-container w-[30%] border border-gray-200 p-5 rounded-md shadow-md bg-white"
     >
       <div class="flex flex-col gap-4 m-5">
         <!-- Profile Selection -->
@@ -660,7 +660,7 @@ const filteredRoles = computed(() => {
 
     <!-- Personal Information -->
     <div
-      class="personal-container w-[70%] border border-gray-200 p-5 rounded-md shadow-md overflow-y-auto bg-white"
+      class="personal-container w-[70%] border border-gray-200 p-5 rounded-md shadow-mD bg-white"
     >
       <div class="container flex flex-col gap-2">
         <div class="title font-bold text-md">Personal Information</div>
