@@ -981,22 +981,47 @@ export const useAttendanceStore = defineStore('attendance', () => {
   // Add this action to fetch and map department attendance
   const fetchDepartmentAttendance = async (department, startDate, endDate) => {
     try {
-      // Accept "ALL_DEPARTMENTS" as department
+      // Validate dates
+      if (!startDate || !endDate) {
+        throw new Error('Start date and end date are required')
+      }
+
+      const formattedStartDate = new Date(startDate).toISOString().split('T')[0]
+      const formattedEndDate = new Date(endDate).toISOString().split('T')[0]
       const depParam = department || 'ALL_DEPARTMENTS'
-      const response = await axios.get(
-        `/api/attendance/department/${depParam}?start_date=${startDate}&end_date=${endDate}`,
-        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } },
-      )
+
+      const response = await axios.get(`/api/attendance/department/${depParam}`, {
+        params: {
+          start_date: formattedStartDate,
+          end_date: formattedEndDate,
+        },
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      })
+
+      if (!response.data.success) {
+        console.warn('No attendance data returned:', response.data.message)
+        departmentAttendanceRaw.value = []
+        return []
+      }
+
+      // Map the response data to match the table component expectations
       departmentAttendanceRaw.value = (response.data.data || []).map((record) => ({
+        id: record.id,
         employee_id: record.employee_id,
-        full_name: record.employee?.full_name || record.full_name || '',
+        full_name: record.full_name,
+        department: record.department,
         date: record.date,
-        signIn: record.time_in || '-',
-        signOut: record.time_out || '-',
-        workingHours: record.working_hours || 0,
+        signIn: record.signIn,
+        signOut: record.signOut,
+        workingHours: Number(record.workingHours || 0).toFixed(2),
         status: record.status,
-        department: record.employee?.department || record.department || '',
+        approval_status: record.approval_status,
+        overtime_hours: Number(record.overtime_hours || 0).toFixed(2),
+        overtime_proof: record.overtime_proof,
       }))
+
       return departmentAttendanceRaw.value
     } catch (error) {
       console.error('Error fetching department attendance:', error)
