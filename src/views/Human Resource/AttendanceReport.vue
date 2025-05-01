@@ -45,36 +45,63 @@ const formData = ref({
   endDate: '',
 })
 
+// Error state
+const error = ref(null)
+const isLoading = ref(false)
+
 // Add a state to track if a report has been generated
 const hasGeneratedReport = ref(false)
 
 // Load initial data and reset report
 onMounted(async () => {
-  await employeeStore.loadEmployees()
-  await attendanceStore.loadRecords()
-  attendanceStore.resetReportFilters()
-  hasGeneratedReport.value = false
+  try {
+    isLoading.value = true
+    error.value = null
+    await employeeStore.loadEmployees()
+    await attendanceStore.loadRecords()
+    attendanceStore.resetReportFilters()
+    hasGeneratedReport.value = false
+  } catch (err) {
+    error.value = 'Failed to load initial data. Please refresh the page.'
+    console.error('Initialization error:', err)
+  } finally {
+    isLoading.value = false
+  }
 })
 
 const isDepartmentReport = ref(false)
 
 const handleFormSubmit = async (employeeId) => {
-  // If "ALL_DEPARTMENTS" is selected, treat as department report
-  isDepartmentReport.value = employeeId === 'ALL' || formData.value.department === 'ALL_DEPARTMENTS'
-  attendanceStore.setReportFilters({
-    startDate: formData.value.startDate,
-    endDate: formData.value.endDate,
-    department: formData.value.department,
-    employeeId,
-  })
-  hasGeneratedReport.value = true
+  try {
+    isLoading.value = true
+    error.value = null
 
-  if (isDepartmentReport.value) {
-    await attendanceStore.fetchDepartmentAttendance(
-      formData.value.department,
-      formData.value.startDate,
-      formData.value.endDate,
-    )
+    // If "ALL_DEPARTMENTS" is selected, treat as department report
+    isDepartmentReport.value =
+      employeeId === 'ALL' || formData.value.department === 'ALL_DEPARTMENTS'
+
+    attendanceStore.setReportFilters({
+      startDate: formData.value.startDate,
+      endDate: formData.value.endDate,
+      department: formData.value.department,
+      employeeId,
+    })
+
+    if (isDepartmentReport.value) {
+      await attendanceStore.fetchDepartmentAttendance(
+        formData.value.department,
+        formData.value.startDate,
+        formData.value.endDate,
+      )
+    }
+
+    hasGeneratedReport.value = true
+  } catch (err) {
+    error.value = 'Failed to generate report. Please try again.'
+    console.error('Report generation error:', err)
+    hasGeneratedReport.value = false
+  } finally {
+    isLoading.value = false
   }
 }
 
@@ -215,6 +242,23 @@ const handleExportPDF = () => {
 <template>
   <div class="attendance-report-container min-h-screen overflow-y-auto">
     <div class="report-container w-full flex flex-col justify-between gap-4 text-black">
+      <!-- Loading Indicator -->
+      <div
+        v-if="isLoading"
+        class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+      >
+        <div class="bg-white p-4 rounded-md shadow-lg">
+          <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primaryColor"></div>
+          <p class="mt-2 text-sm">Loading...</p>
+        </div>
+      </div>
+
+      <!-- Error Alert -->
+      <div v-if="error" class="bg-red-50 text-red-700 p-4 rounded-md mb-4">
+        {{ error }}
+        <button @click="error = null" class="float-right text-red-700 hover:text-red-900">×</button>
+      </div>
+
       <AttendanceReportForm v-model:formData="formData" @submit="handleFormSubmit" />
 
       <!-- Most Stats Cards -->

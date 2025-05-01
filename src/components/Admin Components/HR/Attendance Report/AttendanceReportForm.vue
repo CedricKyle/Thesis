@@ -17,24 +17,29 @@ const emit = defineEmits(['update:formData', 'submit'])
 
 const employeeStore = useEmployeeStore()
 const { employees } = storeToRefs(employeeStore)
+const error = ref(null)
 
 // Load employees when component mounts
 onMounted(async () => {
-  await employeeStore.loadEmployees()
-  console.log('Loaded employees:', employees.value) // Debug log
+  try {
+    error.value = null
+    await employeeStore.loadEmployees()
+    console.log('Loaded employees:', employees.value)
+  } catch (err) {
+    error.value = 'Failed to load employees. Please try again.'
+    console.error('Error loading employees:', err)
+  }
 })
 
 const filteredEmployees = computed(() => {
   if (!props.formData.department) return []
 
-  console.log('Filtering employees:', {
-    department: props.formData.department,
-    employees: employees.value,
-  })
-
   return employees.value.filter(
     (emp) =>
-      emp.department === props.formData.department && !emp.deleted_at && emp.role !== 'Super Admin',
+      (props.formData.department === 'ALL_DEPARTMENTS' ||
+        emp.department === props.formData.department) &&
+      !emp.deleted_at &&
+      emp.role !== 'Super Admin',
   )
 })
 
@@ -46,21 +51,54 @@ const departments = [
   'CRM Department',
 ]
 
-const handleSubmit = () => {
-  if (props.formData.employeeName === 'ALL') {
-    emit('submit', 'ALL')
-    return
+const validateDates = () => {
+  const startDate = new Date(props.formData.startDate)
+  const endDate = new Date(props.formData.endDate)
+
+  if (endDate < startDate) {
+    error.value = 'End date cannot be earlier than start date'
+    return false
   }
-  const selectedEmployee = employees.value.find(
-    (emp) => emp.full_name === props.formData.employeeName,
-  )
-  if (!selectedEmployee) return
-  emit('submit', selectedEmployee.employee_id)
+  return true
+}
+
+const handleSubmit = () => {
+  try {
+    error.value = null
+
+    if (!validateDates()) {
+      return
+    }
+
+    if (props.formData.employeeName === 'ALL') {
+      emit('submit', 'ALL')
+      return
+    }
+
+    const selectedEmployee = employees.value.find(
+      (emp) => emp.full_name === props.formData.employeeName,
+    )
+
+    if (!selectedEmployee) {
+      error.value = 'Selected employee not found'
+      return
+    }
+
+    emit('submit', selectedEmployee.employee_id)
+  } catch (err) {
+    error.value = 'An error occurred while submitting the form'
+    console.error('Form submission error:', err)
+  }
 }
 </script>
 
 <template>
   <div class="p-5 bg-white rounded-md shadow-md">
+    <!-- Error Alert -->
+    <div v-if="error" class="mb-4 p-3 bg-red-50 text-red-700 rounded-md">
+      {{ error }}
+    </div>
+
     <div class="flex flex-col gap-4 w-full">
       <div class="report-title">
         <h1 class="font-semibold">Attendance Report</h1>
@@ -117,6 +155,7 @@ const handleSubmit = () => {
                 v-model="formData.startDate"
                 type="date"
                 class="input input-sm focus:outline-none text-black bg-transparent"
+                :max="formData.endDate"
               />
 
               <MoveRight class="w-10 h-6" />
@@ -125,6 +164,7 @@ const handleSubmit = () => {
                 v-model="formData.endDate"
                 type="date"
                 class="w-full input input-sm focus:outline-none text-black bg-transparent"
+                :min="formData.startDate"
               />
             </div>
           </div>
@@ -159,5 +199,10 @@ input[type='date'] {
 .select {
   min-height: 2rem;
   height: 2rem;
+}
+
+input[type='date']::-webkit-calendar-picker-indicator {
+  filter: invert(0%) brightness(0%);
+  cursor: pointer;
 }
 </style>

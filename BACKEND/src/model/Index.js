@@ -18,8 +18,10 @@ const ProductPriceHistory = require('./SCM Model/ProductPriceHistory.js')(sequel
 const StockIn = require('./SCM Model/StockIn.js')(sequelize)
 const StockOut = require('./SCM Model/StockOut.js')(sequelize)
 const StockAdjustment = require('./SCM Model/StockAdjustment')(sequelize)
+const Position = require('./EmployeePositions')(sequelize)
 
-// Define relationships
+// Define relationships for other models (not EmployeeAttendance!)
+// (Keep only these if you need them)
 Employee.hasOne(EmergencyContact, {
   foreignKey: 'employee_id',
   as: 'emergencyContact',
@@ -36,16 +38,6 @@ User.belongsTo(Employee, {
   foreignKey: 'employee_id',
 })
 
-Employee.belongsTo(Role, {
-  foreignKey: 'role_id',
-  targetKey: 'id',
-  as: 'roleInfo',
-})
-Role.hasMany(Employee, {
-  foreignKey: 'role_id',
-  sourceKey: 'id',
-})
-
 // Add Attendance relationships
 Employee.hasMany(EmployeeAttendance, {
   foreignKey: 'employee_id',
@@ -53,25 +45,12 @@ Employee.hasMany(EmployeeAttendance, {
   as: 'attendanceRecords',
 })
 
-EmployeeAttendance.belongsTo(Employee, {
-  foreignKey: 'employee_id',
-  targetKey: 'employee_id',
-  as: 'employee',
-})
-
-// For the approver relationship
-EmployeeAttendance.belongsTo(Employee, {
-  foreignKey: 'approved_by',
-  targetKey: 'employee_id',
-  as: 'approver',
-})
-
 // Associations
 StockAdjustment.belongsTo(InventoryProduct, { foreignKey: 'product_id' })
 InventoryProduct.hasMany(StockAdjustment, { foreignKey: 'product_id' })
 
 // Export models and sequelize instance
-module.exports = {
+const db = {
   sequelize,
   Employee,
   EmergencyContact,
@@ -83,4 +62,14 @@ module.exports = {
   StockIn,
   StockOut,
   StockAdjustment,
+  Position,
 }
+
+// Call associate for all models
+Object.values(db).forEach((model) => {
+  if (model.associate) {
+    model.associate(db)
+  }
+})
+
+module.exports = db

@@ -97,7 +97,7 @@ const formatDisplayDate = (dateString) => {
           <div class="name-container text-center">
             <h3 class="font-bold text-lg">{{ store.selectedEmployee.full_name }}</h3>
             <p class="badge badge-outline badge-warning mt-1 text-xs">
-              {{ store.selectedEmployee.job_title }}
+              {{ store.selectedEmployee.positionInfo?.position_title }}
             </p>
             <br />
           </div>

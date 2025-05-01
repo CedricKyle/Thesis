@@ -2,10 +2,10 @@
 import { ref, computed, onMounted } from 'vue'
 import axios from 'axios'
 import { Bar } from 'vue-chartjs'
-import ProfitImage from '@/assets/Images/profit (1).png';
-import BalanceImage from '@/assets/Images/balance.png';
-import ExpensesImage from '@/assets/Images/expenses.png';
-import BudgetImage from '@/assets/Images/money-bag.png';
+import ProfitImage from '@/assets/Images/profit (1).png'
+import BalanceImage from '@/assets/Images/balance.png'
+import ExpensesImage from '@/assets/Images/expenses.png'
+import BudgetImage from '@/assets/Images/money-bag.png'
 import {
   Chart as ChartJS,
   Title,
@@ -30,7 +30,7 @@ const payrollRecords = ref([
 
 // Compute chart labels (dates)
 const chartLabels = computed(() => {
-  return payrollRecords.value.map(record => record.date)
+  return payrollRecords.value.map((record) => record.date)
 })
 
 // Prepare chart data for Base Salary, Overtime, Deductions, and Net Pay
@@ -40,28 +40,28 @@ const chartData = computed(() => {
     datasets: [
       {
         label: 'Base Salary (₱)',
-        data: payrollRecords.value.map(record => record.baseSalary),
+        data: payrollRecords.value.map((record) => record.baseSalary),
         backgroundColor: 'rgba(54, 162, 235, 0.5)',
         borderColor: 'rgba(54, 162, 235, 1)',
         borderWidth: 1,
       },
       {
         label: 'Overtime (₱)',
-        data: payrollRecords.value.map(record => record.overtime),
+        data: payrollRecords.value.map((record) => record.overtime),
         backgroundColor: 'rgba(255, 159, 64, 0.5)',
         borderColor: 'rgba(255, 159, 64, 1)',
         borderWidth: 1,
       },
       {
         label: 'Deductions (₱)',
-        data: payrollRecords.value.map(record => record.deductions),
+        data: payrollRecords.value.map((record) => record.deductions),
         backgroundColor: 'rgba(255, 99, 132, 0.5)',
         borderColor: 'rgba(255, 99, 132, 1)',
         borderWidth: 1,
       },
       {
         label: 'Net Pay (₱)',
-        data: payrollRecords.value.map(record => record.netPay),
+        data: payrollRecords.value.map((record) => record.netPay),
         backgroundColor: 'rgba(75, 192, 192, 0.5)',
         borderColor: 'rgba(75, 192, 192, 1)',
         borderWidth: 1,
@@ -100,67 +100,94 @@ const transactions = ref([
 </script>
 
 <template>
-
-<div class="stats shadow bg-white mb-3 gap-8.5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-    <!-- Balance Stat -->
-    <div class="stat">
-      <div class="stat-figure text-secondary">
-        <div class="avatar online">
-          <div class="w-11">
-            <img :src="BalanceImage" />
+<div class="grid grid-cols-4 grid-rows-[auto_auto_auto_auto] gap-4 text-black">
+  <!--Stats Grid-->
+  <div class="col-span-3 flex gap-4 justify-between">
+    <div>
+      <div class="card bg-white w-64 shadow-md">
+        <div class="card-body">
+          <div class="card-header flex flex-row gap-2 justify-between">
+            <div><h1 class="text-xl font-bold text-gray-600">Balance</h1></div> <!-- Replaced Present with Balance -->
+            <div><EllipsisVertical class="w-4 h-4" /></div>
           </div>
-        </div>
-      </div>
-      <div class="stat-value mb-5">Balance</div>
-      <div class="text-3xl font-bold text-primaryColor">120</div>
-      <div class="text-sm text-gray-500 mt-2">April 2025</div>
-    </div>
-
-    <!-- Expenses Stat -->
-    <div class="stat">
-      <div class="stat-figure text-secondary">
-        <div class="avatar online">
-          <div class="w-11">
+          <div class="card-content mt-4 flex flex-row gap-2 justify-between">
+            <div>
+              <h1 class="text-primaryColor text-4xl font-bold">4</h1> <!-- Number 4 for Balance -->
+            </div>
+            <div class="w-11">
             <img :src="ExpensesImage" />
           </div>
+          </div>
+          <div class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"></div>
+          <div class="text-sm text-gray-500 mt-2">April 2025</div>
         </div>
       </div>
-      <div class="stat-value mb-5">Expenses</div>
-      <div class="text-3xl font-bold text-primaryColor">120</div>
-      <div class="text-sm text-gray-500 mt-2">April 2025</div>
     </div>
-
-    <!-- Budget Stat -->
-    <div class="stat">
-      <div class="stat-figure text-secondary">
-        <div class="avatar online">
-          <div class="w-11">
+    <div>
+      <div class="card bg-white w-64 shadow-md">
+        <div class="card-body">
+          <div class="card-header flex flex-row gap-2 justify-between">
+            <div><h1 class="text-xl font-bold text-gray-600">Expenses</h1></div> <!-- Replaced Absent with Expenses -->
+            <div><EllipsisVertical class="w-4 h-4" /></div>
+          </div>
+          <div class="card-content mt-4 flex flex-row gap-2 justify-between">
+            <div>
+              <h1 class="text-primaryColor text-4xl font-bold">4</h1> <!-- Number 4 for Expenses -->
+            </div>
+            <div class="w-11">
+            <img :src="BalanceImage" />
+          </div>
+          </div>
+          <div class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"></div>
+          <div class="text-sm text-gray-500 mt-2">April 2025</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card bg-white w-64 shadow-md">
+        <div class="card-body">
+          <div class="card-header flex flex-row gap-2 justify-between">
+            <div><h1 class="text-xl font-bold text-gray-600">Budget</h1></div> <!-- Replaced Late with Budget -->
+            <div><EllipsisVertical class="w-4 h-4" /></div>
+          </div>
+          <div class="card-content mt-4 flex flex-row gap-2 justify-between">
+            <div>
+              <h1 class="text-primaryColor text-4xl font-bold">4</h1> <!-- Number 4 for Budget -->
+            </div>
+            <div class="w-11">
             <img :src="BudgetImage" />
           </div>
+          </div>
+          <div class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"></div>
+          <div class="text-sm text-gray-500 mt-2">April 2025</div>
         </div>
       </div>
-      <div class="stat-value mb-5">Budget</div>
-      <div class="text-3xl font-bold text-primaryColor">120</div>
-      <div class="text-sm text-gray-500 mt-2">April 2025</div>
     </div>
-
-    <!-- Income Stat -->
-    <div class="stat">
-      <div class="stat-figure text-secondary">
-        <div class="avatar online">
-          <div class="w-11">
+    <div>
+      <div class="card bg-white w-64 shadow-md">
+        <div class="card-body">
+          <div class="card-header flex flex-row gap-2 justify-between">
+            <div><h1 class="text-xl font-bold text-gray-600">Income</h1></div> <!-- Replaced Late with Income -->
+            <div><EllipsisVertical class="w-4 h-4" /></div>
+          </div>
+          <div class="card-content mt-4 flex flex-row gap-2 justify-between">
+            <div>
+              <h1 class="text-primaryColor text-4xl font-bold">4</h1> <!-- Number 4 for Income -->
+            </div>
+            <div class="w-11">
             <img :src="ProfitImage" />
           </div>
+          </div>
+          <div class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"></div>
+          <div class="text-sm text-gray-500 mt-2">April 2025</div>
         </div>
       </div>
-      <div class="stat-value mb-5">Income</div>
-      <div class="text-3xl font-bold text-primaryColor">120</div>
-      <div class="text-sm text-gray-500 mt-2">April 2025</div>
     </div>
   </div>
-  
-     
+</div>
 
+
+    
    
     <!-- Main Dashboard Layout (Two sections side by side) -->
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
@@ -173,19 +200,19 @@ const transactions = ref([
 
       </div>
 
-      <!-- Right Column: Transaction History -->
-      <div class="bg-white border-gray-300  p-6 border-1 rounded-lg shadow-md">
-        <h2 class="text-xl font-semibold text-left mb-4">Transaction History</h2>
-        <div class="overflow-y-auto max-h-80"> <!-- Adjusted max height -->
-          <div v-for="(transaction, index) in transactions" :key="index" class="border-b py-2">
-            <div class="flex justify-between">
-              <div>{{ transaction.name }}</div>
-              <div class="font-bold">{{ transaction.amount | currency }}</div>
-            </div>
-            <div class="text-sm text-gray-500">{{ transaction.date }}</div>
+    <!-- Right Column: Transaction History -->
+    <div class="bg-white border-gray-300 p-6 border-1 rounded-lg shadow-md">
+      <h2 class="text-xl font-semibold text-left mb-4">Transaction History</h2>
+      <div class="overflow-y-auto max-h-80">
+        <!-- Adjusted max height -->
+        <div v-for="(transaction, index) in transactions" :key="index" class="border-b py-2">
+          <div class="flex justify-between">
+            <div>{{ transaction.name }}</div>
+            <div class="font-bold">{{ transaction.amount | currency }}</div>
           </div>
+          <div class="text-sm text-gray-500">{{ transaction.date }}</div>
         </div>
       </div>
     </div>
+  </div>
 </template>
-

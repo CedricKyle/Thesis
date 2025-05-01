@@ -314,7 +314,7 @@ const attendanceController = {
           {
             model: Employee,
             as: 'employee',
-            attributes: ['full_name', 'department'],
+            attributes: ['full_name', 'department', 'position_id'],
           },
           {
             model: Employee,
@@ -360,7 +360,7 @@ const attendanceController = {
       // 1. Get employee info
       const employee = await Employee.findOne({
         where: { employee_id, deleted_at: null },
-        attributes: ['employee_id', 'full_name', 'department'],
+        attributes: ['employee_id', 'full_name', 'department', 'position_id'],
       })
       if (!employee) {
         return res.status(404).json({ success: false, message: 'Employee not found' })
@@ -440,27 +440,23 @@ const attendanceController = {
       const { start_date, end_date } = req.query
 
       if (!start_date || !end_date) {
-        return res
-          .status(400)
-          .json({ success: false, message: 'start_date and end_date are required' })
+        return res.status(400).json({
+          success: false,
+          message: 'Start date and end date are required',
+        })
       }
 
-      // 1. Get all employees (if ALL_DEPARTMENTS) or by department
-      const whereClause = { deleted_at: null }
-      if (department !== 'ALL_DEPARTMENTS') {
-        whereClause.department = department
-      }
-      // Exclude Super Admins
-      whereClause.role = { [Op.not]: 'Super Admin' }
+      // Get all non-Super Admin employees
       const employees = await Employee.findAll({
-        where: whereClause,
-        attributes: ['employee_id', 'full_name', 'department'],
+        where: {
+          ...(department !== 'ALL_DEPARTMENTS' && { department }),
+          deleted_at: null,
+          role_id: { [Op.ne]: 1 }, // Exclude Super Admin
+        },
+        attributes: ['employee_id', 'full_name', 'department', 'position_id'],
       })
 
-      // 2. Build date range array
-      const dateRange = getDateRangeArray(start_date, end_date)
-
-      // 3. Fetch all attendance records for these employees in the range
+      // Get attendance records for these employees
       const attendanceRecords = await EmployeeAttendance.findAll({
         where: {
           employee_id: employees.map((e) => e.employee_id),
@@ -471,64 +467,70 @@ const attendanceController = {
           {
             model: Employee,
             as: 'employee',
-            attributes: ['employee_id', 'full_name', 'department'],
+            attributes: ['employee_id', 'full_name', 'department', 'position_id'],
+            where: {
+              role_id: { [Op.ne]: 1 }, // Double-check to ensure no Super Admin records
+            },
           },
         ],
       })
 
-      // 4. Build a map for quick lookup
+      // Create attendance map
       const attendanceMap = {}
-      attendanceRecords.forEach((rec) => {
-        attendanceMap[`${rec.employee_id}_${rec.date}`] = rec
+      attendanceRecords.forEach((record) => {
+        attendanceMap[`${record.employee_id}_${record.date}`] = record
       })
 
-      // 5. Build the complete attendance grid
+      // Generate date range
+      const dates = []
+      let currentDate = new Date(start_date)
+      const endDate = new Date(end_date)
+      while (currentDate <= endDate) {
+        dates.push(currentDate.toISOString().split('T')[0])
+        currentDate.setDate(currentDate.getDate() + 1)
+      }
+
+      // Build complete attendance grid with proper DTO format
       const completeAttendance = []
       for (const emp of employees) {
-        for (const date of dateRange) {
+        for (const date of dates) {
           const key = `${emp.employee_id}_${date}`
-          if (attendanceMap[key]) {
-            completeAttendance.push(attendanceMap[key])
-          } else {
-            // Virtual "Absent" record
-            completeAttendance.push({
-              employee_id: emp.employee_id,
-              date,
-              status: 'Absent',
-              employee: emp,
-              time_in: null,
-              time_out: null,
-              working_hours: 0,
-              overtime_hours: 0,
-              approval_status: 'Pending',
-              approved_by: null,
-              approved_at: null,
-              created_at: null,
-              deleted_at: null,
-            })
-          }
+          const record = attendanceMap[key]
+
+          completeAttendance.push({
+            id: record?.id || null,
+            employee_id: emp.employee_id,
+            full_name: emp.full_name,
+            department: emp.department,
+            date: date,
+            signIn: record?.time_in || '-',
+            signOut: record?.time_out || '-',
+            workingHours: record?.working_hours || 0,
+            status: record?.status || 'Absent',
+            approval_status: record?.approval_status || 'Pending',
+            overtime_hours: record?.overtime_hours || 0,
+            overtime_proof: record?.overtime_proof || null,
+          })
         }
       }
 
-      // 6. Sort by date, then employee
-      completeAttendance.sort((a, b) => {
-        if (a.date === b.date) {
-          return a.employee_id.localeCompare(b.employee_id)
-        }
-        return new Date(a.date) - new Date(b.date)
-      })
-
-      res.json({
+      return res.json({
         success: true,
-        department,
-        start_date,
-        end_date,
         data: completeAttendance,
+        metadata: {
+          department,
+          start_date,
+          end_date,
+          total_employees: employees.length,
+          total_dates: dates.length,
+        },
       })
     } catch (error) {
-      res.status(500).json({
+      console.error('Department attendance error:', error)
+      return res.status(500).json({
         success: false,
-        message: error.message,
+        message: 'An error occurred while fetching department attendance',
+        error: error.message,
       })
     }
   },
@@ -673,7 +675,7 @@ const attendanceController = {
           {
             model: Employee,
             as: 'employee',
-            attributes: ['full_name', 'department'],
+            attributes: ['full_name', 'department', 'position_id', 'role_id'],
           },
           {
             model: Employee,
@@ -870,6 +872,18 @@ async function getMonthData(employee_id, month, year) {
   const daysInMonth = new Date(year, month, 0).getDate()
   const workingDays = calculateWorkingDays(year, month)
 
+  // First check if employee is not Super Admin
+  const employee = await Employee.findOne({
+    where: {
+      employee_id,
+      role_id: { [Op.ne]: 1 }, // Exclude Super Admin
+    },
+  })
+
+  if (!employee) {
+    throw new Error('Employee not found or is Super Admin')
+  }
+
   const attendance = await EmployeeAttendance.findAll({
     where: {
       employee_id,
@@ -882,7 +896,10 @@ async function getMonthData(employee_id, month, year) {
       {
         model: Employee,
         as: 'employee',
-        attributes: ['full_name', 'department', 'job_title'],
+        attributes: ['full_name', 'department', 'position_id'],
+        where: {
+          role_id: { [Op.ne]: 1 }, // Double-check Super Admin exclusion
+        },
       },
     ],
     order: [['date', 'ASC']],

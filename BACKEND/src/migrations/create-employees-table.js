@@ -28,9 +28,15 @@ module.exports = {
         type: Sequelize.STRING,
         allowNull: false,
       },
-      job_title: {
-        type: Sequelize.STRING,
+      position_id: {
+        type: Sequelize.INTEGER,
         allowNull: true,
+        references: {
+          model: 'positions',
+          key: 'id',
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'SET NULL',
       },
       role: {
         type: Sequelize.STRING,

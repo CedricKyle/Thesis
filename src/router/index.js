@@ -34,6 +34,7 @@ import SCMPurchaseManagement from '@/views/Supply Chain Management/SCMPurchaseMa
 import FinanceAccountingManagement from '@/views/Finance/FinanceAccountingManagement.vue'
 import FinanceTreasuryManagement from '@/views/Finance/FinanceTreasuryManagement.vue'
 import FinanceTaxManagement from '@/views/Finance/FinanceTaxManagement.vue'
+import HRPayroll from '@/views/Human Resource/HRPayroll.vue'
 import {
   PERMISSION_IDS,
   DEPARTMENTS,
@@ -63,6 +64,11 @@ const routes = [
         path: 'hr/dashboard',
         name: 'AdminHRDashboard',
         component: HRDashboard,
+      },
+      {
+        path: 'hr/payroll',
+        name: 'AdminHRPayroll',
+        component: HRPayroll,
       },
       {
         path: 'hr/roles',
@@ -209,6 +215,11 @@ const routes = [
         path: 'attendance-report',
         name: 'AttendanceReport',
         component: AttendanceReport,
+      },
+      {
+        path: 'payroll',
+        name: 'HRPayroll',
+        component: HRPayroll,
       },
       {
         path: 'roles',

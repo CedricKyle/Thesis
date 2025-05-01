@@ -11,6 +11,8 @@ import AttendanceForm from '@/components/Admin Components/HR/AttendanceForm.vue'
 import { useAuthStore } from '@/stores/Authentication/authStore'
 import { Clock } from 'lucide-vue-next'
 
+import EmpployeeOvertime from '@/components/Admin Components/HR/Employee/EmpployeeOvertime.vue'
+
 // Store initialization
 const attendanceStore = useAttendanceStore()
 const employeeStore = useEmployeeStore()
@@ -511,6 +513,12 @@ watch(
           @view="viewRecord"
           @delete="handleDelete"
         />
+      </div>
+
+      <!-- Employee Overtime Tab -->
+      <input type="radio" name="my_tabs_2" class="tab" aria-label="Overtime" />
+      <div class="tab-content bg-white p-5">
+        <EmpployeeOvertime />
       </div>
 
       <!-- Add Attendance Tab -->

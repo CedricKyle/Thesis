@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { EyeIcon, SendIcon, CheckIcon, XIcon, BookCheck } from 'lucide-vue-next'
-import StockMonitoring from '@/components/SCM Components/Inventory Management Component/StockMonitoring.vue'
+
 // Simulate user role (change to 'HR' or 'Finance' to test)
 const userRole = ref('HR') // or 'Finance'
 
@@ -94,7 +94,7 @@ function getPayPeriodMonth(payPeriod) {
   if (!match) return payPeriod
   const year = match[1]
   const month = match[2]
-  const date = new Date(`${year}-${month}-01`) // Corrected this line
+  const date = new Date(`${year}-${month}-01`)
   return date.toLocaleString('en-US', { month: 'long', year: 'numeric' })
 }
 
@@ -161,8 +161,6 @@ const exportPayroll = () => {
         <button class="btn-secondaryStyle" @click="exportPayroll">Export</button>
       </div>
     </div>
-
-    <!-- Payroll Table -->
     <div class="overflow-x-auto">
       <table class="table text-black w-full text-xs border border-gray-300 rounded-md">
         <thead class="text-black text-xs">
@@ -394,10 +392,50 @@ const exportPayroll = () => {
             </tr>
           </tbody>
         </table>
-        <StockMonitoring />
       </div>
     </div>
 
-    <!-- Modals here as before -->
+    <!-- View Modal -->
+    <dialog v-if="showViewModal" open class="modal">
+      <div class="modal-box bg-white w-96">
+        <h3 class="font-bold text-md text-black">Payroll Details</h3>
+        <div class="divider"></div>
+        <div class="text-black">
+          <div v-for="(val, key) in selectedPayroll" :key="key" class="flex justify-between">
+            <span class="font-semibold">{{ key }}:</span>
+            <span>{{ val }}</span>
+          </div>
+        </div>
+        <div class="modal-action">
+          <button class="btn-secondaryStyle" @click="showViewModal = false">Close</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Approve Modal -->
+    <dialog v-if="showApproveModal" open class="modal">
+      <div class="modal-box bg-white w-96">
+        <h3 class="font-bold text-md text-black">Approve Payroll</h3>
+        <div class="divider"></div>
+        <p>Are you sure you want to approve this payroll?</p>
+        <div class="modal-action">
+          <button class="btn-secondaryStyle" @click="showApproveModal = false">Cancel</button>
+          <button class="btn-primaryStyle" @click="approvePayroll">Approve</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Reject Modal -->
+    <dialog v-if="showRejectModal" open class="modal">
+      <div class="modal-box bg-white w-96">
+        <h3 class="font-bold text-md text-black">Reject Payroll</h3>
+        <div class="divider"></div>
+        <textarea v-model="remarks" class="textarea w-full" placeholder="Enter remarks"></textarea>
+        <div class="modal-action">
+          <button class="btn-secondaryStyle" @click="showRejectModal = false">Cancel</button>
+          <button class="btn-errorStyle" @click="rejectPayroll">Reject</button>
+        </div>
+      </div>
+    </dialog>
   </div>
 </template>

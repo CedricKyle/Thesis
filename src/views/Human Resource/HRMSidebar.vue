@@ -29,6 +29,12 @@ const menuItems = [
     permission: PERMISSION_IDS.HR_VIEW_ATTENDANCE_REPORT,
   },
   {
+    name: 'Payroll',
+    route: '/hr/payroll',
+    icon: FileSpreadsheet,
+    permission: PERMISSION_IDS.HR_MANAGE_PAYROLL,
+  },
+  {
     name: 'Roles',
     route: '/hr/roles',
     icon: UserCog,

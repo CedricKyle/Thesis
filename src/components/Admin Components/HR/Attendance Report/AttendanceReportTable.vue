@@ -49,8 +49,7 @@ const columns = [
   {
     title: 'Date',
     field: 'date',
-    sorter: 'string',
-    headerSort: true,
+    sorter: 'date',
     formatter: (cell) => {
       const date = new Date(cell.getValue())
       return date.toLocaleDateString('en-US', {
@@ -60,26 +59,22 @@ const columns = [
       })
     },
   },
-  // Only show these columns if NOT all departments
-  ...(props.selectedDepartment !== 'ALL_DEPARTMENTS'
-    ? [
-        {
-          title: 'Time In',
-          field: 'signIn',
-          formatter: (cell) => cell.getValue() || '-',
-        },
-        {
-          title: 'Time Out',
-          field: 'signOut',
-          formatter: (cell) => cell.getValue() || '-',
-        },
-        {
-          title: 'Working Hours',
-          field: 'workingHours',
-          formatter: (cell) => cell.getValue() || '-',
-        },
-      ]
-    : []),
+  {
+    title: 'Time In',
+    field: 'signIn',
+    formatter: (cell) => cell.getValue() || '-',
+  },
+  {
+    title: 'Time Out',
+    field: 'signOut',
+    formatter: (cell) => cell.getValue() || '-',
+  },
+  {
+    title: 'Working Hours',
+    field: 'workingHours',
+    formatter: (cell) => cell.getValue() || '-',
+    sorter: 'number',
+  },
   {
     title: 'Status',
     field: 'status',
@@ -93,10 +88,11 @@ const columns = [
         'Late + OT': 'bg-yellow-100 text-yellow-800',
         'On Leave': 'bg-blue-100 text-blue-800',
       }
-
-      return `<span class="px-2 py-1 text-xs font-medium rounded-full ${statusClasses[status]}">${status}</span>`
+      return `<span class="px-2 py-1 text-xs font-medium rounded-full ${
+        statusClasses[status] || 'bg-gray-100 text-gray-800'
+      }">${status}</span>`
     },
-    headerSort: true,
+    sorter: 'string',
   },
 ]
 

@@ -87,6 +87,10 @@ module.exports = (sequelize) => {
       foreignKey: 'employee_id',
       as: 'employee',
     })
+    EmployeeAttendance.belongsTo(models.Employee, {
+      foreignKey: 'approved_by',
+      as: 'approver',
+    })
   }
 
   return EmployeeAttendance

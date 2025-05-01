@@ -6,6 +6,7 @@ import { useToast } from '@/composables/Admin Composables/Human Resource/useToas
 import { useProfileImage } from '@/composables/Admin Composables/Human Resource/useProfileImage'
 import { useResumeUpload } from '@/composables/Admin Composables/Human Resource/useResumeUpload'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
+import { usePositionStore } from '@/stores/HR Management/positionStore'
 import { storeToRefs } from 'pinia'
 import { Upload } from 'lucide-vue-next'
 import Toast from '@/components/Admin Components/HR/Toast.vue'
@@ -19,6 +20,7 @@ const router = useRouter()
 const route = useRoute()
 const store = useEmployeeStore()
 const rolesStore = useRolesStore()
+const positionStore = usePositionStore()
 const { roles } = storeToRefs(rolesStore)
 const { showToast, toastMessage, toastType, showToastMessage } = useToast()
 const { profileImage, profileImageFile, showUploadText, handleProfileUpload, removeProfile } =
@@ -32,7 +34,7 @@ const employeeData = ref({
   middle_name: '',
   last_name: '',
   department: '',
-  job_title: '',
+  position_id: '',
   role: '',
   date_of_hire: '',
   date_of_birth: '',
@@ -124,20 +126,8 @@ const availableRoles = computed(() => {
 })
 
 const availableJobs = computed(() => {
-  if (!employeeData.value.department || !employeeData.value.role_id) return []
-
-  // Find the selected role object
-  const selectedRole = roles.value.find((role) => role.id === employeeData.value.role_id)
-  const roleName = selectedRole ? selectedRole.role_name : ''
-
-  const jobTitles = getJobTitles(employeeData.value.department, roleName)
-
-  // If current job title exists but isn't in the list, add it
-  if (employeeData.value.job_title && !jobTitles.includes(employeeData.value.job_title)) {
-    jobTitles.push(employeeData.value.job_title)
-  }
-
-  return jobTitles
+  if (!employeeData.value.department) return []
+  return positionStore.positions.filter((pos) => pos.department === employeeData.value.department)
 })
 
 const hasPersonalInfoChanges = computed(() => {
@@ -191,7 +181,7 @@ const hasProfessionalInfoChanges = computed(() => {
 
   return (
     employeeData.value.department !== originalData.value.department ||
-    employeeData.value.job_title !== originalData.value.job_title ||
+    employeeData.value.position_id !== originalData.value.position_id ||
     employeeData.value.role !== originalData.value.role ||
     employeeData.value.date_of_hire !== originalData.value.date_of_hire
   )
@@ -208,6 +198,7 @@ onMounted(async () => {
   try {
     // Load roles first
     await rolesStore.fetchRoles()
+    await positionStore.loadPositions()
 
     const employeeId = route.params.id
     const response = await store.getEmployee(employeeId)
@@ -257,7 +248,7 @@ onMounted(async () => {
 
 const handleFieldChange = (fieldName, value) => {
   // Add professional fields to tracking
-  const professionalFields = ['department', 'job_title', 'role', 'date_of_hire']
+  const professionalFields = ['department', 'position_id', 'role', 'date_of_hire']
 
   if (professionalFields.includes(fieldName)) {
     if (JSON.stringify(originalData.value[fieldName]) !== JSON.stringify(value)) {
@@ -307,10 +298,7 @@ const handleUpdate = async () => {
       middleName: employeeData.value.middle_name || '',
       lastName: employeeData.value.last_name,
       department: employeeData.value.department,
-      jobTitle:
-        employeeData.value.department === 'Admin Department'
-          ? 'Administrator'
-          : employeeData.value.job_title,
+      position_id: employeeData.value.position_id,
       role_id: employeeData.value.role_id,
       dateOfHire: employeeData.value.date_of_hire,
       dateOfBirth: employeeData.value.date_of_birth,
@@ -338,7 +326,7 @@ const handleUpdate = async () => {
       firstName: 'First Name',
       lastName: 'Last Name',
       department: 'Department',
-      jobTitle: 'Job Title',
+      position_id: 'Job Title',
       role_id: 'Role',
       dateOfHire: 'Date of Hire',
       dateOfBirth: 'Date of Birth',
@@ -466,12 +454,12 @@ watch(
   () => employeeData.value.department,
   (newDepartment) => {
     if (newDepartment === DEPARTMENTS.ADMIN) {
-      employeeData.value.job_title = 'Administrator'
+      employeeData.value.position_id = 'Administrator'
       employeeData.value.role = 'Admin'
     } else {
       // Reset role and job title when department changes
       employeeData.value.role = ''
-      employeeData.value.job_title = ''
+      employeeData.value.position_id = ''
     }
   },
 )
@@ -482,7 +470,7 @@ watch(
   (newRole) => {
     // Reset job title when role changes
     if (newRole && employeeData.value.department !== DEPARTMENTS.ADMIN) {
-      employeeData.value.job_title = ''
+      employeeData.value.position_id = ''
     }
   },
 )
@@ -507,10 +495,10 @@ watch(
       <div class="loading loading-spinner loading-lg"></div>
     </div>
 
-    <div v-else class="flex gap-4 container h-[600px] text-black">
+    <div v-else class="flex gap-4 container text-black">
       <!-- Professional Information -->
       <div
-        class="professional-container w-[30%] border border-gray-200 p-5 rounded-md shadow-md overflow-y-auto bg-white"
+        class="professional-container w-[30%] border border-gray-200 p-5 rounded-md shadow-md bg-white"
       >
         <div class="flex flex-col gap-4 m-5">
           <!-- Profile Selection -->
@@ -583,14 +571,14 @@ watch(
             <div v-if="employeeData.department !== DEPARTMENTS.ADMIN">
               <legend class="fieldset-legend text-black text-xs justify-start">Job Title</legend>
               <select
-                v-model="employeeData.job_title"
+                v-model="employeeData.position_id"
                 class="select focus:outline-none bg-white border-black text-black"
                 :disabled="!employeeData.department || !employeeData.role_id"
-                @change="handleFieldChange('job_title', employeeData.job_title)"
+                @change="handleFieldChange('position_id', employeeData.position_id)"
               >
                 <option disabled value="">Select Job Title</option>
-                <option v-for="job in availableJobs" :key="job" :value="job">
-                  {{ job }}
+                <option v-for="position in availableJobs" :key="position.id" :value="position.id">
+                  {{ position.position_title }}
                 </option>
               </select>
             </div>
@@ -645,7 +633,7 @@ watch(
 
       <!-- Personal Information -->
       <div
-        class="personal-container w-[70%] border border-gray-200 p-5 rounded-md shadow-md overflow-y-auto bg-white"
+        class="personal-container w-[70%] border border-gray-200 p-5 rounded-md shadow-md bg-white"
       >
         <div class="container flex flex-col gap-2">
           <div class="title font-bold text-md">Personal Information</div>

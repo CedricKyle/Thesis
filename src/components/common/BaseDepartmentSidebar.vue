@@ -171,7 +171,7 @@ const navbarDisplayData = computed(() => {
 
   return {
     name: employeeData.full_name || '',
-    jobTitle: employeeData.job_title || '',
+    jobTitle: employeeData.positionInfo?.position_title || '',
     role: employeeData.role || '',
     email: employeeData.email || '',
     department: employeeData.department || '',
