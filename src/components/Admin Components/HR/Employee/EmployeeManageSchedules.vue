@@ -6,8 +6,8 @@ import BaseTable from '@/components/common/BaseTable.vue'
 const columns = [
   { title: 'Employee Name', field: 'employeeName', sorter: 'string' },
   { title: 'Type', field: 'type', sorter: 'string' },
-  { title: 'Time In', field: 'timeIn', sorter: 'string', hozAlign: 'center' },
-  { title: 'Time Out', field: 'timeOut', sorter: 'string', hozAlign: 'center' },
+  { title: 'Start Time', field: 'timeIn', sorter: 'string', hozAlign: 'center' },
+  { title: 'End Time', field: 'timeOut', sorter: 'string', hozAlign: 'center' },
   { title: 'Work Days', field: 'day', sorter: 'string', hozAlign: 'center' },
   { title: 'Day Off', field: 'dayOff', sorter: 'string', hozAlign: 'center' },
   { title: 'Remarks', field: 'remarks', sorter: 'string' },

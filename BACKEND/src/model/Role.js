@@ -25,22 +25,32 @@ module.exports = (sequelize) => {
       permissions: {
         type: DataTypes.TEXT,
         allowNull: false,
+        defaultValue: '[]',
         get() {
           const raw = this.getDataValue('permissions')
           try {
-            // Handle both string array "[1,2,3]" and regular array formats
-            return typeof raw === 'string' ? JSON.parse(raw) : raw
+            return typeof raw === 'string' ? JSON.parse(raw) : Array.isArray(raw) ? raw : []
           } catch (e) {
             console.error('Error parsing permissions:', e)
             return []
           }
         },
         set(value) {
-          // Ensure we always store as a string
-          this.setDataValue(
-            'permissions',
-            typeof value === 'string' ? value : JSON.stringify(value),
-          )
+          let valueToStore = value
+          if (Array.isArray(value)) {
+            valueToStore = JSON.stringify(value)
+          } else if (typeof value === 'string') {
+            // Validate if it's a valid JSON string
+            try {
+              JSON.parse(value)
+              valueToStore = value
+            } catch (e) {
+              valueToStore = '[]'
+            }
+          } else {
+            valueToStore = '[]'
+          }
+          this.setDataValue('permissions', valueToStore)
         },
       },
       created_at: {

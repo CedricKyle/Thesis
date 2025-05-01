@@ -144,17 +144,43 @@ export const useRolesStore = defineStore('roles', {
         if (!id) {
           throw new Error('Role ID is required')
         }
+
+        console.log('Fetching role with ID:', id)
         const response = await axios.get(`/api/roles/${id}`)
+
+        if (!response.data) {
+          throw new Error('No data received from server')
+        }
 
         // Ensure permissions is always an array
         const roleData = response.data
-        if (typeof roleData.permissions === 'string') {
-          roleData.permissions = JSON.parse(roleData.permissions)
+        let permissions = roleData.permissions
+
+        try {
+          if (typeof permissions === 'string') {
+            permissions = JSON.parse(permissions)
+          }
+        } catch (error) {
+          console.error('Error parsing permissions:', error)
+          permissions = []
         }
-        return roleData
+
+        const formattedRole = {
+          ...roleData,
+          permissions: Array.isArray(permissions) ? permissions : [],
+        }
+
+        console.log('Formatted role data:', formattedRole)
+        return formattedRole
       } catch (error) {
         console.error('Error in getRoleById:', error)
-        throw error
+        if (error.response?.status === 404) {
+          throw new Error('Role not found')
+        }
+        if (error.response?.data?.message) {
+          throw new Error(error.response.data.message)
+        }
+        throw new Error('Failed to fetch role')
       }
     },
 

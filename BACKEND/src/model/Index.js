@@ -19,6 +19,7 @@ const StockIn = require('./SCM Model/StockIn.js')(sequelize)
 const StockOut = require('./SCM Model/StockOut.js')(sequelize)
 const StockAdjustment = require('./SCM Model/StockAdjustment')(sequelize)
 const Position = require('./EmployeePositions')(sequelize)
+const EmployeeDeduction = require('./EmployeeDeduction')(sequelize)
 
 // Define relationships for other models (not EmployeeAttendance!)
 // (Keep only these if you need them)
@@ -63,6 +64,7 @@ const db = {
   StockOut,
   StockAdjustment,
   Position,
+  EmployeeDeduction,
 }
 
 // Call associate for all models

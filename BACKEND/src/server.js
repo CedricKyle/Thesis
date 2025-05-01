@@ -11,6 +11,7 @@ const stockInRoutes = require('./routes/main branch/scm routes/stock-in-routes.j
 const stockOutRoutes = require('./routes/main branch/scm routes/stock-out-routes.js')
 const stockAdjustmentRoutes = require('./routes/main branch/scm routes/stock-adjustment-routes.js')
 const positionRoutes = require('./routes/main branch/employee-positions-routes.js')
+const deductionRoutes = require('./routes/main branch/employee-deduction-routes.js')
 const path = require('path')
 
 dotenv.config()
@@ -64,6 +65,7 @@ app.use('/api/stock-in', stockInRoutes)
 app.use('/api/stock-out', stockOutRoutes)
 app.use('/api/stock-adjustment', stockAdjustmentRoutes)
 app.use('/api/positions', positionRoutes)
+app.use('/api/employee-deductions', deductionRoutes)
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack)

@@ -235,32 +235,53 @@ const deleteRole = async (req, res) => {
 
 const getRoleById = async (req, res) => {
   try {
+    console.log('Fetching role with ID:', req.params.id)
+
     const role = await Role.findByPk(req.params.id, {
-      include: [
-        {
-          model: Employee,
-          attributes: ['employee_id', 'first_name', 'last_name'],
-        },
+      paranoid: false, // Allow finding soft-deleted roles
+      attributes: [
+        'id',
+        'role_name',
+        'description',
+        'department',
+        'permissions',
+        'created_at',
+        'updated_at',
+        'deleted_at',
       ],
     })
 
     if (!role) {
+      console.log('Role not found with ID:', req.params.id)
       return res.status(404).json({ message: 'Role not found' })
     }
 
-    // Parse permissions for response
-    const formattedRole = {
-      ...role.toJSON(),
-      permissions:
-        typeof role.permissions === 'string' ? JSON.parse(role.permissions) : role.permissions,
+    // Ensure permissions is properly formatted
+    let permissions = role.permissions
+    try {
+      if (typeof permissions === 'string') {
+        permissions = JSON.parse(permissions)
+      }
+    } catch (error) {
+      console.error('Error parsing permissions:', error)
+      permissions = []
     }
 
+    // Format the response
+    const formattedRole = {
+      ...role.toJSON(),
+      permissions: Array.isArray(permissions) ? permissions : [],
+      is_deleted: !!role.deleted_at,
+    }
+
+    console.log('Sending formatted role:', formattedRole)
     res.json(formattedRole)
   } catch (error) {
-    console.error('Error fetching role:', error)
+    console.error('Error in getRoleById:', error)
     res.status(500).json({
       message: 'Failed to fetch role',
       error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
     })
   }
 }
