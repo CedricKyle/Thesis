@@ -44,8 +44,8 @@ const store = useEmployeeStore()
         <EmployeeCashAdvance />
       </div>
 
-      <!-- Employee Deduction Tab -->
-      <input type="radio" name="my_tabs_2" class="tab" aria-label="Deduction" />
+      <!-- Employee Mandatory Deduction Tab -->
+      <input type="radio" name="my_tabs_2" class="tab" aria-label="Mandatory Deduction" />
       <div class="tab-content bg-white p-5">
         <EmployeeDeduction />
       </div>

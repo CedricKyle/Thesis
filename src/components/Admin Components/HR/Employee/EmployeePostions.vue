@@ -48,7 +48,7 @@ watch(
   (newVal, oldVal) => {
     if (!oldVal) return
     if (newVal.length > oldVal.length) {
-      showToastMessage('Position created successfully!', 'success')
+      showToastMessage('New position created successfully!', 'success')
     } else if (newVal.length < oldVal.length) {
       showToastMessage('Position deleted successfully!', 'success')
     } else if (JSON.stringify(newVal) !== JSON.stringify(oldVal)) {
@@ -402,6 +402,20 @@ const confirmAction = () => {
         </div>
       </div>
     </dialog>
+
+    <!-- Add this Toast component at the end of your template -->
+    <div
+      v-if="showToast"
+      :class="{
+        'fixed bottom-4 right-4 p-4 rounded-lg shadow-lg z-50 transition-all duration-300': true,
+        'bg-green-500': toastType === 'success',
+        'bg-red-500': toastType === 'error',
+        'bg-yellow-500': toastType === 'warning',
+        'bg-blue-500': toastType === 'info',
+      }"
+    >
+      <p class="text-white">{{ toastMessage }}</p>
+    </div>
   </div>
 </template>
 

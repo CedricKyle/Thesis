@@ -108,11 +108,6 @@ const columns = [
     width: 100,
   },
   {
-    title: 'Role',
-    field: 'role_name',
-    sorter: 'string',
-  },
-  {
     title: 'Actions',
     formatter: function (cell) {
       const employee = cell.getRow().getData()

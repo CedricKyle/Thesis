@@ -1,6 +1,10 @@
 <script setup>
 import { ref } from 'vue'
 import BaseTable from '@/components/common/BaseTable.vue'
+import { useToast } from '@/composables/Admin Composables/Human Resource/useToast'
+
+// Add toast
+const { showToast, toastMessage, toastType, showToastMessage } = useToast()
 
 // Table columns
 const columns = [
@@ -16,43 +20,76 @@ const columns = [
       `₱ ${Number(cell.getValue()).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
   },
   {
+    title: 'Status',
+    field: 'status',
+    hozAlign: 'center',
+    formatter: (cell) => {
+      const status = cell.getValue()
+      const badgeClasses = {
+        Pending: 'badge badge-outline badge-warning text-xs',
+        Approved: 'badge badge-outline badge-success text-xs',
+        Rejected: 'badge badge-outline badge-error text-xs',
+        'For Review': 'badge badge-outline badge-info text-xs',
+      }
+      return `<span class="${badgeClasses[status] || 'badge badge-outline badge-neutral text-xs'}">${status}</span>`
+    },
+  },
+  {
+    title: 'Remarks',
+    field: 'remarks',
+    sorter: 'string',
+    hozAlign: 'center',
+    width: 150,
+  },
+  {
     title: 'Actions',
     field: 'actions',
-    formatter: () => `
-      <div class="flex gap-2">
-        <button class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost view-button" title="View">
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
-            <circle cx="12" cy="12" r="3"/>
-          </svg>
-        </button>
-        <button class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost" title="Edit">
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-          </svg>
-        </button>
-        <button class="btn btn-sm btn-circle hover:bg-red-400 border-none btn-ghost" title="Delete">
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 6 6 18M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-    `,
+    formatter: (cell) => {
+      const row = cell.getRow().getData()
+      return `
+        <div class="flex gap-2">
+          <button class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost view-button" title="View">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+          ${
+            row.status === 'Pending'
+              ? `
+            <button class="btn btn-sm btn-circle hover:bg-green-500 border-none btn-ghost approve-button" title="Approve">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M20 6L9 17l-5-5"/>
+              </svg>
+            </button>
+            <button class="btn btn-sm btn-circle hover:bg-red-400 border-none btn-ghost reject-button" title="Reject">
+              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 6 6 18M6 6l12 12" />
+              </svg>
+            </button>
+          `
+              : ''
+          }
+        </div>
+      `
+    },
     headerSort: false,
     hozAlign: 'center',
     width: 150,
     cellClick: (e, cell) => {
-      const record = cell.getRow().getData()
+      const row = cell.getRow().getData()
       if (e.target.closest('.view-button')) {
-        openViewModal(record)
+        openViewModal(row)
+      } else if (e.target.closest('.approve-button')) {
+        openApproveModal(row)
+      } else if (e.target.closest('.reject-button')) {
+        openRejectModal(row)
       }
-      // You can add edit/delete logic here as well
     },
   },
 ]
 
-// Example data
+// Example data with status
 const advances = ref([
   {
     date: '2024-06-01',
@@ -60,6 +97,7 @@ const advances = ref([
     department: 'IT',
     amount: 1500.0,
     remarks: 'For family emergency',
+    status: 'Pending', // New field
   },
   {
     date: '2024-06-03',
@@ -67,6 +105,7 @@ const advances = ref([
     department: 'HR',
     amount: 2000.0,
     remarks: 'Medical assistance',
+    status: 'Approved',
   },
   {
     date: '2024-06-05',
@@ -74,6 +113,7 @@ const advances = ref([
     department: 'Finance',
     amount: 1000.0,
     remarks: 'Tuition fee',
+    status: 'Rejected',
   },
 ])
 
@@ -88,6 +128,9 @@ const newAdvance = ref({
   remarks: '',
 })
 const selectedAdvance = ref(null)
+const approveModal = ref(null)
+const rejectModal = ref(null)
+const rejectRemarks = ref('')
 
 const openCreateModal = () => {
   newAdvance.value = { date: '', name: '', department: '', amount: '', remarks: '' }
@@ -118,6 +161,34 @@ function openViewModal(advance) {
 function closeViewModal() {
   viewModal.value?.close()
 }
+
+function openApproveModal(advance) {
+  selectedAdvance.value = advance
+  approveModal.value?.showModal()
+}
+
+function openRejectModal(advance) {
+  selectedAdvance.value = advance
+  rejectModal.value?.showModal()
+}
+
+function approveAdvance() {
+  if (selectedAdvance.value) {
+    selectedAdvance.value.status = 'Approved'
+    showToastMessage('Cash advance request approved successfully!', 'success')
+    approveModal.value?.close()
+  }
+}
+
+function rejectAdvance() {
+  if (selectedAdvance.value) {
+    selectedAdvance.value.status = 'Rejected'
+    selectedAdvance.value.remarks = rejectRemarks.value
+    showToastMessage('Cash advance request rejected!', 'error')
+    rejectModal.value?.close()
+    rejectRemarks.value = ''
+  }
+}
 </script>
 
 <template>
@@ -125,7 +196,7 @@ function closeViewModal() {
     <!-- Header and Create Button -->
     <div class="flex justify-between items-center mb-4">
       <h2 class="text-xl font-semibold text-black">Employee Cash Advance</h2>
-      <button class="btn-primaryStyle" @click="openCreateModal">Add Cash Advance</button>
+      <button class="btn-primaryStyle" @click="openCreateModal">Request Cash Advance</button>
     </div>
 
     <!-- Table -->
@@ -237,6 +308,63 @@ function closeViewModal() {
         </div>
       </div>
     </dialog>
+
+    <!-- Approve Modal -->
+    <dialog ref="approveModal" class="modal">
+      <div class="modal-box bg-white w-96">
+        <h3 class="font-bold text-md text-black">Approve Cash Advance</h3>
+        <div
+          class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
+        ></div>
+        <p class="py-4 text-center text-black text-sm">
+          Are you sure you want to approve this cash advance request for
+          <span class="font-bold">{{ selectedAdvance?.name }}</span
+          >?
+        </p>
+        <div class="modal-action justify-center gap-4">
+          <button class="btn-primaryStyle" @click="approveAdvance">Approve</button>
+          <button class="btn-secondaryStyle" @click="approveModal?.close()">Cancel</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Reject Modal -->
+    <dialog ref="rejectModal" class="modal">
+      <div class="modal-box bg-white w-96">
+        <h3 class="font-bold text-md text-black">Reject Cash Advance</h3>
+        <div
+          class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
+        ></div>
+        <div class="py-4">
+          <label class="block text-sm text-black mb-1">Rejection Remarks</label>
+          <textarea
+            v-model="rejectRemarks"
+            class="input-search w-full"
+            rows="3"
+            placeholder="Enter reason for rejection..."
+            required
+          ></textarea>
+        </div>
+        <div class="modal-action justify-center gap-4">
+          <button class="btn-errorStyle" @click="rejectAdvance">Reject</button>
+          <button class="btn-secondaryStyle" @click="rejectModal?.close()">Cancel</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Toast Notification -->
+    <div
+      v-if="showToast"
+      :class="{
+        'fixed bottom-4 right-4 p-4 rounded-lg shadow-lg z-50 transition-all duration-300': true,
+        'bg-green-500': toastType === 'success',
+        'bg-red-500': toastType === 'error',
+        'bg-yellow-500': toastType === 'warning',
+        'bg-blue-500': toastType === 'info',
+      }"
+    >
+      <p class="text-white">{{ toastMessage }}</p>
+    </div>
   </div>
 </template>
 
