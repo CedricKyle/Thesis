@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { EyeIcon, SendIcon, CheckIcon, XIcon, BookCheck } from 'lucide-vue-next'
-
+import StockMonitoring from '@/components/SCM Components/Inventory Management Component/StockMonitoring.vue'
 // Simulate user role (change to 'HR' or 'Finance' to test)
 const userRole = ref('HR') // or 'Finance'
 
@@ -388,6 +388,7 @@ const exportPayroll = () => {
             </tr>
           </tbody>
         </table>
+        <StockMonitoring />
       </div>
     </div>
 

@@ -136,7 +136,7 @@ const getPayPeriodMonth = (payPeriod) => {
 
     <!-- Payroll History Table -->
     <div class="overflow-x-auto mb-8">
-      <h3 class="font-semibold text-black mb-4">Payroll History</h3>
+      <h3 class="font-semibold text-black mb-4">Payroll Records</h3>
       <table class="table text-black w-full text-xs border border-gray-300 rounded-md">
         <thead class="text-black text-xs">
           <tr>
@@ -224,7 +224,7 @@ const getPayPeriodMonth = (payPeriod) => {
 
     <!-- Transaction History Table -->
     <div class="overflow-x-auto">
-      <h3 class="font-semibold text-black mb-4">Transaction History</h3>
+      <h3 class="font-semibold text-black mb-4">Transaction Records</h3>
       <table class="table text-black w-full text-xs border border-gray-300 rounded-md">
         <thead class="text-black text-xs">
           <tr>
@@ -270,6 +270,9 @@ const getPayPeriodMonth = (payPeriod) => {
           </tr>
         </tbody>
       </table>
+
+      <StockMonitoring />
+      
     </div>
   </div>
 </template>
