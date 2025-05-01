@@ -1,10 +1,49 @@
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
+import { useAvailableScheduleStore } from '@/stores/HR Management/availableScheduleStore'
 import BaseTable from '@/components/common/BaseTable.vue'
 import Multiselect from 'vue-multiselect'
 import 'vue-multiselect/dist/vue-multiselect.min.css'
 
-// Toast logic (copying style from EmployeeDeduction)
+// Store
+const scheduleStore = useAvailableScheduleStore()
+
+// Data
+const schedules = computed(() => scheduleStore.schedules)
+const archivedSchedules = computed(() => scheduleStore.archivedSchedules)
+const showArchived = ref(false)
+
+// Combine active and archived for table display
+const tableData = computed(() => {
+  if (showArchived.value) {
+    // Combine and deduplicate by id
+    const combined = [...schedules.value, ...archivedSchedules.value]
+    return combined.filter((v, i, a) => a.findIndex((t) => t.id === v.id) === i)
+  }
+  return schedules.value
+})
+
+// Modal logic
+const createModal = ref(null)
+const editModal = ref(null)
+const viewModal = ref(null)
+const confirmModal = ref(null)
+
+const newSchedule = ref({
+  type: '',
+  time_in: '',
+  time_out: '',
+  work_days: [],
+  day_off: [],
+  remarks: '',
+})
+const selectedSchedule = ref(null)
+const editSchedule = ref(null)
+const confirmActionType = ref('') // 'create', 'edit', 'delete', 'restore'
+
+const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+// Toast logic
 const showToast = ref(false)
 const toastMessage = ref('')
 const toastType = ref('success')
@@ -18,106 +57,115 @@ function showToastMessage(message, type = 'success') {
 // Table columns
 const columns = [
   { title: 'Type', field: 'type', sorter: 'string' },
-  { title: 'Start Time', field: 'timeIn', sorter: 'string', hozAlign: 'center' },
-  { title: 'End Time', field: 'timeOut', sorter: 'string', hozAlign: 'center' },
+  { title: 'Start Time', field: 'time_in', sorter: 'string' },
+  { title: 'End Time', field: 'time_out', sorter: 'string' },
   {
     title: 'Work Days',
-    field: 'workDays',
+    field: 'work_days',
     sorter: 'string',
     hozAlign: 'center',
-    formatter: (cell) => (cell.getValue() || []).join(', '),
+    formatter: (cell) => {
+      const value = cell.getValue()
+      if (Array.isArray(value)) return value.join(', ')
+      if (typeof value === 'string') {
+        try {
+          const arr = JSON.parse(value)
+          if (Array.isArray(arr)) return arr.join(', ')
+          return value
+        } catch {
+          return value
+        }
+      }
+      return ''
+    },
   },
   {
     title: 'Day Off',
-    field: 'dayOff',
+    field: 'day_off',
     sorter: 'string',
     hozAlign: 'center',
-    formatter: (cell) => (cell.getValue() || []).join(', '),
+    formatter: (cell) => {
+      const value = cell.getValue()
+      if (Array.isArray(value)) return value.join(', ')
+      if (typeof value === 'string') {
+        try {
+          const arr = JSON.parse(value)
+          if (Array.isArray(arr)) return arr.join(', ')
+          return value
+        } catch {
+          return value
+        }
+      }
+      return ''
+    },
   },
   { title: 'Remarks', field: 'remarks', sorter: 'string' },
   {
     title: 'Actions',
     field: 'actions',
-    formatter: () => `
-      <div class="flex gap-2">
-        <button class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost view-button" title="View">
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
-            <circle cx="12" cy="12" r="3"/>
-          </svg>
-        </button>
-        <button class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost edit-button" title="Edit">
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-          </svg>
-        </button>
-        <button class="btn btn-sm btn-circle hover:bg-red-400 border-none btn-ghost delete-button" title="Delete">
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 6 6 18M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-    `,
+    formatter: (cell) => {
+      const record = cell.getRow().getData()
+      const isArchived = !!record.deleted_at
+      if (isArchived) {
+        return `
+          <button class="btn btn-sm btn-circle btn-ghost restore-button" title="Restore">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M3 12a9 9 0 0 1 9-9 9 9 0 0 1 6.36 2.64l2.14-2.14M21 12a9 9 0 0 1-9 9 9 9 0 0 1-6.36-2.64l-2.14 2.14"/>
+            </svg>
+          </button>
+        `
+      }
+      return `
+        <div class="flex gap-2">
+          <button class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost view-button" title="View">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+          <button class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost edit-button" title="Edit">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+          </button>
+          <button class="btn btn-sm btn-circle hover:bg-red-400 border-none btn-ghost delete-button" title="Delete">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      `
+    },
     headerSort: false,
     hozAlign: 'center',
     width: 150,
     cellClick: (e, cell) => {
       const record = cell.getRow().getData()
-      if (e.target.closest('.view-button')) {
-        openViewModal(record)
-      } else if (e.target.closest('.edit-button')) {
-        openEditModal(record)
-      } else if (e.target.closest('.delete-button')) {
-        openDeleteModal(record)
-      }
+      const isArchived = !!record.deleted_at
+      if (isArchived && e.target.closest('.restore-button')) openRestoreModal(record)
+      else if (!isArchived && e.target.closest('.view-button')) openViewModal(record)
+      else if (!isArchived && e.target.closest('.edit-button')) openEditModal(record)
+      else if (!isArchived && e.target.closest('.delete-button')) openDeleteModal(record)
     },
   },
 ]
 
-// Data
-const schedules = ref([
-  {
-    type: 'Night Shift',
-    timeIn: '22:00',
-    timeOut: '06:00',
-    workDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-    dayOff: ['Saturday', 'Sunday'],
-    remarks: 'Rotating every 2 weeks',
-  },
-  {
-    type: 'Day',
-    timeIn: '08:00',
-    timeOut: '17:00',
-    workDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'],
-    dayOff: ['Sunday'],
-    remarks: 'Standard day shift',
-  },
-])
-
-// Modal logic
-const createModal = ref(null)
-const editModal = ref(null)
-const viewModal = ref(null)
-const confirmModal = ref(null)
-
-const newSchedule = ref({
-  type: '',
-  timeIn: '',
-  timeOut: '',
-  workDays: [],
-  dayOff: [],
-  remarks: '',
+// Fetch schedules on mount
+onMounted(() => {
+  scheduleStore.fetchSchedules(true)
 })
-const selectedSchedule = ref(null)
-const editSchedule = ref(null)
-const confirmActionType = ref('') // 'create', 'edit', 'delete'
-
-const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 // Add Schedule
 const openCreateModal = () => {
-  newSchedule.value = { type: '', timeIn: '', timeOut: '', workDays: [], dayOff: [], remarks: '' }
+  newSchedule.value = {
+    type: '',
+    time_in: '',
+    time_out: '',
+    work_days: [],
+    day_off: [],
+    remarks: '',
+  }
   createModal.value?.showModal()
 }
 const closeCreateModal = () => createModal.value?.close()
@@ -125,18 +173,27 @@ const closeCreateModal = () => createModal.value?.close()
 const validateSchedule = (sched) => {
   const errors = []
   if (!sched.type) errors.push('Type is required')
-  if (!sched.timeIn) errors.push('Time In is required')
-  if (!sched.timeOut) errors.push('Time Out is required')
-  if (!sched.workDays || sched.workDays.length === 0) errors.push('Work Days are required')
-  if (!sched.dayOff || sched.dayOff.length === 0) errors.push('Day Off is required')
-  // Prevent overlap
-  if (sched.workDays.some((day) => sched.dayOff.includes(day))) {
+  if (!sched.time_in) errors.push('Time In is required')
+  if (!sched.time_out) errors.push('Time Out is required')
+  if (!sched.work_days || sched.work_days.length === 0) errors.push('Work Days are required')
+  if (!sched.day_off || sched.day_off.length === 0) errors.push('Day Off is required')
+  if (sched.work_days.some((day) => sched.day_off.includes(day))) {
     errors.push('Work Days and Day Off cannot overlap')
   }
   return errors
 }
 
-const addSchedule = () => {
+const overlapError = computed(() => {
+  const overlap = newSchedule.value.work_days.filter((day) =>
+    newSchedule.value.day_off.includes(day),
+  )
+  if (overlap.length > 0) {
+    return `You cannot select the same day in both Work Days and Day Off: ${overlap.join(', ')}`
+  }
+  return ''
+})
+
+const addSchedule = async () => {
   const errors = validateSchedule(newSchedule.value)
   if (errors.length > 0) {
     showToastMessage(errors.join('\n'), 'error')
@@ -146,26 +203,27 @@ const addSchedule = () => {
   confirmModal.value?.showModal()
 }
 
-const confirmAction = () => {
-  if (confirmActionType.value === 'create') {
-    schedules.value.push({ ...newSchedule.value })
-    closeCreateModal()
-    showToastMessage('Schedule added successfully!', 'success')
-  } else if (confirmActionType.value === 'edit') {
-    // Find and update
-    const idx = schedules.value.findIndex((s) => s === selectedSchedule.value)
-    if (idx !== -1) {
-      schedules.value[idx] = { ...editSchedule.value }
+const confirmAction = async () => {
+  try {
+    if (confirmActionType.value === 'create') {
+      await scheduleStore.addSchedule({ ...newSchedule.value })
+      closeCreateModal()
+      showToastMessage('Schedule added successfully!', 'success')
+    } else if (confirmActionType.value === 'edit') {
+      await scheduleStore.updateSchedule(editSchedule.value.id, { ...editSchedule.value })
       closeEditModal()
       showToastMessage('Schedule updated successfully!', 'success')
+    } else if (confirmActionType.value === 'delete') {
+      await scheduleStore.deleteSchedule(selectedSchedule.value.id)
+      showToastMessage('Schedule archived successfully!', 'success')
+    } else if (confirmActionType.value === 'restore') {
+      await scheduleStore.restoreSchedule(selectedSchedule.value.id)
+      showToastMessage('Schedule restored successfully!', 'success')
     }
-  } else if (confirmActionType.value === 'delete') {
-    // Remove
-    const idx = schedules.value.findIndex((s) => s === selectedSchedule.value)
-    if (idx !== -1) {
-      schedules.value.splice(idx, 1)
-      showToastMessage('Schedule deleted successfully!', 'success')
-    }
+    // Always refresh after any action
+    await scheduleStore.fetchSchedules(true)
+  } catch (err) {
+    showToastMessage(scheduleStore.error || 'Something went wrong', 'error')
   }
   closeConfirmModal()
 }
@@ -175,7 +233,19 @@ const closeConfirmModal = () => confirmModal.value?.close()
 // Edit Schedule
 const openEditModal = (schedule) => {
   selectedSchedule.value = schedule
-  editSchedule.value = { ...schedule }
+  editSchedule.value = {
+    ...schedule,
+    work_days: Array.isArray(schedule.work_days)
+      ? schedule.work_days
+      : typeof schedule.work_days === 'string'
+        ? JSON.parse(schedule.work_days)
+        : [],
+    day_off: Array.isArray(schedule.day_off)
+      ? schedule.day_off
+      : typeof schedule.day_off === 'string'
+        ? JSON.parse(schedule.day_off)
+        : [],
+  }
   editModal.value?.showModal()
 }
 const closeEditModal = () => {
@@ -183,7 +253,20 @@ const closeEditModal = () => {
   selectedSchedule.value = null
   editSchedule.value = null
 }
-const updateSchedule = () => {
+const editOverlapError = computed(() => {
+  if (!editSchedule.value) return ''
+  const overlap = editSchedule.value.work_days.filter((day) =>
+    editSchedule.value.day_off.includes(day),
+  )
+  if (overlap.length > 0) {
+    return `You cannot select the same day in both Work Days and Day Off: ${overlap.join(', ')}`
+  }
+  return ''
+})
+function isEditWorkDaySelected(day) {
+  return editSchedule?.work_days?.includes(day)
+}
+const updateSchedule = async () => {
   const errors = validateSchedule(editSchedule.value)
   if (errors.length > 0) {
     showToastMessage(errors.join('\n'), 'error')
@@ -200,6 +283,13 @@ const openDeleteModal = (schedule) => {
   confirmModal.value?.showModal()
 }
 
+// Restore Schedule
+const openRestoreModal = (schedule) => {
+  selectedSchedule.value = schedule
+  confirmActionType.value = 'restore'
+  confirmModal.value?.showModal()
+}
+
 // View Schedule
 function openViewModal(schedule) {
   selectedSchedule.value = schedule
@@ -211,11 +301,16 @@ function closeViewModal() {
 }
 
 function isDayOffSelected(day) {
-  return newSchedule.value.dayOff.includes(day)
+  return newSchedule.value.day_off.includes(day)
 }
 function isWorkDaySelected(day) {
-  return newSchedule.value.workDays.includes(day)
+  return newSchedule.value.work_days.includes(day)
 }
+
+// Always fetch both on toggle
+watch(showArchived, async () => {
+  await scheduleStore.fetchSchedules(true)
+})
 </script>
 
 <template>
@@ -227,9 +322,9 @@ function isWorkDaySelected(day) {
     </div>
 
     <!-- Table -->
-    <BaseTable :columns="columns" :data="schedules" :showExport="false" />
+    <BaseTable :columns="columns" :data="tableData" :showExport="false" />
     <div class="flex justify-end gap-2 mt-4">
-      <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
+      <input type="checkbox" v-model="showArchived" class="checkbox checkbox-xs checkbox-neutral" />
       <span class="text-sm cursor-pointer hover:text-gray-500 text-black"
         >Show Archived Schedules</span
       >
@@ -247,23 +342,28 @@ function isWorkDaySelected(day) {
             <label class="block text-sm text-black mb-1">Type</label>
             <select v-model="newSchedule.type" class="input-search cursor-pointer" required>
               <option value="" disabled>Select type</option>
-              <option value="Night Shift">Night Shift</option>
-              <option value="Day Shift">Day Shift</option>
-              <option value="Part Time">Part Time</option>
+              <option value="Morning Shift">Morning Shift</option>
+              <option value="Mid Shift">Mid Shift</option>
+              <option value="Afternoon Shift">Afternoon Shift</option>
+              <option value="Night Shift (with night differential)">
+                Night Shift <span class="text-xs">(with night differential)</span>
+              </option>
+              <option value="Graveyard Shift">Graveyard Shift</option>
+              <option value="Custom Shift">Custom Shift</option>
             </select>
           </div>
           <div>
             <label class="block text-sm text-black mb-1">Start Time</label>
-            <input v-model="newSchedule.timeIn" type="time" class="input-search" required />
+            <input v-model="newSchedule.time_in" type="time" class="input-search" required />
           </div>
           <div>
             <label class="block text-sm text-black mb-1">End Time</label>
-            <input v-model="newSchedule.timeOut" type="time" class="input-search" required />
+            <input v-model="newSchedule.time_out" type="time" class="input-search" required />
           </div>
           <div>
             <label class="block text-sm text-black mb-1">Work Days</label>
             <Multiselect
-              v-model="newSchedule.workDays"
+              v-model="newSchedule.work_days"
               :options="daysOfWeek"
               :multiple="true"
               :close-on-select="false"
@@ -275,7 +375,7 @@ function isWorkDaySelected(day) {
           <div>
             <label class="block text-sm text-black mb-1">Day Off</label>
             <Multiselect
-              v-model="newSchedule.dayOff"
+              v-model="newSchedule.day_off"
               :options="daysOfWeek"
               :multiple="true"
               :close-on-select="false"
@@ -283,6 +383,9 @@ function isWorkDaySelected(day) {
               class="multiselect-custom"
               :option-disabled="isWorkDaySelected"
             />
+          </div>
+          <div v-if="overlapError" class="error-text">
+            {{ overlapError }}
           </div>
           <div>
             <label class="block text-sm text-black mb-1">Remarks</label>
@@ -294,7 +397,7 @@ function isWorkDaySelected(day) {
             ></textarea>
           </div>
           <div class="modal-action justify-center gap-4 mt-2">
-            <button type="submit" class="btn-primaryStyle">Add</button>
+            <button type="submit" class="btn-primaryStyle" :disabled="!!overlapError">Add</button>
             <button type="button" class="btn-secondaryStyle" @click="closeCreateModal">
               Cancel
             </button>
@@ -315,38 +418,49 @@ function isWorkDaySelected(day) {
             <label class="block text-sm text-black mb-1">Type</label>
             <select v-model="editSchedule.type" class="input-search" required>
               <option value="" disabled>Select type</option>
-              <option value="Night Shift">Night Shift</option>
-              <option value="Day">Day</option>
-              <option value="Part Time">Part Time</option>
+              <option value="Morning Shift">Morning Shift</option>
+              <option value="Mid Shift">Mid Shift</option>
+              <option value="Afternoon Shift">Afternoon Shift</option>
+              <option value="Night Shift (with night differential)">
+                Night Shift <span class="text-xs">(with night differential)</span>
+              </option>
+              <option value="Graveyard Shift">Graveyard Shift</option>
+              <option value="Custom Shift">Custom Shift</option>
             </select>
           </div>
           <div>
             <label class="block text-sm text-black mb-1">Time In</label>
-            <input v-model="editSchedule.timeIn" type="time" class="input-search" required />
+            <input v-model="editSchedule.time_in" type="time" class="input-search" required />
           </div>
           <div>
             <label class="block text-sm text-black mb-1">Time Out</label>
-            <input v-model="editSchedule.timeOut" type="time" class="input-search" required />
+            <input v-model="editSchedule.time_out" type="time" class="input-search" required />
           </div>
           <div>
             <label class="block text-sm text-black mb-1">Work Days</label>
             <Multiselect
-              v-model="editSchedule.workDays"
+              v-model="editSchedule.work_days"
               :options="daysOfWeek"
               :multiple="true"
               :close-on-select="false"
               placeholder="Select work days"
+              class="multiselect-custom"
             />
           </div>
           <div>
             <label class="block text-sm text-black mb-1">Day Off</label>
             <Multiselect
-              v-model="editSchedule.dayOff"
+              v-model="editSchedule.day_off"
               :options="daysOfWeek"
               :multiple="true"
               :close-on-select="false"
               placeholder="Select day off"
+              class="multiselect-custom"
+              :option-disabled="isEditWorkDaySelected"
             />
+          </div>
+          <div v-if="editOverlapError" class="error-text">
+            {{ editOverlapError }}
           </div>
           <div>
             <label class="block text-sm text-black mb-1">Remarks</label>
@@ -358,7 +472,9 @@ function isWorkDaySelected(day) {
             ></textarea>
           </div>
           <div class="modal-action justify-center gap-4 mt-2">
-            <button type="submit" class="btn-primaryStyle">Save Changes</button>
+            <button type="submit" class="btn-primaryStyle" :disabled="!!editOverlapError">
+              Save Changes
+            </button>
             <button type="button" class="btn-secondaryStyle" @click="closeEditModal">Cancel</button>
           </div>
         </form>
@@ -379,19 +495,35 @@ function isWorkDaySelected(day) {
           </div>
           <div class="flex justify-between">
             <span class="text-sm text-gray-500">Time In:</span>
-            <span class="text-sm">{{ selectedSchedule.timeIn }}</span>
+            <span class="text-sm">{{ selectedSchedule.time_in }}</span>
           </div>
           <div class="flex justify-between">
             <span class="text-sm text-gray-500">Time Out:</span>
-            <span class="text-sm">{{ selectedSchedule.timeOut }}</span>
+            <span class="text-sm">{{ selectedSchedule.time_out }}</span>
           </div>
           <div class="flex justify-between">
             <span class="text-sm text-gray-500">Work Days:</span>
-            <span class="text-sm">{{ (selectedSchedule.workDays || []).join(', ') }}</span>
+            <span class="text-sm">
+              {{
+                Array.isArray(selectedSchedule.work_days)
+                  ? selectedSchedule.work_days.join(', ')
+                  : typeof selectedSchedule.work_days === 'string'
+                    ? JSON.parse(selectedSchedule.work_days).join(', ')
+                    : ''
+              }}
+            </span>
           </div>
           <div class="flex justify-between">
             <span class="text-sm text-gray-500">Day Off:</span>
-            <span class="text-sm">{{ (selectedSchedule.dayOff || []).join(', ') }}</span>
+            <span class="text-sm">
+              {{
+                Array.isArray(selectedSchedule.day_off)
+                  ? selectedSchedule.day_off.join(', ')
+                  : typeof selectedSchedule.day_off === 'string'
+                    ? JSON.parse(selectedSchedule.day_off).join(', ')
+                    : ''
+              }}
+            </span>
           </div>
           <div class="flex justify-between">
             <span class="text-sm text-gray-500">Remarks:</span>
@@ -421,7 +553,9 @@ function isWorkDaySelected(day) {
                 ? 'add'
                 : confirmActionType === 'edit'
                   ? 'save changes to'
-                  : 'delete'
+                  : confirmActionType === 'delete'
+                    ? 'archive'
+                    : 'restore'
             }}
           </span>
           this schedule?
@@ -429,7 +563,9 @@ function isWorkDaySelected(day) {
         <div class="modal-action justify-center gap-4">
           <button
             class="btn-primaryStyle"
-            :class="{ 'btn-errorStyle': confirmActionType === 'delete' }"
+            :class="{
+              'btn-errorStyle': confirmActionType === 'delete' || confirmActionType === 'restore',
+            }"
             @click="confirmAction"
           >
             Yes
@@ -463,16 +599,31 @@ function isWorkDaySelected(day) {
 }
 .multiselect-custom {
   width: 100%;
-  border: 1px solid #466114;
   border-radius: 0.5rem;
   background: #fff;
   min-height: 40px;
   font-size: 1rem;
   color: #222;
-  /* Match your .input-search padding if needed */
+  padding: 0 0.75rem; /* Remove vertical padding for better alignment */
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+}
+.multiselect__tags {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  padding: 0;
+}
+.multiselect__input,
+.multiselect__single {
+  min-height: 40px;
+  line-height: 40px;
+  padding: 0;
 }
 .multiselect__content-wrapper {
   background: #466114 !important;
+  border-radius: 0 0 0.5rem 0.5rem;
 }
 .multiselect__option--highlight {
   background: #36500e !important;
@@ -485,5 +636,10 @@ function isWorkDaySelected(day) {
 .multiselect__option[aria-disabled='true'] {
   opacity: 0.5;
   pointer-events: none;
+}
+.error-text {
+  color: red;
+  font-size: 0.8em;
+  margin-top: 0.5em;
 }
 </style>
