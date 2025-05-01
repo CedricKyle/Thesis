@@ -96,7 +96,7 @@ function closeViewModal() {
   <div class="flex flex-col mt-4">
     <!-- Header and Create Button -->
     <div class="flex justify-between items-center mb-4">
-      <h2 class="text-xl font-semibold text-black">Employee Mandatory Deduction</h2>
+      <h2 class="text-xl font-semibold text-black">Employee Mandatory Deduction hehe</h2>
       <button class="btn-primaryStyle" @click="openCreateModal">Add Deduction</button>
     </div>
 
