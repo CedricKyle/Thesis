@@ -1,66 +1,297 @@
 <script setup>
-// Account Reconciliation page: compare bank/credit statement vs general ledger transactions
-import { ref } from 'vue';
+import { ref, computed } from 'vue'
+import { EyeIcon, BookCheck, CircleX, UserPen } from 'lucide-vue-next'
+import StockMonitoring from '@/components/SCM Components/Inventory Management Component/StockMonitoring.vue'
 
-// Dummy transaction data for reconciliation (bank vs ledger)
+// Dummy payroll data
+const payrolls = ref([
+  {
+    id: 1,
+    employee_name: 'Juan Dela Cruz',
+    department: 'Sales',
+    pay_period: '2024-06-01 to 2024-06-15',
+    days_of_present: 10,
+    days_of_absent: 1,
+    hours_late: 2,
+    over_time: 5,
+    bonus: 1000,
+    advance_payments: 200,
+    mandatory_deductions: 500,
+    tax: 300,
+    gross_salary: 20000,
+    net_pay: 19000,
+    status: 'Processed',
+    created_at: '2024-06-16',
+  },
+  {
+    id: 2,
+    employee_name: 'Maria Santos',
+    department: 'Sales',
+    pay_period: '2024-06-01 to 2024-06-15',
+    days_of_present: 12,
+    days_of_absent: 0,
+    hours_late: 0,
+    over_time: 8,
+    bonus: 1200,
+    advance_payments: 300,
+    mandatory_deductions: 400,
+    tax: 250,
+    gross_salary: 18000,
+    net_pay: 17050,
+    status: 'For Review',
+    created_at: '2024-06-16',
+  },
+])
+
+// Dummy transaction records data
 const transactions = ref([
-  { date: '2025-07-01', description: 'Food Supply',    bankAmount: 500,  ledgerAmount: 500,  status: 'Matched' },
-  { date: '2025-07-02', description: 'Balance',  bankAmount: 200,  ledgerAmount: null, status: 'Mismatch' },  // in bank not in ledger
-  { date: '2025-07-03', description: 'Expenses',bankAmount: null, ledgerAmount: 300,  status: 'Mismatch' },  // in ledger not in bank
-  { date: '2025-07-04', description: 'Budget', bankAmount: 400,  ledgerAmount: 450,  status: 'Mismatch' }   // amounts differ
-]);
+  {
+    transaction_id: 1,
+    date: '2024-06-01',
+    name: 'Juan Dela Cruz',
+    phone_number: '09171234567',
+    location: 'Manila',
+    product: 'Laptop',
+    quantity: 2,
+    unit_price: 25000,
+    total_price: 50000,
+    status: 'Completed',
+  },
+  {
+    transaction_id: 2,
+    date: '2024-06-02',
+    name: 'Maria Santos',
+    phone_number: '09281234567',
+    location: 'Cebu',
+    product: 'Phone',
+    quantity: 1,
+    unit_price: 15000,
+    total_price: 15000,
+    status: 'Pending',
+  },
+])
+
+const search = ref('')
+const selectedTab = ref('payroll')  // This will track which tab is selected
+
+// Modal related data for transaction edit
+const showEditModal = ref(false)
+const selectedTransaction = ref(null)
+
+// Filter payrolls based on search input
+const filteredPayrolls = computed(() =>
+  payrolls.value.filter(row =>
+    !search.value || row.employee_name.toLowerCase().includes(search.value.toLowerCase())
+  )
+)
+
+// Filter transactions based on search input
+const filteredTransactions = computed(() =>
+  transactions.value.filter(transaction =>
+    !search.value || transaction.name.toLowerCase().includes(search.value.toLowerCase())
+  )
+)
+
+// Handle delete action for transactions
+const deleteTransaction = (transactionId) => {
+  transactions.value = transactions.value.filter(transaction => transaction.transaction_id !== transactionId)
+}
+
+// Handle update action to show modal for transactions
+const openEditModal = (transactionId) => {
+  selectedTransaction.value = { ...transactions.value.find(t => t.transaction_id === transactionId) }
+  showEditModal.value = true
+}
+
+// Handle the form submission for editing a transaction
+const updateTransaction = () => {
+  if (selectedTransaction.value) {
+    const index = transactions.value.findIndex(t => t.transaction_id === selectedTransaction.value.transaction_id)
+    transactions.value[index] = { ...selectedTransaction.value }
+  }
+  showEditModal.value = false
+}
+
+// Function to format the pay period month for payrolls
+const getPayPeriodMonth = (payPeriod) => {
+  const match = payPeriod.match(/^(\d{4})-(\d{2})/)
+  if (!match) return payPeriod
+  const year = match[1]
+  const month = match[2]
+  const date = new Date(`${year}-${month}-01`)
+  return date.toLocaleString('en-US', { month: 'long', year: 'numeric' })
+}
 </script>
 
-
 <template>
+  <div>
+    <!-- Navigation Bar (Tabs) -->
+    <div class="bg-primaryColor text-white font-medium">
+      <nav class="flex justify-around items-center py-3">
+        <!-- Update the links to toggle tabs using selectedTab -->
+        <a href="#" @click.prevent="selectedTab = 'payroll'" :class="{'text-gray-300': selectedTab !== 'payroll'}" class="hover:text-gray-300 transition duration-150 ease-in-out">Payroll</a>
+        <a href="#" @click.prevent="selectedTab = 'supplyPayment'" :class="{'text-gray-300': selectedTab !== 'supplyPayment'}" class="hover:text-gray-300 transition duration-150 ease-in-out">Supply Payment</a>
+        <a href="#" @click.prevent="selectedTab = 'transactionRecords'" :class="{'text-gray-300': selectedTab !== 'transactionRecords'}" class="hover:text-gray-300 transition duration-150 ease-in-out">Transaction Records</a>
+        <a href="#" @click.prevent="selectedTab = 'financialStatement'" :class="{'text-gray-300': selectedTab !== 'financialStatement'}" class="hover:text-gray-300 transition duration-150 ease-in-out">Financial Statement</a>
+      </nav>
+    </div>
 
-  <div class="w-full bg-white shadow-md rounded-md p-4">
-    <!-- Page title -->
-    <h2 class="text-2xl font-bold mb-4">Account Reconciliation</h2>
-    <!-- Transactions comparison table -->
-    <div class="overflow-x-auto">
-      <table class="table w-full table-zebra table-auto">
-        <thead>
-          <tr>
-            <th class="px-4 py-2 text-left">Date</th>
-            <th class="px-4 py-2 text-left">Description</th>
-            <th class="px-4 py-2 text-right">Bank Amount</th>
-            <th class="px-4 py-2 text-right">Ledger Amount</th>
-            <th class="px-4 py-2 text-left">Status</th>
-            <th class="px-4 py-2 text-left">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="(txn, index) in transactions" :key="index">
-            <td class="px-4 py-2">{{ txn.date }}</td>
-            <td class="px-4 py-2">{{ txn.description }}</td>
-            <!-- Display amounts or placeholder if missing -->
-            <td class="px-4 py-2 text-right">
-              <span v-if="txn.bankAmount !== null">\₱{{ txn.bankAmount.toLocaleString() }}</span>
-              <span v-else class="text-gray-400">N/A</span>
-            </td>
-            <td class="px-4 py-2 text-right">
-              <span v-if="txn.ledgerAmount !== null">\₱{{ txn.ledgerAmount.toLocaleString() }}</span>
-              <span v-else class="text-gray-400">N/A</span>
-            </td>
-            <!-- Status badge: green for Matched, red for Mismatch -->
-            <td class="px-4 py-2">
-              <span :class="{'badge': true, 'badge-success': txn.status === 'Matched', 'badge-error': txn.status === 'Mismatch'}">
-                {{ txn.status }}
-              </span>
-            </td>
-            <!-- Adjustment action for mismatches -->
-            <td class="px-4 py-2">
-              <button 
-                v-if="txn.status === 'Mismatch'" 
-                class="btn btn-xs btn-outline">
-                Adjust
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    <!-- Conditional Rendering of Content based on selectedTab -->
+    <div class="w-full bg-white shadow-md rounded-md p-4">
+      <!-- Search Bar -->
+      <input v-model="search" type="text" placeholder="Search" class="input-search input-sm w-72 mb-4" />
+
+      <!-- Payroll Content (only show when selectedTab is 'payroll') -->
+      <div v-if="selectedTab === 'payroll'">
+        <div class="overflow-x-auto">
+          <table class="table text-black w-full text-xs border border-gray-300 rounded-md">
+            <thead>
+              <tr>
+                <th>No.</th>
+                <th>Employee Name</th>
+                <th>Department</th>
+                <th>Pay Period</th>
+                <th>Present</th>
+                <th>Absent</th>
+                <th>Late (hrs)</th>
+                <th>Overtime</th>
+                <th>Bonus</th>
+                <th>Advance</th>
+                <th>Deductions</th>
+                <th>Tax</th>
+                <th>Gross Salary</th>
+                <th>Net Pay</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in filteredPayrolls" :key="row.id">
+                <td>{{ row.id }}</td>
+                <td>{{ row.employee_name }}</td>
+                <td>{{ row.department }}</td>
+                <td>{{ getPayPeriodMonth(row.pay_period) }}</td>
+                <td>{{ row.days_of_present }}</td>
+                <td>{{ row.days_of_absent }}</td>
+                <td>{{ row.hours_late }}</td>
+                <td>{{ row.over_time }}</td>
+                <td>₱{{ row.bonus }}</td>
+                <td>₱{{ row.advance_payments }}</td>
+                <td>₱{{ row.mandatory_deductions }}</td>
+                <td>₱{{ row.tax }}</td>
+                <td>₱{{ row.gross_salary }}</td>
+                <td>₱{{ row.net_pay }}</td>
+                <td>{{ row.status }}</td>
+                <td>
+                  <button class="text-black hover:text-white hover:bg-primaryColor/80 rounded-full p-1">
+                    <EyeIcon class="w-4 h-4" />
+                  </button>
+                  <button class="text-black hover:text-white hover:bg-primaryColor/80 rounded-full p-1">
+                    <BookCheck class="w-4 h-4" />
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="!filteredPayrolls.length">
+                <td colspan="16" class="text-center py-4">No payroll records found</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div v-if="selectedTab === 'supplyPayment'">
+        <StockMonitoring />
+      </div>
+      <!-- Transaction Records Content (only show when selectedTab is 'transactionRecords') -->
+      <div v-if="selectedTab === 'transactionRecords'">
+        <h3>Transaction Records Section</h3>
+        <div class="overflow-x-auto">
+          <table class="table text-black w-full text-xs border border-gray-300 rounded-md">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Name</th>
+                <th>Phone Number</th>
+                <th>Location</th>
+                <th>Product</th>
+                <th>Quantity</th>
+                <th>Unit Price</th>
+                <th>Total Price</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="transaction in filteredTransactions" :key="transaction.transaction_id">
+                <td>{{ transaction.date }}</td>
+                <td>{{ transaction.name }}</td>
+                <td>{{ transaction.phone_number }}</td>
+                <td>{{ transaction.location }}</td>
+                <td>{{ transaction.product }}</td>
+                <td>{{ transaction.quantity }}</td>
+                <td>₱{{ Number(transaction.unit_price).toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
+                <td>₱{{ Number(transaction.total_price).toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
+                <td>
+                  <span :class="{
+                    'badge': true,
+                    'badge-success': transaction.status === 'Completed',
+                    'badge-warning': transaction.status === 'Pending',
+                    'badge-neutral': transaction.status === 'Pending'
+                  }">
+                    {{ transaction.status }}
+                  </span>
+                </td>
+                <td>
+                  <!-- Update Button with DaisyUI Icon -->
+                  <button @click="openEditModal(transaction.transaction_id)" class="text-black hover:text-white hover:bg-primaryColor/80 rounded-full p-1">
+                    <UserPen class="w-4 h-4" />
+                  </button>
+
+                  <!-- Delete Button with DaisyUI Icon -->
+                  <button @click="deleteTransaction(transaction.transaction_id)" class="text-black hover:text-white hover:bg-primaryColor/80 rounded-full p-1">
+                    <CircleX class="w-4 h-4" />
+                  </button>
+                </td>
+              </tr>
+              <tr v-if="!filteredTransactions.length">
+                <td colspan="10" class="text-center py-4 text-gray-500">No transaction history found</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Edit Modal for Transaction -->
+      <dialog v-if="showEditModal" open class="modal text-black">
+        <div class="modal-box bg-white w-[420px] p-6 rounded-lg shadow-lg">
+          <h3 class="text-lg font-bold mb-4">Edit Transaction</h3>
+          <div class="flex flex-col gap-3">
+            <div>
+              <label class="text-xs font-semibold">Product</label>
+              <input v-model="selectedTransaction.product" type="text" class="input w-full border-black text-black bg-white" required />
+            </div>
+            <div>
+              <label class="text-xs font-semibold">Quantity</label>
+              <input v-model="selectedTransaction.quantity" type="number" class="input w-full border-black text-black bg-white" required />
+            </div>
+            <div>
+              <label class="text-xs font-semibold">Unit Price</label>
+              <input v-model="selectedTransaction.unit_price" type="number" class="input w-full border-black text-black bg-white" required />
+            </div>
+            <div>
+              <label class="text-xs font-semibold">Status</label>
+              <select v-model="selectedTransaction.status" class="select w-full border-black text-black bg-white">
+                <option value="Pending">Pending</option>
+                <option value="Completed">Completed</option>
+              </select>
+            </div>
+            <div class="flex justify-end gap-2 mt-4">
+              <button class="btn btn-sm btn-secondary" @click="showEditModal = false">Cancel</button>
+              <button class="btn btn-sm btn-primary" @click="updateTransaction">Update Transaction</button>
+            </div>
+          </div>
+        </div>
+      </dialog>
     </div>
   </div>
 </template>
-

@@ -68,46 +68,49 @@ onMounted(async () => {
     const roleId = props.id || route.params.id
     console.log('Fetching role with ID:', roleId)
 
+    if (!roleId) {
+      throw new Error('Role ID is required')
+    }
+
     const roleData = await rolesStore.getRoleById(roleId)
     console.log('Fetched role data:', roleData)
 
-    if (roleData) {
-      // Update form data
-      formData.value = {
-        roleName: roleData.role_name || '',
-        description: roleData.description || '',
-      }
-
-      // Set department - make sure it matches exactly with DEPARTMENTS values
-      selectedDepartment.value =
-        roleData.department === 'Finance Department'
-          ? DEPARTMENTS.FINANCE
-          : roleData.department === 'HR Department'
-            ? DEPARTMENTS.HR
-            : roleData.department === 'Admin Department'
-              ? DEPARTMENTS.ADMIN
-              : ''
-
-      // Handle permissions
-      let permissions = roleData.permissions
-      if (typeof permissions === 'string') {
-        try {
-          permissions = JSON.parse(permissions)
-        } catch (e) {
-          permissions = []
-        }
-      }
-      selectedPermissions.value = Array.isArray(permissions) ? permissions : []
-
-      // Update group select states after permissions are set
-      permissionGroupsRef.value.forEach((group) => {
-        groupSelectState.value[group.name] = isGroupFullySelected(group.name)
-      })
+    if (!roleData) {
+      throw new Error('Role not found')
     }
+
+    // Update form data
+    formData.value = {
+      roleName: roleData.role_name || '',
+      description: roleData.description || '',
+    }
+
+    // Set department
+    selectedDepartment.value = roleData.department || ''
+
+    // Handle permissions with better error handling
+    let permissions = []
+    try {
+      if (typeof roleData.permissions === 'string') {
+        permissions = JSON.parse(roleData.permissions)
+      } else if (Array.isArray(roleData.permissions)) {
+        permissions = roleData.permissions
+      }
+    } catch (e) {
+      console.error('Error parsing permissions:', e)
+      permissions = []
+    }
+
+    selectedPermissions.value = permissions
+
+    // Update group select states
+    permissionGroupsRef.value.forEach((group) => {
+      groupSelectState.value[group.name] = isGroupFullySelected(group.name)
+    })
   } catch (error) {
     console.error('Error loading role:', error)
     toastType.value = 'error'
-    toastMessage.value = 'Error loading role data. Please try again.'
+    toastMessage.value = error.message || 'Error loading role data'
     showToast.value = true
 
     // Redirect back to roles list after error
