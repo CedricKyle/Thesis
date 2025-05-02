@@ -60,8 +60,9 @@ const attendanceController = {
       const actualStartMinutes = inH * 60 + inM
       const late_minutes = attendanceLogic.calculateLateMinutes(scheduledStart, start_time)
       let status = late_minutes > 0 ? 'Late' : 'Present'
-
       const ratePerHour = await getEmployeeRatePerHour(employee_id)
+      const tardinessDeduction =
+        late_minutes > 0 ? ((late_minutes / 60) * ratePerHour).toFixed(2) : 0
 
       await attendance.update(
         {
@@ -70,6 +71,7 @@ const attendanceController = {
           status,
           absent: false,
           schedule_id: empSchedule.id,
+          tardiness_deduction: tardinessDeduction,
         },
         { transaction: t },
       )

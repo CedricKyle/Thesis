@@ -5,6 +5,7 @@ const GRACE_PERIOD_MINUTES = 15
 const BREAK_DEDUCTION_MINUTES = 60
 const MIN_HOURS_FOR_BREAK = 5
 const REGULAR_HOURS_PER_DAY = 8
+const MAX_OVERTIME_HOURS = 12
 
 /**
  * Calculate late minutes (tardiness)
@@ -50,11 +51,17 @@ function calculateHoursWorked(inTime, outTime) {
 function calculateOvertime(scheduledOut, actualOut) {
   const [schedH, schedM] = scheduledOut.split(':').map(Number)
   const [outH, outM] = actualOut.split(':').map(Number)
-  let scheduledMinutes = schedH * 60 + schedM
+  const scheduledMinutes = schedH * 60 + schedM
   let actualMinutes = outH * 60 + outM
-  if (actualMinutes <= scheduledMinutes) actualMinutes += 24 * 60 // overnight
-  let overtime = Math.max(0, actualMinutes - scheduledMinutes)
-  return (overtime / 60).toFixed(2)
+
+  // If actual out is before scheduled out, assume overnight shift
+  if (actualMinutes < scheduledMinutes) {
+    actualMinutes += 24 * 60
+  }
+
+  const overtime = Math.max(0, actualMinutes - scheduledMinutes)
+  const overtimeHours = Math.min(overtime / 60, MAX_OVERTIME_HOURS)
+  return overtimeHours.toFixed(2)
 }
 
 /**

@@ -23,6 +23,8 @@ const EmployeeDeduction = require('./EmployeeDeduction')(sequelize)
 const AvailableSchedule = require('./AvailableSchedule')(sequelize)
 const EmployeeSchedule = require('./EmployeeSchedule')(sequelize)
 const Leave = require('./LeavesModel')(sequelize)
+const Payroll = require('./PayrollModel')(sequelize)
+const AuditLog = require('./AuditLog.js')(sequelize, Sequelize.DataTypes)
 // Define relationships for other models (not EmployeeAttendance!)
 // (Keep only these if you need them)
 Employee.hasOne(EmergencyContact, {
@@ -74,6 +76,8 @@ const db = {
   AvailableSchedule,
   EmployeeSchedule,
   Leave,
+  Payroll,
+  AuditLog,
 }
 
 // Call associate for all models
