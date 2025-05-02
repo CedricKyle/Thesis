@@ -22,7 +22,7 @@ const Position = require('./EmployeePositions')(sequelize)
 const EmployeeDeduction = require('./EmployeeDeduction')(sequelize)
 const AvailableSchedule = require('./AvailableSchedule')(sequelize)
 const EmployeeSchedule = require('./EmployeeSchedule')(sequelize)
-
+const Leave = require('./LeavesModel')(sequelize)
 // Define relationships for other models (not EmployeeAttendance!)
 // (Keep only these if you need them)
 Employee.hasOne(EmergencyContact, {
@@ -52,6 +52,10 @@ Employee.hasMany(EmployeeAttendance, {
 StockAdjustment.belongsTo(InventoryProduct, { foreignKey: 'product_id' })
 InventoryProduct.hasMany(StockAdjustment, { foreignKey: 'product_id' })
 
+// After defining Leave and Employee
+Leave.belongsTo(Employee, { foreignKey: 'employee_id', targetKey: 'employee_id' })
+Employee.hasMany(Leave, { foreignKey: 'employee_id', sourceKey: 'employee_id' })
+
 // Export models and sequelize instance
 const db = {
   sequelize,
@@ -69,6 +73,7 @@ const db = {
   EmployeeDeduction,
   AvailableSchedule,
   EmployeeSchedule,
+  Leave,
 }
 
 // Call associate for all models

@@ -8,6 +8,7 @@ import EmployeeSchedules from '@/components/Admin Components/HR/Employee/Employe
 import EmployeeManageSchedules from '@/components/Admin Components/HR/Employee/EmployeeManageSchedules.vue'
 import EmployeeCashAdvance from '@/components/Admin Components/HR/Employee/EmployeeCashAdvance.vue'
 import EmployeeDeduction from '@/components/Admin Components/HR/Employee/EmplyeeDeduction.vue'
+import EmployeeLeaveManagement from '@/components/Admin Components/HR/Employee/EmployeeLeaveManagement.vue'
 const store = useEmployeeStore()
 </script>
 
@@ -54,6 +55,12 @@ const store = useEmployeeStore()
       <input type="radio" name="my_tabs_2" class="tab" aria-label="Positions" />
       <div class="tab-content bg-white p-5">
         <EmployeePositions />
+      </div>
+
+      <!-- Employee Leave Management Tab -->
+      <input type="radio" name="my_tabs_2" class="tab" aria-label="Leave Management" />
+      <div class="tab-content bg-white p-5">
+        <EmployeeLeaveManagement />
       </div>
 
       <!-- Add Employee Tab -->

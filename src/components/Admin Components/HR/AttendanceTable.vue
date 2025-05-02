@@ -255,10 +255,10 @@ const columns = [
       const isApproved = record.approvalStatus === 'Approved'
       const hasAttendance =
         record.signIn &&
-        record.signIn !== '-' &&
-        record.signIn !== 'N/A' &&
-        record.signOut &&
-        record.signOut !== '-' &&
+          record.signIn !== '-' &&
+          record.signIn !== 'N/A' &&
+          record.signOut &&
+          record.signOut !== '-' &&
         record.signOut !== 'N/A'
       const isRejected = record.approvalStatus === 'Rejected'
       if (isAbsentRecord || !hasAttendance || isRejected) {

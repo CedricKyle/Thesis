@@ -15,6 +15,7 @@ const deductionRoutes = require('./routes/main branch/employee-deduction-routes.
 const availableScheduleRoutes = require('./routes/main branch/available-schedule-routes.js')
 const employeeScheduleRoutes = require('./routes/main branch/employee-schedule-routes')
 const path = require('path')
+const leaveRoutes = require('./routes/main branch/leave-routes')
 
 dotenv.config()
 
@@ -70,6 +71,7 @@ app.use('/api/positions', positionRoutes)
 app.use('/api/employee-deductions', deductionRoutes)
 app.use('/api/available-schedules', availableScheduleRoutes)
 app.use('/api/employee-schedules', employeeScheduleRoutes)
+app.use('/api/leaves', leaveRoutes)
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack)
