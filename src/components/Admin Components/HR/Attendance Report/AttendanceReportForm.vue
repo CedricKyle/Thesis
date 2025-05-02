@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
+import { DEPARTMENTS } from '@/composables/Admin Composables/User & Role/role/permissionsId'
 
 //icons
 import { MoveRight } from 'lucide-vue-next'
@@ -43,13 +44,7 @@ const filteredEmployees = computed(() => {
   )
 })
 
-const departments = [
-  'HR Department',
-  'Finance Department',
-  'Sales Department',
-  'Supply Chain Department',
-  'CRM Department',
-]
+const departments = computed(() => ['ALL_DEPARTMENTS', ...Object.values(DEPARTMENTS)])
 
 const validateDates = () => {
   const startDate = new Date(props.formData.startDate)
@@ -115,8 +110,9 @@ const handleSubmit = () => {
               @change="$emit('update:formData', { ...formData, employeeName: '' })"
             >
               <option value="">Select Department</option>
-              <option value="ALL_DEPARTMENTS">All Departments</option>
-              <option v-for="dept in departments" :key="dept">{{ dept }}</option>
+              <option v-for="dept in departments" :key="dept" :value="dept">
+                {{ dept === 'ALL_DEPARTMENTS' ? 'All Departments' : dept }}
+              </option>
             </select>
           </div>
 

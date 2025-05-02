@@ -177,7 +177,12 @@ export const useAttendanceStore = defineStore('attendance', () => {
         allDates.push({
           ...existingRecord,
           date: new Date(currentDate).toLocaleDateString(),
-          workingHours: workingHours || 0,
+          workingHours:
+            existingRecord.hours_worked != null
+              ? Number(existingRecord.hours_worked).toFixed(2)
+              : workingHours
+                ? Number(workingHours).toFixed(2)
+                : '0.00',
           status: existingRecord.status || determineStatus(existingRecord.signIn),
         })
       } else {
@@ -478,22 +483,6 @@ export const useAttendanceStore = defineStore('attendance', () => {
             scheduleTimeOut = record.schedule.time_out || scheduleTimeOut
           }
 
-          // Log the full record for debugging
-          console.log('[Attendance Mapping] Record:', record)
-
-          // Use start_time and end_time from backend!
-          const inMinutes = parseTimeToMinutes(record.start_time)
-          const outMinutes = parseTimeToMinutes(record.end_time)
-          const schedInMinutes = parseTimeToMinutes(scheduleTimeIn)
-          const schedOutMinutes = parseTimeToMinutes(scheduleTimeOut)
-
-          let regularMinutes = Math.max(
-            0,
-            Math.min(outMinutes, schedOutMinutes) - Math.max(inMinutes, schedInMinutes),
-          )
-          if (regularMinutes >= 300) regularMinutes -= 60 // Deduct break if needed
-          let overtimeMinutes = Math.max(0, outMinutes - schedOutMinutes)
-
           // Fallback for full_name and department
           const full_name =
             record.full_name ||
@@ -503,18 +492,13 @@ export const useAttendanceStore = defineStore('attendance', () => {
           const department =
             record.department || (record.employee && record.employee.department) || 'Unknown'
 
-          // Log the mapping result
-          console.log(
-            `[Attendance Mapping] Employee: ${full_name}, Schedule: ${scheduleTimeIn} - ${scheduleTimeOut}, ScheduleObj:`,
-            record.schedule,
-          )
-
-          console.log(
-            'Approval Status:',
-            record.approval_status,
-            'Mapped:',
-            record.approval_status || 'Pending',
-          )
+          // Always map workingHours from hours_worked (backend), fallback to regular_hours, else '0.00'
+          const workingHours =
+            record.hours_worked != null
+              ? Number(record.hours_worked).toFixed(2)
+              : record.regular_hours != null
+                ? Number(record.regular_hours).toFixed(2)
+                : '0.00'
 
           return {
             ...record,
@@ -522,10 +506,9 @@ export const useAttendanceStore = defineStore('attendance', () => {
             scheduleTimeOut,
             signIn: record.start_time || '-',
             signOut: record.end_time || '-',
-            workingHours:
-              record.regular_hours != null ? Number(record.regular_hours).toFixed(2) : '-',
+            workingHours, // <-- always present, always string
             overtimeHours:
-              record.overtime_hours != null ? Number(record.overtime_hours).toFixed(2) : '-',
+              record.overtime_hours != null ? Number(record.overtime_hours).toFixed(2) : '0.00',
             status: record.status || (record.absent ? 'Absent' : 'Present'),
             approvalStatus: record.approval_status || 'Pending',
             overtimeProof: record.overtime_proof || null,
@@ -1050,7 +1033,7 @@ export const useAttendanceStore = defineStore('attendance', () => {
         date: record.date,
         signIn: record.signIn,
         signOut: record.signOut,
-        workingHours: Number(record.workingHours || 0).toFixed(2),
+        workingHours: record.hoursWorked != null ? Number(record.hoursWorked).toFixed(2) : '0.00',
         status: record.status,
         approval_status: record.approval_status,
         overtime_hours: Number(record.overtime_hours || 0).toFixed(2),

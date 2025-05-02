@@ -237,6 +237,11 @@ const handleExportPDF = () => {
     generatePDF(formData.value, reportSummary.value, getAttendanceReport.value, [])
   }
 }
+
+console.log(
+  'Attendance Report Records:',
+  isDepartmentReport.value ? mappedDepartmentAttendance.value : getAttendanceReport.value,
+)
 </script>
 
 <template>
@@ -411,6 +416,9 @@ const handleExportPDF = () => {
         :records="isDepartmentReport ? mappedDepartmentAttendance : getAttendanceReport"
         :is-department-report="isDepartmentReport"
         :selected-department="formData.department"
+        :form-data="formData"
+        :summary="isDepartmentReport ? departmentFullSummary : reportSummary"
+        :department-employee-summaries="departmentFullEmployeeSummaries"
         @generate-pdf="handleExportPDF"
       />
 

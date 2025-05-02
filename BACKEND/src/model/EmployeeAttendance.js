@@ -104,6 +104,10 @@ module.exports = (sequelize) => {
         type: DataTypes.DATE,
         allowNull: true,
       },
+      status: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+      },
     },
     {
       tableName: 'employee_attendance',

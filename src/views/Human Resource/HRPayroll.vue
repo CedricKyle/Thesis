@@ -7,78 +7,95 @@ const userRole = ref('HR') // or 'Finance'
 
 const payrolls = ref([
   {
-    id: 1,
-    employee_name: 'Juan Dela Cruz',
-    department: 'Sales',
-    pay_period: '2024-06-01 to 2024-06-15',
-    days_of_present: 10,
-    days_of_absent: 1,
-    hours_late: 2,
-    over_time: 5,
-    bonus: 1000,
-    advance_payments: 200,
-    mandatory_deductions: 500,
-    tax: 300,
-    gross_deduction: 1000,
-    gross_salary: 20000,
-    net_pay: 19000,
-    status: 'Processed',
-    remarks: 'On time',
-    created_at: '2024-06-16',
+    employee_id: 1,
+    month: 6,
+    quarter: 2,
+    week: 24,
+    start_date: '2024-06-01',
+    end_date: '2024-06-15',
+    payroll_date: '2024-06-16T10:00:00+08:00',
+    days_present: 10,
+    total_hours_worked: 80,
+    regular_hour_pay: 16000,
+    days_absent: 1,
+    absent_deduction: 1000,
+    overtime_pay: 2000,
+    tardiness_deduction: 500,
+    status: 9,
+    allowance: 0,
+    bonus: 0,
+    paid_holiday: 0,
+    deduction: 1500,
+    gross_pay: 18000,
+    salary_before_tax: 17000,
+    net_pay: 16000,
+    tax_deduction: 1000,
   },
   {
-    id: 2,
-    employee_name: 'Maria Santos',
-    department: 'Sales',
-    pay_period: '2024-06-01 to 2024-06-15',
-    days_of_present: 12,
-    days_of_absent: 0,
-    hours_late: 0,
-    over_time: 8,
+    employee_id: 2,
+    month: 6,
+    quarter: 2,
+    week: 24,
+    start_date: '2024-06-01',
+    end_date: '2024-06-15',
+    payroll_date: '2024-06-16T10:00:00+08:00',
+    days_present: 12,
+    total_hours_worked: 96,
+    regular_hour_pay: 19200,
+    days_absent: 0,
+    absent_deduction: 0,
+    overtime_pay: 2500,
+    tardiness_deduction: 0,
+    status: 1,
+    allowance: 0,
     bonus: 1200,
-    advance_payments: 300,
-    mandatory_deductions: 400,
-    tax: 250,
-    gross_deduction: 800,
-    gross_salary: 18000,
-    net_pay: 17050,
-    status: 'For Review',
-    remarks: '',
-    created_at: '2024-06-16',
+    paid_holiday: 0,
+    deduction: 950,
+    gross_pay: 21700,
+    salary_before_tax: 20750,
+    net_pay: 19800,
+    tax_deduction: 950,
   },
   {
-    id: 3,
-    employee_name: 'Pedro Rodriguez',
-    department: 'Sales',
-    pay_period: '2024-06-01 to 2024-06-15',
-    days_of_present: 15,
-    days_of_absent: 0,
-    hours_late: 0,
-    over_time: 10,
+    employee_id: 3,
+    month: 6,
+    quarter: 2,
+    week: 24,
+    start_date: '2024-06-01',
+    end_date: '2024-06-15',
+    payroll_date: '2024-06-16T10:00:00+08:00',
+    days_present: 15,
+    total_hours_worked: 120,
+    regular_hour_pay: 24000,
+    days_absent: 0,
+    absent_deduction: 0,
+    overtime_pay: 3000,
+    tardiness_deduction: 0,
+    status: 2,
+    allowance: 0,
     bonus: 1500,
-    advance_payments: 400,
-    mandatory_deductions: 300,
-    tax: 200,
-    gross_deduction: 600,
-    gross_salary: 16000,
-    net_pay: 15000,
-    status: 'Approved',
-    remarks: '',
-    created_at: '2024-06-16',
+    paid_holiday: 0,
+    deduction: 1200,
+    gross_pay: 28500,
+    salary_before_tax: 27300,
+    net_pay: 26100,
+    tax_deduction: 1200,
   },
 ])
 
 const search = ref('')
 const statusFilter = ref('')
+const selectedMonth = ref('') // '' means all months
 const filteredPayrolls = computed(() =>
   payrolls.value.filter(
     (row) =>
-      (!search.value || row.employee_name.toLowerCase().includes(search.value.toLowerCase())) &&
-      (!statusFilter.value || row.status === statusFilter.value),
+      (!search.value || row.employee_id.toString().includes(search.value)) &&
+      (!statusFilter.value || row.status === statusFilter.value) &&
+      (!selectedMonth.value || row.month === Number(selectedMonth.value)),
   ),
 )
 
-const payrollHistory = computed(() => payrolls.value.filter((row) => row.status === 'Processed'))
+const payrollHistory = computed(() => payrolls.value.filter((row) => row.status === 9))
 
 const showViewModal = ref(false)
 const showApproveModal = ref(false)
@@ -141,9 +158,18 @@ const exportPayroll = () => {
         <input
           v-model="search"
           type="text"
-          placeholder="Search Employee Name"
+          placeholder="Search Employee ID"
           class="input-search input-sm w-72"
         />
+        <select
+          v-model="selectedMonth"
+          class="select bg-white border-primaryColor text-black select-sm w-32"
+        >
+          <option value="">All Months</option>
+          <option v-for="m in 12" :key="m" :value="m">
+            {{ new Date(0, m - 1).toLocaleString('en-US', { month: 'long' }) }}
+          </option>
+        </select>
         <select
           v-model="statusFilter"
           class="select bg-white border-primaryColor text-black select-sm w-40"
@@ -166,85 +192,72 @@ const exportPayroll = () => {
         <thead class="text-black text-xs">
           <tr class="border border-gray-300 rounded-md text-xs">
             <th>No.</th>
-            <th>Employee Name</th>
-            <th>Department</th>
-            <th>Pay Period</th>
-            <th>Present</th>
-            <th>Absent</th>
-            <th>Late (hrs)</th>
-            <th>Overtime</th>
-            <th>Bonus</th>
-            <th>Advance</th>
-            <th>Deductions</th>
-            <th>Tax</th>
-            <th>Gross Deduction</th>
-            <th>Gross Salary</th>
-            <th>Net Pay</th>
+            <th>Employee ID</th>
+            <th>Month</th>
+            <th>Quarter</th>
+            <th>Week</th>
+            <th>Start Date</th>
+            <th>End Date</th>
+            <th>Payroll Date</th>
+            <th>Days Present</th>
+            <th>Total Hours Worked</th>
+            <th>Regular Hour Pay</th>
+            <th>Days Absent</th>
+            <th>Absent Deduction</th>
+            <th>Overtime Pay</th>
+            <th>Tardiness Deduction</th>
             <th>Status</th>
-            <th>Remarks</th>
-            <th>Date Processed</th>
+            <th>Allowance</th>
+            <th>Bonus</th>
+            <th>Paid Holiday</th>
+            <th>Deduction</th>
+            <th>Gross Pay</th>
+            <th>Salary Before Tax</th>
+            <th>Net Pay</th>
+            <th>Tax Deduction</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           <tr
-            v-for="row in filteredPayrolls"
-            :key="row.id"
+            v-for="(row, idx) in filteredPayrolls"
+            :key="row.employee_id"
             class="border border-gray-300 rounded-md"
           >
-            <td>{{ row.id }}</td>
-            <td>{{ row.employee_name }}</td>
-            <td>{{ row.department }}</td>
-            <td>{{ getPayPeriodMonth(row.pay_period) }}</td>
-            <td>{{ row.days_of_present }}</td>
-            <td>{{ row.days_of_absent }}</td>
-            <td>{{ row.hours_late }}</td>
-            <td>{{ row.over_time }}</td>
-            <td>₱{{ Number(row.bonus).toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
+            <td>{{ idx + 1 }}</td>
+            <td>{{ row.employee_id }}</td>
+            <td>{{ row.month }}</td>
+            <td>{{ row.quarter }}</td>
+            <td>{{ row.week }}</td>
+            <td>{{ row.start_date }}</td>
+            <td>{{ row.end_date }}</td>
+            <td>{{ row.payroll_date }}</td>
+            <td>{{ row.days_present }}</td>
+            <td>{{ row.total_hours_worked }}</td>
             <td>
               ₱{{
-                Number(row.advance_payments).toLocaleString('en-PH', { minimumFractionDigits: 2 })
+                (row.regular_hour_pay ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })
               }}
             </td>
+            <td>{{ row.days_absent }}</td>
             <td>
-              ₱{{
-                Number(row.mandatory_deductions).toLocaleString('en-PH', {
-                  minimumFractionDigits: 2,
-                })
-              }}
+              ₱{{ row.absent_deduction.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}
             </td>
-            <td>₱{{ Number(row.tax).toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
+            <td>₱{{ row.overtime_pay.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
             <td>
-              ₱{{
-                Number(row.gross_deduction).toLocaleString('en-PH', { minimumFractionDigits: 2 })
-              }}
+              ₱{{ row.tardiness_deduction.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}
             </td>
+            <td>{{ row.status }}</td>
+            <td>₱{{ row.allowance.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
+            <td>₱{{ row.bonus.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
+            <td>₱{{ row.paid_holiday.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
+            <td>₱{{ row.deduction.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
+            <td>₱{{ row.gross_pay.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
             <td>
-              ₱{{ Number(row.gross_salary).toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}
+              ₱{{ row.salary_before_tax.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}
             </td>
-            <td>
-              ₱{{ Number(row.net_pay).toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}
-            </td>
-            <td>
-              <span
-                :class="[
-                  'badge',
-                  row.status === 'Processed'
-                    ? 'badge badge-outline badge-success text-xs'
-                    : row.status === 'Approved'
-                      ? 'badge badge-outline badge-info text-xs'
-                      : row.status === 'For Review'
-                        ? 'badge badge-outline badge-warning text-xs'
-                        : row.status === 'Rejected'
-                          ? 'badge badge-outline badge-error text-xs'
-                          : 'badge badge-outline badge-neutral text-xs',
-                ]"
-              >
-                {{ row.status }}
-              </span>
-            </td>
-            <td>{{ row.remarks || '-' }}</td>
-            <td>{{ row.created_at }}</td>
+            <td>₱{{ row.net_pay.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
+            <td>₱{{ row.tax_deduction.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
             <td>
               <div class="flex gap-1">
                 <button
@@ -304,91 +317,74 @@ const exportPayroll = () => {
           <thead class="text-black text-xs">
             <tr class="border border-gray-300 rounded-md">
               <th>No.</th>
-              <th>Employee Name</th>
-              <th>Department</th>
-              <th>Pay Period</th>
-              <th>Present</th>
-              <th>Absent</th>
-              <th>Late (hrs)</th>
-              <th>Overtime</th>
-              <th>Bonus</th>
-              <th>Advance</th>
-              <th>Deductions</th>
-              <th>Tax</th>
-              <th>Gross Deduction</th>
-              <th>Gross Salary</th>
-              <th>Net Pay</th>
+              <th>Employee ID</th>
+              <th>Month</th>
+              <th>Quarter</th>
+              <th>Week</th>
+              <th>Start Date</th>
+              <th>End Date</th>
+              <th>Payroll Date</th>
+              <th>Days Present</th>
+              <th>Total Hours Worked</th>
+              <th>Regular Hour Pay</th>
+              <th>Days Absent</th>
+              <th>Absent Deduction</th>
+              <th>Overtime Pay</th>
+              <th>Tardiness Deduction</th>
               <th>Status</th>
-              <th>Remarks</th>
-              <th>Date Processed</th>
+              <th>Allowance</th>
+              <th>Bonus</th>
+              <th>Paid Holiday</th>
+              <th>Deduction</th>
+              <th>Gross Pay</th>
+              <th>Salary Before Tax</th>
+              <th>Net Pay</th>
+              <th>Tax Deduction</th>
             </tr>
           </thead>
           <tbody>
             <tr
-              v-for="row in payrollHistory"
-              :key="row.id"
+              v-for="(row, idx) in payrollHistory"
+              :key="row.employee_id"
               class="border border-gray-300 rounded-md"
             >
-              <td>{{ row.id }}</td>
-              <td>{{ row.employee_name }}</td>
-              <td>{{ row.department }}</td>
-              <td>{{ getPayPeriodMonth(row.pay_period) }}</td>
-              <td>{{ row.days_of_present }}</td>
-              <td>{{ row.days_of_absent }}</td>
-              <td>{{ row.hours_late }}</td>
-              <td>{{ row.over_time }}</td>
+              <td>{{ idx + 1 }}</td>
+              <td>{{ row.employee_id }}</td>
+              <td>{{ row.month }}</td>
+              <td>{{ row.quarter }}</td>
+              <td>{{ row.week }}</td>
+              <td>{{ row.start_date }}</td>
+              <td>{{ row.end_date }}</td>
+              <td>{{ row.payroll_date }}</td>
+              <td>{{ row.days_present }}</td>
+              <td>{{ row.total_hours_worked }}</td>
               <td>
-                ₱{{ Number(row.bonus).toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}
+                ₱{{ row.regular_hour_pay.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}
               </td>
+              <td>{{ row.days_absent }}</td>
               <td>
-                ₱{{
-                  Number(row.advance_payments).toLocaleString('en-PH', { minimumFractionDigits: 2 })
-                }}
+                ₱{{ row.absent_deduction.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}
               </td>
+              <td>₱{{ row.overtime_pay.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
               <td>
-                ₱{{
-                  Number(row.mandatory_deductions).toLocaleString('en-PH', {
-                    minimumFractionDigits: 2,
-                  })
-                }}
+                ₱{{ row.tardiness_deduction.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}
               </td>
-              <td>₱{{ Number(row.tax).toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
+              <td>{{ row.status }}</td>
+              <td>₱{{ row.allowance.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
+              <td>₱{{ row.bonus.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
+              <td>₱{{ row.paid_holiday.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
+              <td>₱{{ row.deduction.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
+              <td>₱{{ row.gross_pay.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
               <td>
-                ₱{{
-                  Number(row.gross_deduction).toLocaleString('en-PH', { minimumFractionDigits: 2 })
-                }}
+                ₱{{ row.salary_before_tax.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}
               </td>
+              <td>₱{{ row.net_pay.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
               <td>
-                ₱{{
-                  Number(row.gross_salary).toLocaleString('en-PH', { minimumFractionDigits: 2 })
-                }}
+                ₱{{ row.tax_deduction.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}
               </td>
-              <td>
-                ₱{{ Number(row.net_pay).toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}
-              </td>
-              <td>
-                <span
-                  :class="[
-                    'badge',
-                    row.status === 'Processed'
-                      ? 'badge badge-outline badge-success text-xs'
-                      : row.status === 'Approved'
-                        ? 'badge badge-outline badge-info text-xs'
-                        : row.status === 'For Review'
-                          ? 'badge badge-outline badge-warning text-xs'
-                          : row.status === 'Rejected'
-                            ? 'badge badge-outline badge-error text-xs'
-                            : 'badge badge-outline badge-neutral text-xs',
-                  ]"
-                >
-                  {{ row.status }}
-                </span>
-              </td>
-              <td>{{ row.remarks || '-' }}</td>
-              <td>{{ row.created_at }}</td>
             </tr>
             <tr v-if="!payrollHistory.length">
-              <td colspan="16" class="text-center py-4 text-gray-500">No payroll history found</td>
+              <td colspan="24" class="text-center py-4 text-gray-500">No payroll history found</td>
             </tr>
           </tbody>
         </table>

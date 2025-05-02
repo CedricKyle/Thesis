@@ -3,12 +3,15 @@ const {
   EmployeeAttendance,
   EmployeeSchedule,
   AvailableSchedule,
+  Position,
   sequelize,
 } = require('../../model/Index.js')
 const { Op } = require('sequelize')
 const ExcelJS = require('exceljs')
 const PDFDocument = require('pdfkit')
 const moment = require('moment')
+const attendanceLogic = require('../../utils/attendance-logic-calculator.js')
+const { getEmployeeRatePerHour } = require('../../utils/employee-utils.js')
 
 const attendanceController = {
   // Record time in
@@ -55,13 +58,10 @@ const attendanceController = {
       const [inH, inM] = start_time.split(':').map(Number)
       const scheduledStartMinutes = schedH * 60 + schedM
       const actualStartMinutes = inH * 60 + inM
-      let late_minutes = Math.max(0, actualStartMinutes - scheduledStartMinutes)
+      const late_minutes = attendanceLogic.calculateLateMinutes(scheduledStart, start_time)
+      let status = late_minutes > 0 ? 'Late' : 'Present'
 
-      // PH Labor Law: 15 min grace period
-      let status = 'Present'
-      if (late_minutes > 15) {
-        status = 'Late'
-      }
+      const ratePerHour = await getEmployeeRatePerHour(employee_id)
 
       await attendance.update(
         {
@@ -113,48 +113,60 @@ const attendanceController = {
         include: [{ model: AvailableSchedule, as: 'schedule' }],
       })
       const schedule = empSchedule.schedule
-      const scheduledEnd = schedule.time_out // e.g. "17:00:00"
-      const [schedEndH, schedEndM] = scheduledEnd.split(':').map(Number)
-      const [inH, inM] = attendance.start_time.split(':').map(Number)
-      const [outH, outM] = end_time.split(':').map(Number)
-      let startMinutes = inH * 60 + inM
-      let endMinutes = outH * 60 + outM
 
-      // PATCH: Handle overnight shift (end_time is on the next day)
-      if (endMinutes <= startMinutes) {
-        endMinutes += 24 * 60 // add 24 hours in minutes
-      }
+      // Get the employee's rate per hour using the utility
+      const ratePerHour = await getEmployeeRatePerHour(attendance.employee_id)
 
-      let totalMinutes = endMinutes - startMinutes
-
-      // Use the same logic for scheduled end
-      const scheduledEndMinutes = schedEndH * 60 + schedEndM
-
-      // PATCH: Calculate regularMinutes and overtimeMinutes using adjusted endMinutes
-      let regularMinutes =
-        Math.min(
-          endMinutes,
-          scheduledEndMinutes > startMinutes ? scheduledEndMinutes : scheduledEndMinutes + 24 * 60,
-        ) - startMinutes
-
-      // PH Labor Law: Deduct 1 hour break if worked at least 5 hours
-      if (regularMinutes >= 300) regularMinutes -= 60
-
-      // Overtime: Only after scheduled end time (also handle overnight)
-      let overtimeMinutes = Math.max(
-        0,
-        endMinutes -
-          (scheduledEndMinutes > startMinutes
-            ? scheduledEndMinutes
-            : scheduledEndMinutes + 24 * 60),
+      // --- Attendance Calculations ---
+      const hours_worked = attendanceLogic.calculateHoursWorked(attendance.start_time, end_time)
+      const regular_hours = attendanceLogic.calculateHoursWorked(
+        attendance.start_time,
+        schedule.time_out,
       )
+      const overtime_hours = attendanceLogic.calculateOvertime(schedule.time_out, end_time)
+      const undertime = attendanceLogic.calculateUndertime(schedule.time_out, end_time)
+      const nightDiff = attendanceLogic.calculateNightDifferential(
+        attendance.start_time,
+        end_time,
+        hours_worked,
+        ratePerHour,
+      )
+
+      // TODO: Replace with your actual logic for holidays/rest days
+      const isHoliday = false
+      const isSpecialHoliday = false
+      const isRestDay = false
+
+      const holidayPay = attendanceLogic.calculateHolidayPay(isHoliday, hours_worked, ratePerHour)
+      const specialHolidayPay = attendanceLogic.calculateSpecialHolidayPay(
+        isSpecialHoliday,
+        hours_worked,
+        ratePerHour,
+      )
+      const restDayPay = attendanceLogic.calculateRestDayPay(
+        isRestDay,
+        isHoliday,
+        hours_worked,
+        ratePerHour,
+      )
+
+      // If you want to calculate deductions, you need to pass late_minutes and absentDays
+      // You may need to fetch these or calculate them as needed
+      // const deductions = attendanceLogic.calculateDeductions(late_minutes, undertime, absentDays, ratePerHour)
 
       await attendance.update(
         {
           end_time,
-          hours_worked: (totalMinutes / 60).toFixed(2),
-          regular_hours: (regularMinutes / 60).toFixed(2),
-          overtime_hours: (overtimeMinutes / 60).toFixed(2),
+          hours_worked,
+          regular_hours,
+          overtime_hours,
+          undertime,
+          holiday_pay: holidayPay,
+          special_holiday_pay: specialHolidayPay,
+          rest_day_pay: restDayPay,
+          night_diff_hours: nightDiff.nightHours,
+          night_diff_pay: nightDiff.nightDiffPay,
+          // ...add deductions fields if needed
         },
         { transaction: t },
       )

@@ -35,9 +35,11 @@ const columns = [
     field: 'approvalStatus',
     formatter: (cell) => {
       const status = cell.getValue()
-      if (status === 'Approved') return `<span class="badge badge-success">${status}</span>`
-      if (status === 'Rejected') return `<span class="badge badge-error">${status}</span>`
-      return `<span class="badge badge-warning">${status}</span>`
+      if (status === 'Approved')
+        return `<span class="badge badge-success badge-outline">${status}</span>`
+      if (status === 'Rejected')
+        return `<span class="badge badge-error badge-outline">${status}</span>`
+      return `<span class="badge badge-warning badge-outline">${status}</span>`
     },
   },
   {

@@ -3,8 +3,10 @@ import { ref, onMounted, watch, onBeforeUnmount } from 'vue'
 import { Printer } from 'lucide-vue-next'
 import { TabulatorFull as Tabulator } from 'tabulator-tables'
 import { useAttendanceLogic } from '@/composables/Admin Composables/Human Resource/useAttendanceLogic'
+import { usePDFGenerator } from '@/composables/Admin Composables/Human Resource/usePDFGenerator'
 
 const { calculateOvertime } = useAttendanceLogic()
+const { generatePDF } = usePDFGenerator()
 
 const props = defineProps({
   records: {
@@ -19,12 +21,47 @@ const props = defineProps({
     type: String,
     default: '',
   },
+  formData: {
+    type: Object,
+    required: true,
+  },
+  summary: {
+    type: Object,
+    required: true,
+  },
+  departmentEmployeeSummaries: {
+    type: Array,
+    default: () => [],
+  },
 })
 
 const emit = defineEmits(['generate-pdf'])
 const tableRef = ref(null)
 const isTableBuilt = ref(false)
 let table = null
+
+const showPrintPreview = ref(false)
+const printData = ref([]) // Data to preview
+
+function handlePrintPreview() {
+  printData.value = props.records // or filter as needed
+  showPrintPreview.value = true
+}
+
+async function handlePrint() {
+  const docUrl = await generatePDF(
+    props.formData,
+    props.summary,
+    props.records,
+    props.departmentEmployeeSummaries,
+    true, // preview
+  )
+  window.open(docUrl, '_blank')
+}
+
+function cancelPrint() {
+  showPrintPreview.value = false
+}
 
 // Define columns for Tabulator
 const columns = [
@@ -149,7 +186,7 @@ onBeforeUnmount(() => {
       <div class="flex justify-between items-center">
         <h1 class="font-semibold">Attendance Summary</h1>
         <button
-          @click="$emit('generate-pdf')"
+          @click="handlePrintPreview"
           class="btn bg-primaryColor border-none btn-sm px-6 py-4 text-xs font-thin hover:bg-primaryColor/80"
           title="Export as PDF"
         >
@@ -159,6 +196,36 @@ onBeforeUnmount(() => {
 
       <div class="overflow-x-auto border border-gray-300/50 shadow-lg">
         <div ref="tableRef"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Print Preview Modal -->
+  <div
+    v-if="showPrintPreview"
+    class="fixed inset-0 z-50 flex items-center justify-center bg-gray-200/50"
+  >
+    <div class="bg-white rounded-lg shadow-lg p-6 w-full max-w-3xl">
+      <h2 class="text-lg font-semibold mb-4">Print Preview</h2>
+      <div class="overflow-x-auto max-h-96 mb-4">
+        <table class="min-w-full text-xs md:text-sm">
+          <thead>
+            <tr>
+              <th v-for="col in columns" :key="col.field" class="px-2 py-1">{{ col.title }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="row in printData" :key="row.id">
+              <td v-for="col in columns" :key="col.field" class="px-2 py-1">
+                {{ row[col.field] }}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="flex justify-end gap-2">
+        <button class="btn-secondaryStyle" @click="cancelPrint">Cancel</button>
+        <button class="btn-primaryStyle" @click="handlePrint">Print</button>
       </div>
     </div>
   </div>
