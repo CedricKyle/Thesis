@@ -1,11 +1,7 @@
+
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import axios from 'axios'
+import { ref, computed } from 'vue'
 import { Bar } from 'vue-chartjs'
-import ProfitImage from '@/assets/Images/profit (1).png'
-import BalanceImage from '@/assets/Images/balance.png'
-import ExpensesImage from '@/assets/Images/expenses.png'
-import BudgetImage from '@/assets/Images/money-bag.png'
 import {
   Chart as ChartJS,
   Title,
@@ -15,204 +11,129 @@ import {
   CategoryScale,
   LinearScale,
 } from 'chart.js'
+import { EllipsisVertical } from 'lucide-vue-next'
+import ProfitImage from '@/assets/Images/profit (1).png'
+import BalanceImage from '@/assets/Images/balance.png'
+import ExpensesImage from '@/assets/Images/expenses.png'
+import BudgetImage from '@/assets/Images/money-bag.png'
 
-// Register necessary Chart.js components
+// Register Chart.js components
 ChartJS.register(Title, Tooltip, Legend, BarElement, CategoryScale, LinearScale)
 
-// Dummy Data for Base Salary, Overtime, Deductions, and Net Pay
+// Stats card data
+const stats = [
+  { title: 'Balance',  amount: '₱4,320', date: 'April 2025', img: BalanceImage },
+  { title: 'Expenses', amount: '₱3,320', date: 'April 2025', img: ExpensesImage },
+  { title: 'Budget',   amount: '₱1,370', date: 'April 2025', img: BudgetImage },
+  { title: 'Income',   amount: '₱300',   date: 'April 2025', img: ProfitImage },
+]
+
+// Dummy payroll records for the chart
 const payrollRecords = ref([
   { date: '2025-04-01', baseSalary: 3000, overtime: 300, deductions: 100, netPay: 3700 },
   { date: '2025-04-02', baseSalary: 3500, overtime: 400, deductions: 150, netPay: 4450 },
   { date: '2025-04-03', baseSalary: 3200, overtime: 350, deductions: 120, netPay: 3830 },
   { date: '2025-04-04', baseSalary: 4000, overtime: 500, deductions: 200, netPay: 5200 },
-  { date: '2025-04-05', baseSalary: 2800, overtime: 200, deductions: 90, netPay: 2910 },
+  { date: '2025-04-05', baseSalary: 2800, overtime: 200, deductions: 90,  netPay: 2910 },
 ])
 
-// Compute chart labels (dates)
-const chartLabels = computed(() => {
-  return payrollRecords.value.map((record) => record.date)
-})
+// Chart.js data
+const chartData = computed(() => ({
+  labels: payrollRecords.value.map(r => r.date),
+  datasets: [
+    { label: 'Base Salary', data: payrollRecords.value.map(r => r.baseSalary), backgroundColor: 'rgba(54,162,235,0.5)' },
+    { label: 'Overtime',    data: payrollRecords.value.map(r => r.overtime),    backgroundColor: 'rgba(255,159,64,0.5)' },
+    { label: 'Deductions',  data: payrollRecords.value.map(r => r.deductions),  backgroundColor: 'rgba(255,99,132,0.5)' },
+    { label: 'Net Pay',     data: payrollRecords.value.map(r => r.netPay),     backgroundColor: 'rgba(75,192,192,0.5)' },
+  ],
+}))
 
-// Prepare chart data for Base Salary, Overtime, Deductions, and Net Pay
-const chartData = computed(() => {
-  return {
-    labels: chartLabels.value,
-    datasets: [
-      {
-        label: 'Base Salary (₱)',
-        data: payrollRecords.value.map((record) => record.baseSalary),
-        backgroundColor: 'rgba(54, 162, 235, 0.5)',
-        borderColor: 'rgba(54, 162, 235, 1)',
-        borderWidth: 1,
-      },
-      {
-        label: 'Overtime (₱)',
-        data: payrollRecords.value.map((record) => record.overtime),
-        backgroundColor: 'rgba(255, 159, 64, 0.5)',
-        borderColor: 'rgba(255, 159, 64, 1)',
-        borderWidth: 1,
-      },
-      {
-        label: 'Deductions (₱)',
-        data: payrollRecords.value.map((record) => record.deductions),
-        backgroundColor: 'rgba(255, 99, 132, 0.5)',
-        borderColor: 'rgba(255, 99, 132, 1)',
-        borderWidth: 1,
-      },
-      {
-        label: 'Net Pay (₱)',
-        data: payrollRecords.value.map((record) => record.netPay),
-        backgroundColor: 'rgba(75, 192, 192, 0.5)',
-        borderColor: 'rgba(75, 192, 192, 1)',
-        borderWidth: 1,
-      },
-    ],
-  }
-})
-
-// Chart options (Customize as needed)
 const chartOptions = {
   responsive: true,
-  plugins: {
-    title: {
-      display: true,
-      text: 'Chart of Payroll', // Title for the chart
-    },
-  },
-  scales: {
-    x: {
-      beginAtZero: true,
-    },
-    y: {
-      beginAtZero: true,
-    },
-  },
+  plugins: { title: { display: true, text: 'Payroll Overview' } },
+  scales: { y: { beginAtZero: true } },
 }
 
-// Dummy employee names for transaction history (Replace with actual data)
-const transactions = ref([
-  { name: 'John Doe', date: '2025-04-01', amount: 3700 },
-  { name: 'Jane Smith', date: '2025-04-02', amount: 4450 },
-  { name: 'Robert Brown', date: '2025-04-03', amount: 3830 },
-  { name: 'Emily Davis', date: '2025-04-04', amount: 5200 },
-  { name: 'Michael White', date: '2025-04-05', amount: 2910 },
+// Dummy supply history data
+const supplyHistory = ref([
+  { date: '2025-04-01', item: 'Pork',    quantity: 50, unitPrice: 180.00 },
+  { date: '2025-04-02', item: 'Chicken', quantity: 30, unitPrice: 120.50 },
+  { date: '2025-04-03', item: 'Oil',     quantity: 20, unitPrice: 150.75 },
+  { date: '2025-04-04', item: 'Rice',    quantity: 100,unitPrice: 45.00 },
+  { date: '2025-04-05', item: 'Eggs',    quantity: 200,unitPrice: 6.25 },
 ])
 </script>
-
 <template>
-<div class="grid grid-cols-4 grid-rows-[auto_auto_auto_auto] gap-4 text-black">
-  <!--Stats Grid-->
-  <div class="col-span-3 flex gap-4 justify-between">
-    <div>
-      <div class="card bg-white w-64 shadow-md">
-        <div class="card-body">
-          <div class="card-header flex flex-row gap-2 justify-between">
-            <div><h1 class="text-xl font-bold text-gray-600">Balance</h1></div> <!-- Replaced Present with Balance -->
-            <div><EllipsisVertical class="w-4 h-4" /></div>
-          </div>
-          <div class="card-content mt-4 flex flex-row gap-2 justify-between">
-            <div>
-              <h1 class="text-primaryColor text-4xl font-bold">4</h1> <!-- Number 4 for Balance -->
-            </div>
-            <div class="w-11">
-            <img :src="ExpensesImage" />
-          </div>
-          </div>
-          <div class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"></div>
-          <div class="text-sm text-gray-500 mt-2">April 2025</div>
+  <div class="space-y-8 p-4">
+    <!-- Row 1: Stats Cards -->
+    <div class="grid gap-4 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-4">
+      <div v-for="card in stats" :key="card.title" class="bg-white rounded-lg shadow p-4 flex flex-col justify-between">
+        <div class="flex justify-between items-center">
+          <h3 class="text-gray-600 font-semibold">{{ card.title }}</h3>
+          <EllipsisVertical class="w-4 h-4 text-gray-400"/>
         </div>
+        <div class="flex items-center mt-4">
+          <h1 class="text-primaryColor text-4xl font-bold">{{ card.amount }}</h1>
+          <img :src="card.img" class="w-12 h-12 ml-auto" />
+        </div>
+        <div class="text-xs text-gray-500 mt-2">{{ card.date }}</div>
       </div>
     </div>
-    <div>
-      <div class="card bg-white w-64 shadow-md">
-        <div class="card-body">
-          <div class="card-header flex flex-row gap-2 justify-between">
-            <div><h1 class="text-xl font-bold text-gray-600">Expenses</h1></div> <!-- Replaced Absent with Expenses -->
-            <div><EllipsisVertical class="w-4 h-4" /></div>
-          </div>
-          <div class="card-content mt-4 flex flex-row gap-2 justify-between">
-            <div>
-              <h1 class="text-primaryColor text-4xl font-bold">4</h1> <!-- Number 4 for Expenses -->
-            </div>
-            <div class="w-11">
-            <img :src="BalanceImage" />
-          </div>
-          </div>
-          <div class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"></div>
-          <div class="text-sm text-gray-500 mt-2">April 2025</div>
+
+    <!-- Row 2: Chart + Supply History -->
+    <div class="grid gap-4 lg:grid-cols-2">
+      <!-- Chart Panel -->
+      <div class="bg-white rounded-lg shadow p-4">
+        <h2 class="text-lg font-semibold mb-2">Payroll Chart</h2>
+        <div class="h-65">
+          <Bar :data="chartData" :options="chartOptions" />
         </div>
       </div>
-    </div>
-    <div>
-      <div class="card bg-white w-64 shadow-md">
-        <div class="card-body">
-          <div class="card-header flex flex-row gap-2 justify-between">
-            <div><h1 class="text-xl font-bold text-gray-600">Budget</h1></div> <!-- Replaced Late with Budget -->
-            <div><EllipsisVertical class="w-4 h-4" /></div>
-          </div>
-          <div class="card-content mt-4 flex flex-row gap-2 justify-between">
-            <div>
-              <h1 class="text-primaryColor text-4xl font-bold">4</h1> <!-- Number 4 for Budget -->
-            </div>
-            <div class="w-11">
-            <img :src="BudgetImage" />
-          </div>
-          </div>
-          <div class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"></div>
-          <div class="text-sm text-gray-500 mt-2">April 2025</div>
-        </div>
-      </div>
-    </div>
-    <div>
-      <div class="card bg-white w-64 shadow-md">
-        <div class="card-body">
-          <div class="card-header flex flex-row gap-2 justify-between">
-            <div><h1 class="text-xl font-bold text-gray-600">Income</h1></div> <!-- Replaced Late with Income -->
-            <div><EllipsisVertical class="w-4 h-4" /></div>
-          </div>
-          <div class="card-content mt-4 flex flex-row gap-2 justify-between">
-            <div>
-              <h1 class="text-primaryColor text-4xl font-bold">4</h1> <!-- Number 4 for Income -->
-            </div>
-            <div class="w-11">
-            <img :src="ProfitImage" />
-          </div>
-          </div>
-          <div class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"></div>
-          <div class="text-sm text-gray-500 mt-2">April 2025</div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
 
-
-    
-   
-    <!-- Main Dashboard Layout (Two sections side by side) -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
-      <!-- Left Column: Payroll Chart -->
-      <div class="bg-white border-gray-300  p-6 border-1 pt-2 pr-2 pl-2 pb-0 rounded-lg shadow-md ">
-        <!-- Bar Chart component with full width and height -->
-        <div class="w-full h-96"> <!-- Adjust height to a larger value -->
-  <Bar :data="chartData" :options="chartOptions" />
-</div>
-
-      </div>
-
-    <!-- Right Column: Transaction History -->
-    <div class="bg-white border-gray-300 p-6 border-1 rounded-lg shadow-md">
-      <h2 class="text-xl font-semibold text-left mb-4">Transaction History</h2>
-      <div class="overflow-y-auto max-h-80">
-        <!-- Adjusted max height -->
-        <div v-for="(transaction, index) in transactions" :key="index" class="border-b py-2">
-          <div class="flex justify-between">
-            <div>{{ transaction.name }}</div>
-            <div class="font-bold">{{ transaction.amount | currency }}</div>
-          </div>
-          <div class="text-sm text-gray-500">{{ transaction.date }}</div>
+      <!-- Supply History Panel -->
+      <div class="bg-white rounded-lg shadow p-4 w-full">
+        <h2 class="text-lg font-semibold mb-2">Supply History</h2>
+        <div class="overflow-x-auto">
+          <table class="table w-full text-xs rounded-md">
+            <thead>
+              <tr class="bg-gray-100">
+                <th>Date</th>
+                <th>Item</th>
+                <th class="text-right">Quantity</th>
+                <th class="text-right">Unit Price (₱)</th>
+                <th class="text-right">Total Price (₱)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(s, i) in supplyHistory" :key="i">
+                <td>{{ s.date }}</td>
+                <td>{{ s.item }}</td>
+                <td class="text-right">{{ s.quantity }}</td>
+                <td class="text-right">{{ s.unitPrice.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
+                <td class="text-right">{{ (s.quantity * s.unitPrice).toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
+              </tr>
+              <tr v-if="supplyHistory.length === 0">
+                <td colspan="5" class="text-center py-4 text-gray-500">No supply records found.</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
   </div>
 </template>
+
+
+<style scoped>
+/* Optional: tweak scrollbar for supply history panel */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.2);
+  border-radius: 4px;
+}
+</style>
