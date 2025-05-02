@@ -144,7 +144,18 @@ const payrollController = {
         return res.status(400).json({ success: false, message: 'Start and end date required.' })
       }
       const payrolls = await Payroll.findAll({
-        where: { start_date, end_date, deleted_at: null },
+        where: {
+          start_date: { [Op.lte]: end_date },
+          end_date: { [Op.gte]: start_date },
+          deleted_at: null,
+        },
+        include: [
+          {
+            model: Employee,
+            as: 'employee',
+            attributes: ['full_name'],
+          },
+        ],
       })
       res.json({ success: true, data: payrolls })
     } catch (error) {
@@ -262,7 +273,11 @@ const payrollController = {
           .json({ success: false, message: 'Only rejected payrolls can be edited.' })
       }
 
-      await payroll.update(updates)
+      // Always set status to Draft after edit
+      await payroll.update({
+        ...updates,
+        status: 0,
+      })
 
       // Log the edit
       await AuditLog.create({
