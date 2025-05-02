@@ -144,6 +144,7 @@ const getPayPeriodMonth = (payPeriod) => {
       <!-- Payroll Content (only show when selectedTab is 'payroll') -->
       <div v-if="selectedTab === 'payroll'">
         <div class="overflow-x-auto">
+          <h3 class="mb-4">Payroll</h3>
           <table class="table text-black w-full text-xs border border-gray-300 rounded-md">
             <thead>
               <tr>
@@ -204,7 +205,7 @@ const getPayPeriodMonth = (payPeriod) => {
       </div>
       <!-- Transaction Records Content (only show when selectedTab is 'transactionRecords') -->
       <div v-if="selectedTab === 'transactionRecords'">
-        <h3>Transaction Records Section</h3>
+        <h3 class="mb-4">Transaction Records</h3>
         <div class="overflow-x-auto">
           <table class="table text-black w-full text-xs border border-gray-300 rounded-md">
             <thead>
@@ -261,6 +262,147 @@ const getPayPeriodMonth = (payPeriod) => {
         </div>
       </div>
 
+    <!-- Financial Statement Content (only show when selectedTab is 'financialStatement') -->
+<div v-if="selectedTab === 'financialStatement'">
+  <div class="grid grid-cols-4 grid-rows-[auto_auto_auto_auto] gap-4 text-black">
+    <!-- Stats Grid -->
+    <div class="col-span-4 flex gap-7 justify-between">
+      <div>
+        <div class="card bg-white w-60 shadow-md">
+          <div class="card-body">
+            <div class="card-header flex flex-row gap-2 justify-between">
+              <div><h1 class="text-xl font-bold text-gray-600">Balance</h1></div>
+              <div><EllipsisVertical class="w-4 h-4" /></div>
+            </div>
+            <div class="card-content mt-4 flex flex-row gap-2 justify-between">
+              <div>
+                <h1 class="text-primaryColor text-4xl font-bold">₱ 4,320</h1>
+              </div>
+              <div class="w-11">
+                <img :src="ExpensesImage" />
+              </div>
+            </div>
+            <div class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"></div>
+            <div class="text-sm text-gray-500 mt-2">April 2025</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card bg-white w-60 shadow-md">
+          <div class="card-body">
+            <div class="card-header flex flex-row gap-2 justify-between">
+              <div><h1 class="text-xl font-bold text-gray-600">Expenses</h1></div>
+              <div><EllipsisVertical class="w-4 h-4" /></div>
+            </div>
+            <div class="card-content mt-4 flex flex-row gap-2 justify-between">
+              <div>
+                <h1 class="text-primaryColor text-4xl font-bold">₱ 3,320</h1>
+              </div>
+              <div class="w-11">
+                <img :src="BalanceImage" />
+              </div>
+            </div>
+            <div class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"></div>
+            <div class="text-sm text-gray-500 mt-2">April 2025</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card bg-white w-60 shadow-md">
+          <div class="card-body">
+            <div class="card-header flex flex-row gap-2 justify-between">
+              <div><h1 class="text-xl font-bold text-gray-600">Budget</h1></div>
+              <div><EllipsisVertical class="w-4 h-4" /></div>
+            </div>
+            <div class="card-content mt-4 flex flex-row gap-2 justify-between">
+              <div>
+                <h1 class="text-primaryColor text-4xl font-bold">₱ 1,370</h1>
+              </div>
+              <div class="w-11">
+                <img :src="BudgetImage" />
+              </div>
+            </div>
+            <div class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"></div>
+            <div class="text-sm text-gray-500 mt-2">April 2025</div>
+          </div>
+        </div>
+      </div>
+      <div>
+        <div class="card bg-white w-60 shadow-md">
+          <div class="card-body">
+            <div class="card-header flex flex-row gap-2 justify-between">
+              <div><h1 class="text-xl font-bold text-gray-600">Income</h1></div>
+              <div><EllipsisVertical class="w-4 h-4" /></div>
+            </div>
+            <div class="card-content mt-4 flex flex-row gap-2 justify-between">
+              <div>
+                <h1 class="text-primaryColor text-4xl font-bold">₱300</h1>
+              </div>
+              <div class="w-11">
+                <img :src="ProfitImage" />
+              </div>
+            </div>
+            <div class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"></div>
+            <div class="text-sm text-gray-500 mt-2">April 2025</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Financial Statement Table Below Cards -->
+    <div class="col-span-4 mt-8">
+      <h3 class="text-xl font-semibold mb-4">Financial Summary</h3>
+      <div class="overflow-x-auto">
+        <table class="table w-full text-sm rounded-md">
+          <thead>
+            <tr class="bg-gray-100">
+              <th>Period</th>
+              <th class="text-right">Income (₱)</th>
+              <th class="text-right">Expenses (₱)</th>
+              <th class="text-right">Budget (₱)</th>
+              <th class="text-right">Balance (₱)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>April 2025</td>
+              <td class="text-right">300</td>
+              <td class="text-right">3,320</td>
+              <td class="text-right">1,370</td>
+              <td class="text-right">4,320</td>
+            </tr>
+            <tr>
+              <td>March 2025</td>
+              <td class="text-right">1,000</td>
+              <td class="text-right">2,800</td>
+              <td class="text-right">1,500</td>
+              <td class="text-right">2,700</td>
+            </tr>
+            <tr>
+              <td>February 2025</td>
+              <td class="text-right">2,500</td>
+              <td class="text-right">2,500</td>
+              <td class="text-right">1,000</td>
+              <td class="text-right">3,000</td>
+            </tr>
+          </tbody>
+          <tfoot class="font-bold bg-gray-50">
+            <tr>
+              <td>Total</td>
+              <td class="text-right">₱3,800</td>
+              <td class="text-right">₱8,620</td>
+              <td class="text-right">₱3,870</td>
+              <td class="text-right">₱10,020</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+      </div>
       <!-- Edit Modal for Transaction -->
       <dialog v-if="showEditModal" open class="modal text-black">
         <div class="modal-box bg-white w-[420px] p-6 rounded-lg shadow-lg">
@@ -293,5 +435,5 @@ const getPayPeriodMonth = (payPeriod) => {
         </div>
       </dialog>
     </div>
-  </div>
+  
 </template>
