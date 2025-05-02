@@ -5,7 +5,7 @@ module.exports = (sequelize) => {
     'EmployeeAttendance',
     {
       id: {
-        type: DataTypes.INTEGER(11),
+        type: DataTypes.INTEGER,
         primaryKey: true,
         autoIncrement: true,
       },
@@ -21,33 +21,61 @@ module.exports = (sequelize) => {
         type: DataTypes.DATEONLY,
         allowNull: false,
       },
-      time_in: {
+      schedule_id: {
+        type: DataTypes.INTEGER,
+        allowNull: false,
+        references: {
+          model: 'employee_schedules',
+          key: 'id',
+        },
+      },
+      start_time: {
         type: DataTypes.TIME,
         allowNull: true,
       },
-      time_out: {
+      end_time: {
         type: DataTypes.TIME,
         allowNull: true,
       },
-      status: {
-        type: DataTypes.ENUM('Present', 'Late', 'Absent', 'On Leave'),
-        defaultValue: 'Absent',
+      hours_worked: {
+        type: DataTypes.DECIMAL(5, 2),
+        allowNull: true,
       },
-      working_hours: {
-        type: DataTypes.DECIMAL(4, 2),
+      regular_hours: {
+        type: DataTypes.DECIMAL(5, 2),
         allowNull: true,
       },
       overtime_hours: {
-        type: DataTypes.DECIMAL(4, 2),
-        defaultValue: 0,
+        type: DataTypes.DECIMAL(5, 2),
+        allowNull: true,
       },
-      attendance_type: {
-        type: DataTypes.ENUM('regular', 'overtime'),
-        defaultValue: 'regular',
+      late_minutes: {
+        type: DataTypes.INTEGER,
+        allowNull: true,
+      },
+      absent: {
+        type: DataTypes.BOOLEAN,
         allowNull: false,
+        defaultValue: false,
+      },
+      tardiness_deduction: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true,
+      },
+      absent_deduction: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true,
+      },
+      holiday_pay: {
+        type: DataTypes.DECIMAL(10, 2),
+        allowNull: true,
+      },
+      remarks: {
+        type: DataTypes.TEXT,
+        allowNull: true,
       },
       overtime_proof: {
-        type: DataTypes.STRING,
+        type: DataTypes.STRING(255),
         allowNull: true,
       },
       approval_status: {
@@ -67,6 +95,11 @@ module.exports = (sequelize) => {
         allowNull: false,
         defaultValue: sequelize.literal('CURRENT_TIMESTAMP'),
       },
+      updated_at: {
+        type: DataTypes.DATE,
+        allowNull: false,
+        defaultValue: sequelize.literal('CURRENT_TIMESTAMP'),
+      },
       deleted_at: {
         type: DataTypes.DATE,
         allowNull: true,
@@ -74,18 +107,23 @@ module.exports = (sequelize) => {
     },
     {
       tableName: 'employee_attendance',
-      timestamps: false,
-      paranoid: false,
-      createdAt: false,
-      updatedAt: false,
-      deletedAt: false,
+      timestamps: true,
+      paranoid: true,
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
+      deletedAt: 'deleted_at',
     },
   )
 
   EmployeeAttendance.associate = (models) => {
     EmployeeAttendance.belongsTo(models.Employee, {
-      foreignKey: 'employee_id',
       as: 'employee',
+      foreignKey: 'employee_id',
+      targetKey: 'employee_id',
+    })
+    EmployeeAttendance.belongsTo(models.EmployeeSchedule, {
+      foreignKey: 'schedule_id',
+      as: 'schedule',
     })
     EmployeeAttendance.belongsTo(models.Employee, {
       foreignKey: 'approved_by',

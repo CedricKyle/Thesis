@@ -432,14 +432,21 @@ const loadTodayAttendance = async () => {
           employee_id: attendance.employee_id,
           full_name: currentUserEmployee.value.full_name,
           department: currentUserEmployee.value.department,
-          signIn: attendance.time_in || '-',
-          signOut: attendance.time_out || '-',
-          status: attendance.status || 'Absent',
+          signIn: attendance.start_time || '-',
+          signOut: attendance.end_time || '-',
+          status:
+            attendance.approval_status === 'Rejected'
+              ? 'Rejected'
+              : attendance.start_time && attendance.end_time
+                ? attendance.status || 'Present'
+                : attendance.start_time
+                  ? attendance.status || 'Present'
+                  : 'Absent',
           approvalStatus: attendance.approval_status || 'Not Submitted',
           overtime: attendance.overtime_hours || 0,
           workingHours: attendance.working_hours || 0,
-          time_in: attendance.time_in || '-',
-          time_out: attendance.time_out || '-',
+          time_in: attendance.start_time || '-',
+          time_out: attendance.end_time || '-',
           approvedBy: attendance.approved_by || '-',
           approvedAt: attendance.approved_at || '-',
           overtime_hours: attendance.overtime_hours || 0,
@@ -760,11 +767,7 @@ function clearOvertimeFile() {
             <div class="flex flex-row">
               <div class="w-40 text-gray-500">Time In:</div>
               <div class="text-secondaryColor">
-                {{
-                  attendanceStore.todayAttendance?.signIn ||
-                  attendanceStore.todayAttendance?.time_in ||
-                  '-'
-                }}
+                {{ attendanceStore.todayAttendance?.signIn || '-' }}
               </div>
             </div>
 
@@ -772,11 +775,7 @@ function clearOvertimeFile() {
             <div class="flex flex-row">
               <div class="w-40 text-gray-500">Time Out:</div>
               <div class="text-red-400">
-                {{
-                  attendanceStore.todayAttendance?.signOut ||
-                  attendanceStore.todayAttendance?.time_out ||
-                  '-'
-                }}
+                {{ attendanceStore.todayAttendance?.signOut || '-' }}
               </div>
             </div>
 
@@ -787,16 +786,11 @@ function clearOvertimeFile() {
                 :class="{
                   'text-green-600': attendanceStore.todayAttendance?.status === 'Present',
                   'text-yellow-600': attendanceStore.todayAttendance?.status === 'Late',
-                  'text-red-600':
-                    !attendanceStore.todayAttendance?.signIn ||
-                    attendanceStore.todayAttendance?.status === 'Absent',
+                  'text-red-600': attendanceStore.todayAttendance?.status === 'Absent',
+                  'text-red-600': attendanceStore.todayAttendance?.status === 'Rejected',
                 }"
               >
-                {{
-                  !attendanceStore.todayAttendance?.signIn
-                    ? 'Absent'
-                    : attendanceStore.todayAttendance?.status || 'Absent'
-                }}
+                {{ attendanceStore.todayAttendance?.status || 'Absent' }}
               </div>
             </div>
             <!-- Working Hours -->
@@ -813,14 +807,14 @@ function clearOvertimeFile() {
               <div class="text-blue-600">{{ attendanceStore.todayAttendance.overtime }} hours</div>
             </div>
 
-            <!-- Add Approval Status -->
+            <!-- Approval Status -->
             <div class="flex flex-row">
               <div class="w-40 text-gray-500">Approval Status:</div>
               <div
                 :class="{
                   'text-green-600': attendanceStore.todayAttendance?.approvalStatus === 'Approved',
                   'text-yellow-600': attendanceStore.todayAttendance?.approvalStatus === 'Pending',
-                  'text-red-600': !attendanceStore.todayAttendance?.approvalStatus,
+                  'text-red-600': attendanceStore.todayAttendance?.approvalStatus === 'Rejected',
                 }"
               >
                 {{ attendanceStore.todayAttendance?.approvalStatus || 'Not Submitted' }}

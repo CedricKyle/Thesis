@@ -91,8 +91,10 @@ const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
     const regular = attendanceRecords.find(
       (r) =>
         r.employee_id === employee.employee_id &&
-        getType(r) === 'regular' &&
-        r.date === selectedDate,
+        (r.attendanceType === 'regular' || r.attendance_type === 'regular') &&
+        r.date === selectedDate &&
+        r.approvalStatus !== 'Rejected' &&
+        r.approval_status !== 'Rejected',
     )
 
     // Find the approved overtime record for this employee and date
@@ -110,18 +112,13 @@ const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
         employee_id: regular.employee_id,
         full_name: regular.full_name || employee.full_name,
         department: regular.department || employee.department,
-        signIn: regular.signIn || regular.time_in || '-',
-        signOut: regular.signOut || regular.time_out || '-',
+        scheduleTimeIn: regular.scheduleTimeIn,
+        scheduleTimeOut: regular.scheduleTimeOut,
+        signIn: regular.signIn || regular.start_time || '-',
+        signOut: regular.signOut || regular.end_time || '-',
         workingHours: regular.workingHours ?? regular.working_hours ?? '-',
-        overtimeHours: overtime ? (overtime.overtimeHours ?? overtime.overtime_hours ?? '-') : '-',
         status: regular.status || 'Present',
         approvalStatus: regular.approvalStatus || regular.approval_status || 'Pending',
-        overtimeProof:
-          regular.overtimeProof ||
-          regular.overtime_proof ||
-          (overtime && (overtime.overtimeProof || overtime.overtime_proof)) ||
-          null,
-        isOvertime: false,
         date: regular.date,
         approved_by: regular.approved_by,
       })
@@ -135,11 +132,8 @@ const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
         signIn: '-',
         signOut: '-',
         workingHours: '-',
-        overtimeHours: '-',
         status: 'Absent',
         approvalStatus: 'Pending',
-        overtimeProof: null,
-        isOvertime: false,
         date: selectedDate,
       })
     }
@@ -182,64 +176,38 @@ const columns = [
     headerSort: true,
   },
   {
+    title: 'Scheduled Time',
+    field: 'scheduleTimeIn',
+    formatter: (cell) => {
+      const data = cell.getRow().getData()
+      return `${(data.scheduleTimeIn || '08:00').slice(0, 5)} - ${(data.scheduleTimeOut || '17:00').slice(0, 5)}`
+    },
+    headerSort: false,
+  },
+  {
     title: 'Time In',
     field: 'signIn',
     formatter: (cell) => {
       const value = cell.getValue()
-      if (!value || value === '-' || value === 'N/A') return value
-      const timeParts = value.split(':')
-      return timeParts.slice(0, 2).join(':')
+      return value && value !== '-' ? value.slice(0, 5) : '-'
     },
     headerSort: true,
-    sorter: (a, b) => {
-      if (a === '-' || a === 'N/A') return 1
-      if (b === '-' || b === 'N/A') return -1
-      return a.localeCompare(b)
-    },
   },
   {
     title: 'Time Out',
     field: 'signOut',
     formatter: (cell) => {
       const value = cell.getValue()
-      if (!value || value === '-' || value === 'N/A') return value
-      const timeParts = value.split(':')
-      return timeParts.slice(0, 2).join(':')
+      return value && value !== '-' ? value.slice(0, 5) : '-'
     },
     headerSort: true,
-    sorter: (a, b) => {
-      if (a === '-' || a === 'N/A') return 1
-      if (b === '-' || b === 'N/A') return -1
-      return a.localeCompare(b)
-    },
   },
   {
     title: 'Working Hours',
     field: 'workingHours',
     formatter: (cell) => {
-      const record = cell.getRow().getData()
-      if (record.isOvertime) return '-'
-      if (
-        record.status === 'Absent' ||
-        record.workingHours === '-' ||
-        record.workingHours === null ||
-        record.workingHours === undefined ||
-        Number(record.workingHours) === 0
-      ) {
-        return '-'
-      }
-      return `${Number(record.workingHours).toFixed(2)}`
-    },
-    headerSort: true,
-  },
-  {
-    title: 'Overtime Hours',
-    field: 'overtimeHours',
-    formatter: (cell) => {
-      const record = cell.getRow().getData()
-      return record.overtimeHours && record.overtimeHours > 0
-        ? `${Number(record.overtimeHours).toFixed(2)}`
-        : '-'
+      const value = cell.getValue()
+      return value && value !== '-' ? Number(value).toFixed(2) : '-'
     },
     headerSort: true,
   },
@@ -250,14 +218,10 @@ const columns = [
       const status = cell.getValue()
       const record = cell.getRow().getData()
       let displayStatus = status
-      if (record.isOvertime) {
-        displayStatus = 'Overtime'
-      } else if (record.signIn === '-' || record.signIn === 'N/A') {
+      if (record.signIn === '-' || record.signIn === 'N/A') {
         displayStatus = 'Absent'
       }
-      const statusClass = record.isOvertime
-        ? 'badge badge-outline badge-info'
-        : statusClasses[displayStatus] || ''
+      const statusClass = statusClasses[displayStatus] || ''
       return `<span class="px-2 py-1 text-xs font-medium rounded-full ${statusClass}">${displayStatus}</span>`
     },
   },
@@ -283,21 +247,6 @@ const columns = [
     },
   },
   {
-    title: 'Overtime Proof',
-    field: 'overtimeProof',
-    formatter: (cell) => {
-      let value = cell.getValue()
-      console.log('Overtime Proof value:', value)
-      if (!value) return '-'
-      value = value.replace(/\\/g, '/')
-      const url = value.startsWith('http')
-        ? value
-        : `http://localhost:3000/${value.replace(/^\//, '')}`
-      return `<img src="${url}" alt="Overtime Proof" style="max-width:30px;max-height:30px;border-radius:4px;cursor:pointer;" onclick="window.open('${url}','_blank')" />`
-    },
-    headerSort: false,
-  },
-  {
     title: 'Action',
     formatter: (cell) => {
       const record = cell.getRow().getData()
@@ -305,16 +254,14 @@ const columns = [
       const isPending = record.approvalStatus === 'Pending'
       const isApproved = record.approvalStatus === 'Approved'
       const hasAttendance =
-        (record.isOvertime && record.overtimeProof) ||
-        (record.signIn &&
-          record.signIn !== '-' &&
-          record.signIn !== 'N/A' &&
-          record.signOut &&
-          record.signOut !== '-' &&
-          record.signOut !== 'N/A')
-      const hasOT = !!record.overtimeProof
-      const showRejectOT = hasOT && record.approvalStatus !== 'Approved'
-      if (isAbsentRecord || !hasAttendance) {
+        record.signIn &&
+        record.signIn !== '-' &&
+        record.signIn !== 'N/A' &&
+        record.signOut &&
+        record.signOut !== '-' &&
+        record.signOut !== 'N/A'
+      const isRejected = record.approvalStatus === 'Rejected'
+      if (isAbsentRecord || !hasAttendance || isRejected) {
         return ''
       }
       return `
@@ -348,23 +295,11 @@ const columns = [
           `
               : ''
           }
-          ${
-            showRejectOT
-              ? `<button 
-                  title="Reject OT"
-                  class="${commonButtonClasses} hover:bg-yellow-500 text-black reject-ot-button">
-                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M18 6 6 18M6 6l12 12" />
-                    </svg>
-                </button>`
-              : ''
-          }
         </div>`
     },
     headerSort: false,
     cellClick: async (e, cell) => {
       const record = cell.getRow().getData()
-      // Defensive: Prevent double approval
       if (e.target.closest('.approve-button') && canManageAttendance.value) {
         if (record.approvalStatus === 'Approved') {
           showToast('This record is already approved', 'warning')
@@ -379,8 +314,6 @@ const columns = [
           return
         }
         openDeleteModal(record)
-      } else if (e.target.closest('.reject-ot-button')) {
-        openRejectOTModal(record)
       }
     },
   },
@@ -454,10 +387,6 @@ const initTable = async () => {
         },
         rowFormatter: function (row) {
           const data = row.getData()
-          if (data.isOvertime) {
-            row.getElement().style.background = '#e6f7ff'
-            row.getElement().style.fontWeight = 'bold'
-          }
         },
       })
 
@@ -674,7 +603,9 @@ const rows = computed(() => {
     .filter(
       (r) =>
         (r.attendanceType === 'regular' || r.attendance_type === 'regular') &&
-        r.date === selectedDate,
+        r.date === selectedDate &&
+        r.approvalStatus !== 'Rejected' &&
+        r.approval_status !== 'Rejected',
     )
     .filter((r) => {
       const emp = employeeStore.employees.find((e) => e.employee_id === r.employee_id)
@@ -688,10 +619,8 @@ const rows = computed(() => {
       signIn: r.signIn || '-',
       signOut: r.signOut || '-',
       workingHours: r.workingHours ?? '-',
-      overtimeHours: r.overtimeHours ?? '-',
       status: r.status || 'Absent',
       approvalStatus: r.approvalStatus || 'Pending',
-      overtimeProof: r.overtimeProof || null,
       date: r.date,
       approved_by: r.approved_by,
     }))

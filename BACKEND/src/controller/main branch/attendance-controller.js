@@ -1,4 +1,10 @@
-const { Employee, EmployeeAttendance, sequelize } = require('../../model/Index.js')
+const {
+  Employee,
+  EmployeeAttendance,
+  EmployeeSchedule,
+  AvailableSchedule,
+  sequelize,
+} = require('../../model/Index.js')
 const { Op } = require('sequelize')
 const ExcelJS = require('exceljs')
 const PDFDocument = require('pdfkit')
@@ -9,30 +15,22 @@ const attendanceController = {
   async timeIn(req, res) {
     const t = await sequelize.transaction()
     try {
-      const { employee_id, time_in, date } = req.body
+      const { employee_id, date, start_time } = req.body
 
-      if (!employee_id || !time_in || !date) {
+      if (!employee_id || !date || !start_time) {
         await t.rollback()
-        return res.status(400).json({
-          success: false,
-          message: 'Employee ID, time in, and date are required',
-        })
+        return res
+          .status(400)
+          .json({ success: false, message: 'Employee ID, date, and start_time are required' })
       }
 
       // Find the existing "Absent" record for today
       const attendance = await EmployeeAttendance.findOne({
-        where: {
-          employee_id,
-          date: date,
-          status: 'Absent',
-          deleted_at: null,
-        },
+        where: { employee_id, date, absent: true, deleted_at: null },
         transaction: t,
       })
 
       if (!attendance) {
-        // Optionally, create a new "Absent" record here if not found
-        // Or return an error if you want to enforce the cron job
         await t.rollback()
         return res.status(404).json({
           success: false,
@@ -40,29 +38,47 @@ const attendanceController = {
         })
       }
 
-      // Determine if late (9:00 AM is start time)
-      const [hours, minutes] = time_in.split(':').map(Number)
-      const status = hours > 9 || (hours === 9 && minutes > 0) ? 'Late' : 'Present'
+      // Get the employee's schedule for today
+      const empSchedule = await EmployeeSchedule.findOne({
+        where: { employee_id, deleted_at: null },
+        include: [{ model: AvailableSchedule, as: 'schedule' }],
+      })
+      if (!empSchedule || !empSchedule.schedule) {
+        await t.rollback()
+        return res
+          .status(404)
+          .json({ success: false, message: 'No schedule assigned for this employee.' })
+      }
+      const schedule = empSchedule.schedule
+      const scheduledStart = schedule.time_in // e.g. "08:00:00"
+      const [schedH, schedM] = scheduledStart.split(':').map(Number)
+      const [inH, inM] = start_time.split(':').map(Number)
+      const scheduledStartMinutes = schedH * 60 + schedM
+      const actualStartMinutes = inH * 60 + inM
+      let late_minutes = Math.max(0, actualStartMinutes - scheduledStartMinutes)
+
+      // PH Labor Law: 15 min grace period
+      let status = 'Present'
+      if (late_minutes > 15) {
+        status = 'Late'
+      }
 
       await attendance.update(
         {
-          time_in: time_in,
+          start_time,
+          late_minutes,
           status,
+          absent: false,
+          schedule_id: empSchedule.id,
         },
         { transaction: t },
       )
 
       await t.commit()
-      res.json({
-        success: true,
-        data: attendance,
-      })
+      res.json({ success: true, data: attendance })
     } catch (error) {
       await t.rollback()
-      res.status(500).json({
-        success: false,
-        message: error.message,
-      })
+      res.status(500).json({ success: false, message: error.message })
     }
   },
 
@@ -70,78 +86,84 @@ const attendanceController = {
   async timeOut(req, res) {
     const t = await sequelize.transaction()
     try {
-      const { employee_id, time_out, date } = req.body
+      const { employee_id, date, end_time } = req.body
 
-      if (!employee_id || !time_out || !date) {
+      if (!employee_id || !date || !end_time) {
         await t.rollback()
-        return res.status(400).json({
-          success: false,
-          message: 'Employee ID, time out, and date are required',
-        })
+        return res
+          .status(400)
+          .json({ success: false, message: 'Employee ID, date, and end_time are required' })
       }
 
       const attendance = await EmployeeAttendance.findOne({
-        where: {
-          employee_id,
-          date: date,
-          deleted_at: null,
-        },
+        where: { employee_id, date, absent: false, deleted_at: null },
         transaction: t,
       })
 
-      if (!attendance || !attendance.time_in) {
+      if (!attendance || !attendance.start_time) {
         await t.rollback()
-        return res.status(400).json({
-          success: false,
-          message: 'No time in record found for this date',
-        })
+        return res
+          .status(400)
+          .json({ success: false, message: 'No time in record found for this date' })
       }
 
-      if (attendance.time_out) {
-        await t.rollback()
-        return res.status(400).json({
-          success: false,
-          message: 'Already timed out for this date',
-        })
+      // Get the employee's schedule for today
+      const empSchedule = await EmployeeSchedule.findOne({
+        where: { id: attendance.schedule_id, deleted_at: null },
+        include: [{ model: AvailableSchedule, as: 'schedule' }],
+      })
+      const schedule = empSchedule.schedule
+      const scheduledEnd = schedule.time_out // e.g. "17:00:00"
+      const [schedEndH, schedEndM] = scheduledEnd.split(':').map(Number)
+      const [inH, inM] = attendance.start_time.split(':').map(Number)
+      const [outH, outM] = end_time.split(':').map(Number)
+      let startMinutes = inH * 60 + inM
+      let endMinutes = outH * 60 + outM
+
+      // PATCH: Handle overnight shift (end_time is on the next day)
+      if (endMinutes <= startMinutes) {
+        endMinutes += 24 * 60 // add 24 hours in minutes
       }
 
-      // Parse time strings and convert to minutes since midnight
-      const parseTimeToMinutes = (timeStr) => {
-        const [hours, minutes, seconds] = timeStr.split(':').map(Number)
-        return hours * 60 + minutes + (seconds || 0) / 60
-      }
+      let totalMinutes = endMinutes - startMinutes
 
-      const inMinutes = parseTimeToMinutes(attendance.time_in)
-      const outMinutes = parseTimeToMinutes(time_out)
+      // Use the same logic for scheduled end
+      const scheduledEndMinutes = schedEndH * 60 + schedEndM
 
-      const regularEnd = 17 * 60 // 17:00 in minutes
+      // PATCH: Calculate regularMinutes and overtimeMinutes using adjusted endMinutes
+      let regularMinutes =
+        Math.min(
+          endMinutes,
+          scheduledEndMinutes > startMinutes ? scheduledEndMinutes : scheduledEndMinutes + 24 * 60,
+        ) - startMinutes
 
-      // Working hours: only up to 17:00
-      const workingEnd = Math.min(outMinutes, regularEnd)
-      const totalWorkingMinutes = Math.max(0, workingEnd - inMinutes)
+      // PH Labor Law: Deduct 1 hour break if worked at least 5 hours
+      if (regularMinutes >= 300) regularMinutes -= 60
 
-      // Subtract 1 hour for lunch break
-      const workingHours = (totalWorkingMinutes / 60 - 1).toFixed(2)
+      // Overtime: Only after scheduled end time (also handle overnight)
+      let overtimeMinutes = Math.max(
+        0,
+        endMinutes -
+          (scheduledEndMinutes > startMinutes
+            ? scheduledEndMinutes
+            : scheduledEndMinutes + 24 * 60),
+      )
 
       await attendance.update(
         {
-          time_out: time_out,
-          working_hours: workingHours,
+          end_time,
+          hours_worked: (totalMinutes / 60).toFixed(2),
+          regular_hours: (regularMinutes / 60).toFixed(2),
+          overtime_hours: (overtimeMinutes / 60).toFixed(2),
         },
         { transaction: t },
       )
 
       await t.commit()
-      res.json({
-        success: true,
-        data: attendance,
-      })
+      res.json({ success: true, data: attendance })
     } catch (error) {
       await t.rollback()
-      res.status(500).json({
-        success: false,
-        message: error.message,
-      })
+      res.status(500).json({ success: false, message: error.message })
     }
   },
 
@@ -177,14 +199,22 @@ const attendanceController = {
       }
 
       // If this record has overtime_proof, calculate overtime_hours
-      if (attendance.overtime_proof && attendance.time_out) {
-        // Overtime starts at 18:00
-        const [h, m] = attendance.time_out.split(':').map(Number)
-        const overtimeStart = 18 * 60 // 18:00 in minutes
+      if (attendance.overtime_proof && attendance.end_time) {
+        // Get the employee's schedule for this attendance
+        const empSchedule = await EmployeeSchedule.findOne({
+          where: { id: attendance.schedule_id, deleted_at: null },
+          include: [{ model: AvailableSchedule, as: 'schedule' }],
+        })
+        const schedule = empSchedule?.schedule
+        const scheduledEnd = schedule?.time_out || '18:00:00'
+        const [schedEndH, schedEndM] = scheduledEnd.split(':').map(Number)
+        const scheduledEndMinutes = schedEndH * 60 + schedEndM
+
+        const [h, m] = attendance.end_time.split(':').map(Number)
         const outMinutes = h * 60 + m
         let overtimeMinutes = 0
-        if (outMinutes > overtimeStart) {
-          overtimeMinutes = outMinutes - overtimeStart
+        if (outMinutes > scheduledEndMinutes) {
+          overtimeMinutes = outMinutes - scheduledEndMinutes
         }
         const overtimeHours = (overtimeMinutes / 60).toFixed(2)
 
@@ -238,19 +268,18 @@ const attendanceController = {
         where: {
           employee_id,
           date,
-          attendance_type: 'regular',
           deleted_at: null,
         },
         transaction: t,
       })
-      if (!regular || !regular.time_in || !regular.time_out) {
+      if (!regular || !regular.start_time || !regular.end_time) {
         await t.rollback()
         return res
           .status(400)
           .json({ success: false, message: 'Complete regular attendance first.' })
       }
-      // Check time_out >= 18:00
-      const [h, m] = regular.time_out.split(':').map(Number)
+      // Check end_time >= 18:00
+      const [h, m] = regular.end_time.split(':').map(Number)
       if (h < 18) {
         await t.rollback()
         return res
@@ -405,9 +434,9 @@ const attendanceController = {
             date,
             status: 'Absent',
             employee,
-            time_in: null,
-            time_out: null,
-            working_hours: 0,
+            start_time: null,
+            end_time: null,
+            hours_worked: 0,
             overtime_hours: 0,
             approval_status: 'Pending',
             approved_by: null,
@@ -503,9 +532,9 @@ const attendanceController = {
             full_name: emp.full_name,
             department: emp.department,
             date: date,
-            signIn: record?.time_in || '-',
-            signOut: record?.time_out || '-',
-            workingHours: record?.working_hours || 0,
+            signIn: record?.start_time || '-',
+            signOut: record?.end_time || '-',
+            hoursWorked: record?.hours_worked || 0,
             status: record?.status || 'Absent',
             approval_status: record?.approval_status || 'Pending',
             overtime_hours: record?.overtime_hours || 0,
@@ -589,10 +618,10 @@ const attendanceController = {
             onTime: currentMonthData.summary.attendance.onTime,
             late: currentMonthData.summary.attendance.late,
             averageArrivalTime: calculateAverageTime(
-              currentMonthData.attendance.filter((a) => a.time_in).map((a) => a.time_in),
+              currentMonthData.attendance.filter((a) => a.start_time).map((a) => a.start_time),
             ),
             averageDepartureTime: calculateAverageTime(
-              currentMonthData.attendance.filter((a) => a.time_out).map((a) => a.time_out),
+              currentMonthData.attendance.filter((a) => a.end_time).map((a) => a.end_time),
             ),
           },
           approvals: {
@@ -638,7 +667,7 @@ const attendanceController = {
         },
         details: currentMonthData.attendance.map((record) => ({
           ...record.toJSON(),
-          duration: calculateDuration(record.time_in, record.time_out),
+          duration: calculateDuration(record.start_time, record.end_time),
           dayOfWeek: new Date(record.date).toLocaleDateString('en-US', { weekday: 'long' }),
         })),
       }
@@ -683,6 +712,17 @@ const attendanceController = {
             attributes: ['full_name'],
             foreignKey: 'approved_by',
           },
+          {
+            model: EmployeeSchedule,
+            as: 'schedule',
+            include: [
+              {
+                model: AvailableSchedule,
+                as: 'schedule',
+                attributes: ['time_in', 'time_out'],
+              },
+            ],
+          },
         ],
         order: [['date', 'DESC']],
       })
@@ -725,21 +765,34 @@ const attendanceController = {
       // 2. Soft delete the record
       await attendance.update({ deleted_at: new Date() }, { transaction: t })
 
-      // 3. Insert a new "Absent" record for the same employee and date
+      // 3. Get the employee's schedule for this date
+      const empSchedule = await EmployeeSchedule.findOne({
+        where: { employee_id, deleted_at: null },
+      })
+
+      if (!empSchedule) {
+        await t.rollback()
+        return res.status(400).json({
+          success: false,
+          message: 'No schedule found for this employee. Cannot mark as absent.',
+        })
+      }
+
+      // 4. Insert a new "Absent" record for the same employee and date, with schedule_id and Rejected status
       await EmployeeAttendance.create(
         {
           employee_id,
           date,
           status: 'Absent',
-          approval_status: 'Pending',
+          approval_status: 'Rejected',
           attendance_type: 'regular',
-          working_hours: 0,
+          hours_worked: 0,
           overtime_hours: 0,
-          time_in: null,
-          time_out: null,
+          start_time: null,
+          end_time: null,
           overtime_proof: null,
           created_at: new Date(),
-          // ...add any other default fields as needed
+          schedule_id: empSchedule.id,
         },
         { transaction: t },
       )
@@ -747,7 +800,7 @@ const attendanceController = {
       await t.commit()
       res.json({
         success: true,
-        message: 'Attendance record deleted and Absent record created.',
+        message: 'Attendance record deleted and Absent record created with Rejected status.',
       })
     } catch (error) {
       await t.rollback()
@@ -764,8 +817,8 @@ const attendanceController = {
     try {
       const { id } = req.params
       const {
-        time_in,
-        time_out,
+        start_time,
+        end_time,
         date,
         status,
         approval_status,
@@ -787,8 +840,8 @@ const attendanceController = {
 
       // Prepare update fields
       const updateFields = {}
-      if (time_in !== undefined) updateFields.time_in = time_in
-      if (time_out !== undefined) updateFields.time_out = time_out
+      if (start_time !== undefined) updateFields.start_time = start_time
+      if (end_time !== undefined) updateFields.end_time = end_time
       if (date !== undefined) updateFields.date = date
       if (status !== undefined) updateFields.status = status
       if (approval_status !== undefined) updateFields.approval_status = approval_status
@@ -800,21 +853,21 @@ const attendanceController = {
         updateFields.overtime_proof = req.file.path
       }
 
-      // Optionally, recalculate working_hours/overtime_hours if time_in/time_out changed
-      if (updateFields.time_in && updateFields.time_out) {
+      // Optionally, recalculate working_hours/overtime_hours if start_time/end_time changed
+      if (updateFields.start_time && updateFields.end_time) {
         // Calculate working hours (same logic as in timeOut)
         const parseTimeToMinutes = (timeStr) => {
           const [hours, minutes, seconds] = timeStr.split(':').map(Number)
           return hours * 60 + minutes + (seconds || 0) / 60
         }
-        const inMinutes = parseTimeToMinutes(updateFields.time_in)
-        const outMinutes = parseTimeToMinutes(updateFields.time_out)
+        const inMinutes = parseTimeToMinutes(updateFields.start_time)
+        const outMinutes = parseTimeToMinutes(updateFields.end_time)
         const regularEnd = 17 * 60 // 17:00 in minutes
         const workingEnd = Math.min(outMinutes, regularEnd)
         const totalWorkingMinutes = Math.max(0, workingEnd - inMinutes)
-        updateFields.working_hours = (totalWorkingMinutes / 60 - 1).toFixed(2)
+        updateFields.hours_worked = (totalWorkingMinutes / 60).toFixed(2)
 
-        // Overtime calculation (if time_out >= 18:00)
+        // Overtime calculation (if end_time >= 18:00)
         const overtimeStart = 18 * 60
         let overtimeMinutes = 0
         if (outMinutes > overtimeStart) {
@@ -848,12 +901,12 @@ const attendanceController = {
         return res.status(404).json({ success: false, message: 'Attendance record not found' })
       }
 
-      // Only clear OT fields, not the whole record
+      // Mark as rejected and clear OT fields
       await attendance.update(
         {
           overtime_proof: null,
           overtime_hours: 0,
-          // Optionally: ot_approval_status: 'Rejected'
+          approval_status: 'Rejected',
         },
         { transaction: t },
       )
@@ -979,10 +1032,10 @@ async function exportToExcel(res, report) {
   report.details.forEach((record) => {
     worksheet.addRow([
       record.date,
-      record.time_in,
-      record.time_out,
+      record.start_time,
+      record.end_time,
       record.status,
-      record.working_hours,
+      record.hours_worked,
       record.overtime_hours,
     ])
   })
@@ -1024,7 +1077,7 @@ async function exportToPDF(res, report) {
   doc.moveDown()
   doc.text('Detailed Records')
   report.details.forEach((record) => {
-    doc.text(`${record.date}: ${record.time_in} - ${record.time_out} (${record.status})`)
+    doc.text(`${record.date}: ${record.start_time} - ${record.end_time} (${record.status})`)
   })
 
   doc.end()
@@ -1087,14 +1140,14 @@ function calculateSummary(attendance, workingDays) {
     lateDays: attendance.filter((a) => a.status === 'Late').length,
     absentDays: workingDays - attendance.length,
     totalWorkingHours: Number(
-      attendance.reduce((sum, a) => sum + Number(a.working_hours || 0), 0).toFixed(2),
+      attendance.reduce((sum, a) => sum + Number(a.hours_worked || 0), 0).toFixed(2),
     ),
     totalOvertimeHours: Number(
       attendance.reduce((sum, a) => sum + Number(a.overtime_hours || 0), 0).toFixed(2),
     ),
     averageWorkingHoursPerDay: Number(
       (
-        attendance.reduce((sum, a) => sum + Number(a.working_hours || 0), 0) /
+        attendance.reduce((sum, a) => sum + Number(a.hours_worked || 0), 0) /
         (attendance.length || 1)
       ).toFixed(2),
     ),

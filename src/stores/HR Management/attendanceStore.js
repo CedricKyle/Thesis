@@ -346,6 +346,13 @@ export const useAttendanceStore = defineStore('attendance', () => {
     return recordDate.toDateString() !== today.toDateString()
   }
 
+  // Helper to parse time string to minutes
+  function parseTimeToMinutes(timeStr) {
+    if (!timeStr) return 0
+    const [h, m] = timeStr.split(':').map(Number)
+    return h * 60 + m
+  }
+
   // Actions
   const addRecord = async (attendanceData) => {
     try {
@@ -456,51 +463,79 @@ export const useAttendanceStore = defineStore('attendance', () => {
       })
 
       if (response.data.success) {
-        const employeeStore = useEmployeeStore()
-        await employeeStore.loadEmployees()
-
-        // Separate regular and overtime records
         const allRecords = response.data.data
-        const regularRecords = allRecords.filter(
-          (r) => r.attendance_type === 'regular' || r.attendanceType === 'regular',
-        )
-        const overtimeRecords = allRecords.filter(
-          (r) => r.attendance_type === 'overtime' || r.attendanceType === 'overtime',
-        )
+        const records = allRecords.map((record) => {
+          // Default schedule times
+          let scheduleTimeIn = '08:00:00'
+          let scheduleTimeOut = '17:00:00'
 
-        // Map regular records, merging overtime proof if present
-        const records = regularRecords.map((record) => {
-          // Find matching overtime record for this employee/date
-          const ot = overtimeRecords.find(
-            (otRec) =>
-              otRec.employee_id === record.employee_id &&
-              otRec.date === record.date &&
-              otRec.overtime_proof,
+          // Check for nested schedule (EmployeeSchedule -> AvailableSchedule)
+          if (record.schedule && record.schedule.schedule) {
+            scheduleTimeIn = record.schedule.schedule.time_in || scheduleTimeIn
+            scheduleTimeOut = record.schedule.schedule.time_out || scheduleTimeOut
+          } else if (record.schedule) {
+            scheduleTimeIn = record.schedule.time_in || scheduleTimeIn
+            scheduleTimeOut = record.schedule.time_out || scheduleTimeOut
+          }
+
+          // Log the full record for debugging
+          console.log('[Attendance Mapping] Record:', record)
+
+          // Use start_time and end_time from backend!
+          const inMinutes = parseTimeToMinutes(record.start_time)
+          const outMinutes = parseTimeToMinutes(record.end_time)
+          const schedInMinutes = parseTimeToMinutes(scheduleTimeIn)
+          const schedOutMinutes = parseTimeToMinutes(scheduleTimeOut)
+
+          let regularMinutes = Math.max(
+            0,
+            Math.min(outMinutes, schedOutMinutes) - Math.max(inMinutes, schedInMinutes),
           )
+          if (regularMinutes >= 300) regularMinutes -= 60 // Deduct break if needed
+          let overtimeMinutes = Math.max(0, outMinutes - schedOutMinutes)
+
+          // Fallback for full_name and department
+          const full_name =
+            record.full_name ||
+            (record.employee && record.employee.full_name) ||
+            (record.employee && record.employee.fullName) ||
+            'Unknown'
+          const department =
+            record.department || (record.employee && record.employee.department) || 'Unknown'
+
+          // Log the mapping result
+          console.log(
+            `[Attendance Mapping] Employee: ${full_name}, Schedule: ${scheduleTimeIn} - ${scheduleTimeOut}, ScheduleObj:`,
+            record.schedule,
+          )
+
+          console.log(
+            'Approval Status:',
+            record.approval_status,
+            'Mapped:',
+            record.approval_status || 'Pending',
+          )
+
           return {
             ...record,
-            overtimeProof: ot ? ot.overtime_proof : record.overtime_proof || null,
-            id: record.id,
-            employee_id: record.employee_id,
-            full_name: record.employee?.full_name || record.full_name,
-            department: record.employee?.department,
-            signIn: record.time_in || '-',
-            signOut: record.time_out || '-',
+            scheduleTimeIn,
+            scheduleTimeOut,
+            signIn: record.start_time || '-',
+            signOut: record.end_time || '-',
             workingHours:
-              record.working_hours != null ? Number(record.working_hours).toFixed(2) : '-',
-            status: record.status || 'Absent',
-            date: record.date,
-            approvalStatus: record.approval_status || 'Pending',
+              record.regular_hours != null ? Number(record.regular_hours).toFixed(2) : '-',
             overtimeHours:
-              record.overtime_hours && record.overtime_hours > 0
-                ? Number(record.overtime_hours).toFixed(2)
-                : '-',
+              record.overtime_hours != null ? Number(record.overtime_hours).toFixed(2) : '-',
+            status: record.status || (record.absent ? 'Absent' : 'Present'),
+            approvalStatus: record.approval_status || 'Pending',
+            overtimeProof: record.overtime_proof || null,
             attendanceType: record.attendance_type || 'regular',
             approved_by: record.approved_by || null,
+            date: record.date,
+            full_name,
+            department,
           }
         })
-
-        console.log('Mapped attendanceRecords:', records)
         attendanceRecords.value = records
       }
     } catch (error) {
