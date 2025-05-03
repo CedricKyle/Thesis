@@ -1,6 +1,14 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
-import { EyeIcon, SendIcon, CheckIcon, XIcon, BookCheck, MoveRight } from 'lucide-vue-next'
+import {
+  EyeIcon,
+  SendIcon,
+  CheckIcon,
+  XIcon,
+  BookCheck,
+  MoveRight,
+  FileText,
+} from 'lucide-vue-next'
 import { usePayrollStore } from '@/stores/HR Management/payrollStore'
 import { usePermissions } from '@/composables/Admin Composables/User & Role/role/usePermissions'
 import { PERMISSION_IDS } from '@/composables/Admin Composables/User & Role/role/permissionsId'
@@ -260,6 +268,18 @@ async function saveEditedPayroll() {
 function openEditPayrollModal(row) {
   selectedPayroll.value = { ...row }
   showEditModal.value = true
+}
+
+const showPayslipModal = ref(false)
+const selectedPayslip = ref(null)
+
+function openPayslipModal(row) {
+  selectedPayslip.value = row
+  showPayslipModal.value = true
+}
+
+function printPayslip() {
+  window.print()
 }
 </script>
 
@@ -529,6 +549,7 @@ function openEditPayrollModal(row) {
               <th>Salary Before Tax</th>
               <th>Net Pay</th>
               <th>Tax Deduction</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -577,6 +598,17 @@ function openEditPayrollModal(row) {
               <td>₱{{ row.net_pay.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
               <td>
                 ₱{{ row.tax_deduction.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}
+              </td>
+              <td>
+                <div class="flex gap-1">
+                  <button
+                    class="text-black hover:text-white hover:bg-primaryColor/80 rounded-full p-1 cursor-pointer"
+                    title="Preview Payslip"
+                    @click="openPayslipModal(row)"
+                  >
+                    <FileText class="w-4 h-4" />
+                  </button>
+                </div>
               </td>
             </tr>
             <tr v-if="!Array.isArray(paginatedPayrollHistory) || !paginatedPayrollHistory.length">
@@ -991,6 +1023,252 @@ function openEditPayrollModal(row) {
             Print
           </button>
           <button class="btn-secondaryStyle" @click="showPayrollExportModal = false">Close</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Payslip Modal -->
+    <dialog v-if="showPayslipModal" open class="modal payslip-print-area">
+      <div class="modal-box bg-white text-black max-w-4xl" id="payslip-modal-content">
+        <div class="flex flex-col gap-2">
+          <!-- Top Bar -->
+          <div class="flex justify-end items-start mb-2">
+            <div class="text-xs text-gray-500">{{ new Date().toLocaleString() }}</div>
+          </div>
+          <!-- Main Content -->
+          <div class="flex flex-row gap-8">
+            <!-- Left Column -->
+            <div class="w-1/3 border-r pr-4">
+              <div class="mb-4">
+                <div class="text-sm">
+                  I acknowledge to have receive from <b>Countryside</b>,<br />
+                  the amount stated below and have further claims for services
+                </div>
+                <div class="mt-4 flex items-center justify-between">
+                  <div class="">
+                    <b class="text-sm">Pay Period:</b>
+                  </div>
+                  <div class="">
+                    <span class="text-xs">{{ selectedPayslip.start_date }}</span>
+                    <span class="text-sm font-bold mx-1">to</span>
+                    <span class="text-xs">{{ selectedPayslip.end_date }}</span>
+                  </div>
+                </div>
+                <div class="mt-2 flex items-center justify-between">
+                  <b class="text-sm">Employee Id:</b>
+                  <span class="text-xs">{{ selectedPayslip.employee_id }}</span>
+                </div>
+                <div class="mt-2 flex items-center justify-between">
+                  <b class="text-sm">Name :</b>
+                  <span class="text-xs">{{
+                    selectedPayslip.employee?.full_name || selectedPayslip.employee_id
+                  }}</span>
+                </div>
+                <div class="mt-4 flex items-center justify-between">
+                  <b class="text-sm">Total Earnings:</b>
+                  <span class="text-xs"
+                    >₱{{
+                      selectedPayslip.gross_pay.toLocaleString('en-PH', {
+                        minimumFractionDigits: 2,
+                      })
+                    }}</span
+                  >
+                </div>
+                <div class="mt-2 flex items-center justify-between">
+                  <b class="text-sm">Deduction:</b>
+                  <span class="text-xs"
+                    >₱{{
+                      selectedPayslip.deduction.toLocaleString('en-PH', {
+                        minimumFractionDigits: 2,
+                      })
+                    }}</span
+                  >
+                </div>
+                <div class="mt-2 flex items-center justify-between">
+                  <b class="text-sm">Net Pay:</b>
+                  <span class="text-xs"
+                    >₱{{
+                      selectedPayslip.net_pay.toLocaleString('en-PH', { minimumFractionDigits: 2 })
+                    }}</span
+                  >
+                </div>
+              </div>
+              <div class="mt-12 pt-8">
+                <div class="border-t border-gray-400 w-3/4 mx-auto mb-1"></div>
+                <div class="text-center text-xs text-gray-600">Signature over printed name</div>
+              </div>
+            </div>
+            <!-- Right Column -->
+            <div class="w-2/3">
+              <div class="text-center font-bold text-lg mb-2">
+                <div class="flex justify-center items-center gap-2">
+                  <img
+                    src="/public/countryside-logo.png"
+                    alt="Countryside Logo"
+                    class="w-7 h-7"
+                  />Countryside
+                </div>
+              </div>
+              <div class="flex justify-between mb-2">
+                <div>
+                  <b class="text-sm mr-3">Employee:</b>
+                  <span class="text-sm">{{
+                    selectedPayslip.employee?.full_name || selectedPayslip.employee_id
+                  }}</span>
+                  <br />
+                  <b class="text-sm mr-3">Pay Period:</b>
+                  <span class="text-xs">{{ selectedPayslip.start_date }}</span>
+                  <span class="text-sm font-bold mx-1">to</span>
+                  <span class="text-xs">{{ selectedPayslip.end_date }}</span>
+                </div>
+                <div class="text-right">
+                  <b class="text-sm mr-3">Days of Week:</b>
+                  <span class="text-sm">{{ selectedPayslip.days_of_week || 14 }}</span>
+                  <br />
+                  <b class="text-sm mr-3">Days Present:</b>
+                  <span class="text-sm">{{ selectedPayslip.days_present }}</span>
+                </div>
+              </div>
+              <!-- Earnings/Deductions Table -->
+              <table class="w-full text-xs border border-gray-300 mb-2">
+                <thead>
+                  <tr>
+                    <th class="border px-2">Earnings</th>
+                    <th class="border px-2">Amount</th>
+                    <th class="border px-2">Deduction</th>
+                    <th class="border px-2">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td class="border px-2">Total Hours Worked</td>
+                    <td class="border px-2">
+                      {{ selectedPayslip.total_hours_worked ?? '0.00' }}
+                    </td>
+                    <td class="border px-2">SSS</td>
+                    <td class="border px-2">
+                      {{
+                        selectedPayslip.sss_deduction?.toLocaleString('en-PH', {
+                          minimumFractionDigits: 2,
+                        }) ?? '0.00'
+                      }}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="border px-2">Overtime Pay</td>
+                    <td class="border px-2">
+                      {{
+                        selectedPayslip.overtime_pay?.toLocaleString('en-PH', {
+                          minimumFractionDigits: 2,
+                        }) ?? '0.00'
+                      }}
+                    </td>
+                    <td class="border px-2">Pag-ibig</td>
+                    <td class="border px-2">
+                      {{
+                        selectedPayslip.pagibig_deduction?.toLocaleString('en-PH', {
+                          minimumFractionDigits: 2,
+                        }) ?? '0.00'
+                      }}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="border px-2">Paid Holiday</td>
+                    <td class="border px-2">
+                      {{
+                        selectedPayslip.paid_holiday?.toLocaleString('en-PH', {
+                          minimumFractionDigits: 2,
+                        }) ?? '0.00'
+                      }}
+                    </td>
+                    <td class="border px-2">Philhealth</td>
+                    <td class="border px-2">
+                      {{
+                        selectedPayslip.philhealth_deduction?.toLocaleString('en-PH', {
+                          minimumFractionDigits: 2,
+                        }) ?? '0.00'
+                      }}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="border px-2">Allowance</td>
+                    <td class="border px-2">
+                      {{
+                        selectedPayslip.allowance?.toLocaleString('en-PH', {
+                          minimumFractionDigits: 2,
+                        }) ?? '0.00'
+                      }}
+                    </td>
+                    <td class="border px-2">Tardiness</td>
+                    <td class="border px-2">
+                      {{
+                        selectedPayslip.tardiness_deduction?.toLocaleString('en-PH', {
+                          minimumFractionDigits: 2,
+                        }) ?? '0.00'
+                      }}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td class="border px-2">Bonus</td>
+                    <td class="border px-2">
+                      {{
+                        selectedPayslip.bonus?.toLocaleString('en-PH', {
+                          minimumFractionDigits: 2,
+                        }) ?? '0.00'
+                      }}
+                    </td>
+                    <td class="border px-2">Tax</td>
+                    <td class="border px-2">
+                      {{
+                        selectedPayslip.tax_deduction?.toLocaleString('en-PH', {
+                          minimumFractionDigits: 2,
+                        }) ?? '0.00'
+                      }}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="flex justify-between font-bold mt-2">
+                <div>
+                  <b class="text-xs mr-3">Total Earnings :</b>
+                  <span class="text-sm font-thin"
+                    >₱{{
+                      selectedPayslip.gross_pay.toLocaleString('en-PH', {
+                        minimumFractionDigits: 2,
+                      })
+                    }}</span
+                  >
+                </div>
+                <div>
+                  <b class="text-xs mr-3">Total Deduction :</b>
+                  <span class="text-sm font-thin"
+                    >₱{{
+                      selectedPayslip.deduction.toLocaleString('en-PH', {
+                        minimumFractionDigits: 2,
+                      })
+                    }}</span
+                  >
+                </div>
+                <div>
+                  <b class="text-xs mr-3">Net Pay :</b>
+                  <span class="text-sm font-thin"
+                    >₱{{
+                      selectedPayslip.net_pay.toLocaleString('en-PH', { minimumFractionDigits: 2 })
+                    }}</span
+                  >
+                </div>
+              </div>
+              <div class="text-xs text-gray-500 mt-2">
+                <p class="text-xs font-bold">Remarks:</p>
+                <span class="text-xs">{{ selectedPayslip.remarks }}</span>
+              </div>
+            </div>
+          </div>
+          <!-- Modal Actions -->
+          <div class="modal-action flex gap-2">
+            <button class="btn-primaryStyle" @click="printPayslip">Print</button>
+            <button class="btn-secondaryStyle" @click="showPayslipModal = false">Close</button>
+          </div>
         </div>
       </div>
     </dialog>
