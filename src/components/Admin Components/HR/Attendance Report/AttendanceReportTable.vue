@@ -124,6 +124,7 @@ const columns = [
         Late: 'bg-yellow-100 text-yellow-800',
         'Late + OT': 'bg-yellow-100 text-yellow-800',
         'On Leave': 'bg-blue-100 text-blue-800',
+        'Day Off': 'bg-gray-200 text-gray-700',
       }
       return `<span class="px-2 py-1 text-xs font-medium rounded-full ${
         statusClasses[status] || 'bg-gray-100 text-gray-800'
