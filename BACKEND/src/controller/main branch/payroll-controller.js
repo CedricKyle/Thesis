@@ -5,8 +5,10 @@ const {
   Payroll,
   EmployeeDeduction,
   AuditLog,
+  PayrollDeduction,
 } = require('../../model/Index.js')
 const { Op } = require('sequelize')
+const { computePHWithholdingTax } = require('../../utils/ph-tax-calculator')
 
 function getWeekNumber(dateString) {
   const date = new Date(dateString)
@@ -59,7 +61,18 @@ const payrollController = {
         // Calculations
         const totalHours = attendance.reduce((sum, a) => sum + Number(a.hours_worked || 0), 0)
         const overtimeHours = attendance.reduce((sum, a) => sum + Number(a.overtime_hours || 0), 0)
-        const tardiness = attendance.reduce((sum, a) => sum + Number(a.tardiness_deduction || 0), 0)
+        const tardinessHours = Number(
+          attendance
+            .reduce(
+              (sum, a) =>
+                sum +
+                (a.tardiness_hours !== undefined
+                  ? Number(a.tardiness_hours)
+                  : Number(a.late_minutes || 0) / 60),
+              0,
+            )
+            .toFixed(2),
+        )
         const absences = attendance.filter((a) => a.absent).length
         const absentDeduction = attendance.reduce(
           (sum, a) => sum + Number(a.absent_deduction || 0),
@@ -67,10 +80,18 @@ const payrollController = {
         )
         const holidayPay = attendance.reduce((sum, a) => sum + Number(a.holiday_pay || 0), 0)
         const daysPresent = attendance.filter((a) => !a.absent).length
+        const tardinessDeduction = attendance.reduce(
+          (sum, a) => sum + Number(a.tardiness_deduction || 0),
+          0,
+        )
 
         const regularPay = totalHours * ratePerHour
         const overtimePay = overtimeHours * (ratePerHour * 1.25)
         const grossPay = regularPay + overtimePay + holidayPay
+
+        // If semi-monthly, multiply grossPay by 2 to get monthly equivalent
+        const monthlyTax = computePHWithholdingTax(grossPay * 2)
+        const taxDeduction = monthlyTax / 2
 
         // Get all active deductions for this grossPay
         const deductions = await EmployeeDeduction.findAll({
@@ -83,26 +104,36 @@ const payrollController = {
           },
         })
 
-        // Sum employee shares
+        // Prepare deduction breakdown and total
         let totalMandatoryDeduction = 0
-        deductions.forEach((d) => {
-          // Compute base contribution
+        let deductionBreakdown = []
+
+        for (const d of deductions) {
           let contribution = grossPay * (d.percentage_rate / 100)
-          // Apply min/max if set
           if (d.minimum_contribution && contribution < d.minimum_contribution)
             contribution = parseFloat(d.minimum_contribution)
           if (d.maximum_contribution && contribution > d.maximum_contribution)
             contribution = parseFloat(d.maximum_contribution)
-          // Employee share
           const employeeShare = contribution * (d.employee_share / d.percentage_rate)
+          const employerShare = contribution * (d.employer_share / d.percentage_rate)
           totalMandatoryDeduction += employeeShare
-        })
+
+          deductionBreakdown.push({
+            deduction_type: d.deduction_type,
+            description: d.description,
+            amount: employeeShare,
+            employee_share: employeeShare,
+            employer_share: employerShare,
+          })
+        }
 
         // Add to other deductions
-        const deduction = tardiness + absentDeduction + totalMandatoryDeduction
+        const deduction =
+          tardinessDeduction + absentDeduction + totalMandatoryDeduction + taxDeduction
         const netPay = grossPay - deduction
 
-        await Payroll.create({
+        // Create payroll first
+        const payroll = await Payroll.create({
           employee_id: emp.employee_id,
           month: new Date(start_date).getMonth() + 1,
           quarter: Math.floor((new Date(start_date).getMonth() + 3) / 3),
@@ -116,7 +147,7 @@ const payrollController = {
           days_absent: absences,
           absent_deduction: absentDeduction,
           overtime_pay: overtimePay,
-          tardiness_deduction: tardiness,
+          tardiness_hours: tardinessHours,
           status: 0, // Draft
           allowance: 0,
           bonus: 0,
@@ -125,8 +156,22 @@ const payrollController = {
           gross_pay: grossPay,
           salary_before_tax: grossPay,
           net_pay: netPay,
-          tax_deduction: 0,
+          tax_deduction: taxDeduction,
+          overtime_hours: overtimeHours,
+          tardiness_deduction: tardinessDeduction,
         })
+
+        // Now save deduction breakdowns
+        for (const breakdown of deductionBreakdown) {
+          await PayrollDeduction.create({
+            payroll_id: payroll.id,
+            deduction_type: breakdown.deduction_type,
+            description: breakdown.description,
+            amount: breakdown.amount,
+            employee_share: breakdown.employee_share,
+            employer_share: breakdown.employer_share,
+          })
+        }
       }
 
       res.json({ success: true, message: 'Payrolls generated!' })
@@ -154,6 +199,10 @@ const payrollController = {
             model: Employee,
             as: 'employee',
             attributes: ['full_name'],
+          },
+          {
+            model: PayrollDeduction,
+            as: 'deductions',
           },
         ],
       })

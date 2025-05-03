@@ -281,6 +281,16 @@ function openPayslipModal(row) {
 function printPayslip() {
   window.print()
 }
+
+function getDeductionAmount(type) {
+  if (!selectedPayslip.value?.deductions) return '0.00'
+  // Normalize both to lowercase and remove dashes for matching
+  const normalize = (str) => str.toLowerCase().replace(/-/g, '')
+  const found = selectedPayslip.value.deductions.find(
+    (d) => normalize(d.deduction_type) === normalize(type),
+  )
+  return found ? Number(found.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 }) : '0.00'
+}
 </script>
 
 <template>
@@ -1134,66 +1144,66 @@ function printPayslip() {
                 <thead>
                   <tr>
                     <th class="border px-2">Earnings</th>
+                    <th class="border px-2">Hours</th>
                     <th class="border px-2">Amount</th>
-                    <th class="border px-2">Deduction</th>
+                    <th class="border px-2">Deductions</th>
+                    <th class="border px-2">Hours</th>
                     <th class="border px-2">Amount</th>
                   </tr>
                 </thead>
                 <tbody>
+                  <!-- Earnings Rows -->
                   <tr>
                     <td class="border px-2">Total Hours Worked</td>
                     <td class="border px-2">
-                      {{ selectedPayslip.total_hours_worked ?? '0.00' }}
+                      {{ selectedPayslip.total_hours_worked?.toFixed(2) ?? '-' }}
                     </td>
-                    <td class="border px-2">SSS</td>
                     <td class="border px-2">
-                      {{
-                        selectedPayslip.sss_deduction?.toLocaleString('en-PH', {
+                      ₱{{
+                        selectedPayslip.regular_hour_pay?.toLocaleString('en-PH', {
                           minimumFractionDigits: 2,
                         }) ?? '0.00'
                       }}
                     </td>
+                    <td class="border px-2">SSS</td>
+                    <td class="border px-2">-</td>
+                    <td class="border px-2">₱{{ getDeductionAmount('SSS') }}</td>
                   </tr>
                   <tr>
                     <td class="border px-2">Overtime Pay</td>
                     <td class="border px-2">
-                      {{
+                      {{ selectedPayslip.overtime_hours?.toFixed(2) ?? '-' }}
+                    </td>
+                    <td class="border px-2">
+                      ₱{{
                         selectedPayslip.overtime_pay?.toLocaleString('en-PH', {
                           minimumFractionDigits: 2,
                         }) ?? '0.00'
                       }}
                     </td>
                     <td class="border px-2">Pag-ibig</td>
-                    <td class="border px-2">
-                      {{
-                        selectedPayslip.pagibig_deduction?.toLocaleString('en-PH', {
-                          minimumFractionDigits: 2,
-                        }) ?? '0.00'
-                      }}
-                    </td>
+                    <td class="border px-2">-</td>
+                    <td class="border px-2">₱{{ getDeductionAmount('Pag-ibig') }}</td>
                   </tr>
                   <tr>
                     <td class="border px-2">Paid Holiday</td>
+                    <td class="border px-2">-</td>
                     <td class="border px-2">
-                      {{
+                      ₱{{
                         selectedPayslip.paid_holiday?.toLocaleString('en-PH', {
                           minimumFractionDigits: 2,
                         }) ?? '0.00'
                       }}
                     </td>
                     <td class="border px-2">Philhealth</td>
-                    <td class="border px-2">
-                      {{
-                        selectedPayslip.philhealth_deduction?.toLocaleString('en-PH', {
-                          minimumFractionDigits: 2,
-                        }) ?? '0.00'
-                      }}
-                    </td>
+                    <td class="border px-2">-</td>
+                    <td class="border px-2">₱{{ getDeductionAmount('Philhealth') }}</td>
                   </tr>
                   <tr>
                     <td class="border px-2">Allowance</td>
+                    <td class="border px-2">-</td>
                     <td class="border px-2">
-                      {{
+                      ₱{{
                         selectedPayslip.allowance?.toLocaleString('en-PH', {
                           minimumFractionDigits: 2,
                         }) ?? '0.00'
@@ -1201,7 +1211,10 @@ function printPayslip() {
                     </td>
                     <td class="border px-2">Tardiness</td>
                     <td class="border px-2">
-                      {{
+                      {{ selectedPayslip.tardiness_hours?.toFixed(2) ?? '-' }}
+                    </td>
+                    <td class="border px-2">
+                      ₱{{
                         selectedPayslip.tardiness_deduction?.toLocaleString('en-PH', {
                           minimumFractionDigits: 2,
                         }) ?? '0.00'
@@ -1210,16 +1223,18 @@ function printPayslip() {
                   </tr>
                   <tr>
                     <td class="border px-2">Bonus</td>
+                    <td class="border px-2">-</td>
                     <td class="border px-2">
-                      {{
+                      ₱{{
                         selectedPayslip.bonus?.toLocaleString('en-PH', {
                           minimumFractionDigits: 2,
                         }) ?? '0.00'
                       }}
                     </td>
                     <td class="border px-2">Tax</td>
+                    <td class="border px-2">-</td>
                     <td class="border px-2">
-                      {{
+                      ₱{{
                         selectedPayslip.tax_deduction?.toLocaleString('en-PH', {
                           minimumFractionDigits: 2,
                         }) ?? '0.00'

@@ -65,6 +65,16 @@ module.exports = (sequelize) => {
         type: DataTypes.FLOAT,
         allowNull: false,
       },
+      overtime_hours: {
+        type: DataTypes.FLOAT,
+        allowNull: false,
+        defaultValue: 0,
+      },
+      tardiness_hours: {
+        type: DataTypes.FLOAT,
+        allowNull: false,
+        defaultValue: 0,
+      },
       status: {
         type: DataTypes.INTEGER,
         allowNull: false,
@@ -139,6 +149,10 @@ module.exports = (sequelize) => {
       as: 'employee',
       foreignKey: 'employee_id',
       targetKey: 'employee_id',
+    })
+    Payroll.hasMany(models.PayrollDeduction, {
+      as: 'deductions',
+      foreignKey: 'payroll_id',
     })
   }
 
