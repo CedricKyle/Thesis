@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import BaseTable from '@/components/common/BaseTable.vue'
 import { useAttendanceStore } from '@/stores/HR Management/attendanceStore'
+import { PERMISSION_IDS } from '@/composables/Admin Composables/User & Role/role/permissionsId'
 
 const attendanceStore = useAttendanceStore()
 
@@ -48,21 +49,24 @@ const columns = [
     formatter: (cell) => {
       const record = cell.getRow().getData()
       if (record.approvalStatus === 'Pending') {
-        return `
-          <button class="btn btn-xs btn-success approve-ot">Approve</button>
-          <button class="btn btn-xs btn-error reject-ot">Reject</button>
-        `
+        if (canManageOT.value) {
+          return `
+            <button class="btn btn-xs btn-success approve-ot">Approve</button>
+            <button class="btn btn-xs btn-error reject-ot">Reject</button>
+          `
+        } else {
+          return `<span class="text-xs text-gray-400">HR Only</span>`
+        }
       }
       return ''
     },
     cellClick: async (e, cell) => {
       const record = cell.getRow().getData()
       if (e.target.classList.contains('approve-ot')) {
-        await attendanceStore.approveAttendance(record.id)
+        openConfirmModal('approve', record.id)
       } else if (e.target.classList.contains('reject-ot')) {
-        await attendanceStore.rejectOvertime(record.id)
+        openConfirmModal('reject', record.id)
       }
-      await attendanceStore.loadRecords()
     },
   },
 ]
@@ -126,11 +130,51 @@ onMounted(() => {
 
 const overtimeRecords = computed(() =>
   attendanceStore.attendanceRecords.filter(
-    (record) =>
-      (Number(record.overtimeHours) > 0 || Number(record.overtime_hours) > 0) &&
-      (record.overtimeProof || record.overtime_proof),
+    (record) => record.overtimeProof || record.overtime_proof,
   ),
 )
+
+const confirmModal = ref(null)
+const confirmActionType = ref('') // 'approve' or 'reject'
+const selectedOvertimeId = ref(null)
+const rejectRemarks = ref('') // For remarks if needed
+const isProcessing = ref(false)
+
+function openConfirmModal(action, id) {
+  confirmActionType.value = action
+  selectedOvertimeId.value = id
+  rejectRemarks.value = ''
+  confirmModal.value?.showModal()
+}
+
+function closeConfirmModal() {
+  confirmModal.value?.close()
+  selectedOvertimeId.value = null
+  confirmActionType.value = ''
+  rejectRemarks.value = ''
+}
+
+async function confirmOvertimeAction() {
+  isProcessing.value = true
+  try {
+    if (confirmActionType.value === 'approve') {
+      await attendanceStore.approveAttendance(selectedOvertimeId.value)
+    } else if (confirmActionType.value === 'reject') {
+      await attendanceStore.rejectOvertime(selectedOvertimeId.value, rejectRemarks.value)
+    }
+    await attendanceStore.loadRecords()
+    closeConfirmModal()
+  } catch (error) {
+    closeConfirmModal()
+  } finally {
+    isProcessing.value = false
+  }
+}
+
+const canManageOT = computed(() => {
+  const userPermissions = authStore.currentUser?.permissions || []
+  return userPermissions.includes(PERMISSION_IDS.HR_FULL_ACCESS)
+})
 </script>
 
 <template>
@@ -249,6 +293,43 @@ const overtimeRecords = computed(() =>
         </div>
         <div class="modal-action justify-end gap-4 mt-5">
           <button type="button" class="btn-secondaryStyle" @click="closeViewModal">Close</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Confirmation Modal -->
+    <dialog ref="confirmModal" class="modal">
+      <div class="modal-box bg-white w-96">
+        <h3 class="font-bold text-md text-black">Confirm Action</h3>
+        <div
+          class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
+        ></div>
+        <p class="py-4 text-center text-black text-sm">
+          Are you sure you want to
+          <span class="font-bold">
+            {{ confirmActionType === 'approve' ? 'approve' : 'reject' }}
+          </span>
+          this overtime request?
+        </p>
+        <div v-if="confirmActionType === 'reject'" class="mb-2">
+          <label class="block text-xs text-black mb-1">Remarks (optional):</label>
+          <textarea
+            v-model="rejectRemarks"
+            class="input-search w-full"
+            rows="2"
+            placeholder="Enter remarks"
+          ></textarea>
+        </div>
+        <div class="modal-action justify-center gap-4">
+          <button
+            class="btn-primaryStyle"
+            :class="{ 'btn-errorStyle': confirmActionType === 'reject' }"
+            :disabled="isProcessing"
+            @click="confirmOvertimeAction"
+          >
+            Yes
+          </button>
+          <button class="btn-secondaryStyle" @click="closeConfirmModal">Cancel</button>
         </div>
       </div>
     </dialog>

@@ -6,6 +6,7 @@ const {
   EmployeeDeduction,
   AuditLog,
   PayrollDeduction,
+  EmployeeSchedule,
 } = require('../../model/Index.js')
 const { Op } = require('sequelize')
 const { computePHWithholdingTax } = require('../../utils/ph-tax-calculator')
@@ -15,6 +16,25 @@ function getWeekNumber(dateString) {
   const firstDayOfYear = new Date(date.getFullYear(), 0, 1)
   const pastDaysOfYear = (date - firstDayOfYear) / 86400000
   return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7)
+}
+
+function getDateRangeArray(start, end) {
+  const arr = []
+  let dt = new Date(start)
+  while (dt <= new Date(end)) {
+    arr.push(dt.toISOString().split('T')[0])
+    dt.setDate(dt.getDate() + 1)
+  }
+  return arr
+}
+
+function getEmployeeDayOffs(schedule) {
+  if (!schedule || !schedule.day_off) return []
+  try {
+    return JSON.parse(schedule.day_off).map(Number)
+  } catch {
+    return schedule.day_off.split(',').map((d) => Number(d.trim()))
+  }
 }
 
 const payrollController = {
@@ -45,21 +65,41 @@ const payrollController = {
       }
 
       for (const emp of employees) {
-        // Attendance for period
+        // 1. Get attendance records for the period
         const attendance = await EmployeeAttendance.findAll({
           where: {
             employee_id: emp.employee_id,
             date: { [Op.between]: [start_date, end_date] },
             deleted_at: null,
+            approval_status: { [Op.ne]: 'Rejected' },
           },
         })
 
-        // Position/rate
-        const position = await Position.findOne({ where: { id: emp.position_id } })
-        const ratePerHour = position ? position.rate_per_hour : 0
+        // 2. Get employee's schedule (to get day_off)
+        const employeeSchedule = await EmployeeSchedule.findOne({
+          where: { employee_id: emp.employee_id, deleted_at: null },
+        })
 
-        // Calculations
-        const totalHours = attendance.reduce((sum, a) => sum + Number(a.hours_worked || 0), 0)
+        // 3. Build date range and count present/absent
+        const allDates = getDateRangeArray(start_date, end_date)
+        const dayOffs = getEmployeeDayOffs(employeeSchedule)
+        let daysPresent = 0
+        let daysAbsent = 0
+
+        for (const date of allDates) {
+          const dayOfWeek = new Date(date).getDay()
+          if (dayOffs.includes(dayOfWeek)) continue // skip day off
+
+          const rec = attendance.find((a) => a.date === date)
+          if (rec && rec.approval_status === 'Approved' && !rec.absent) {
+            daysPresent++
+          } else {
+            daysAbsent++
+          }
+        }
+
+        const validAttendance = attendance.filter((a) => a.approval_status !== 'Rejected')
+        const totalHours = validAttendance.reduce((sum, a) => sum + Number(a.hours_worked || 0), 0)
         const overtimeHours = attendance.reduce((sum, a) => sum + Number(a.overtime_hours || 0), 0)
         const tardinessHours = Number(
           attendance
@@ -79,11 +119,14 @@ const payrollController = {
           0,
         )
         const holidayPay = attendance.reduce((sum, a) => sum + Number(a.holiday_pay || 0), 0)
-        const daysPresent = attendance.filter((a) => !a.absent).length
         const tardinessDeduction = attendance.reduce(
           (sum, a) => sum + Number(a.tardiness_deduction || 0),
           0,
         )
+
+        // Position/rate
+        const position = await Position.findOne({ where: { id: emp.position_id } })
+        const ratePerHour = position ? position.rate_per_hour : 0
 
         const regularPay = totalHours * ratePerHour
         const overtimePay = overtimeHours * (ratePerHour * 1.25)

@@ -143,13 +143,20 @@ const attendanceController = {
       // Get the employee's rate per hour using the utility
       const ratePerHour = await getEmployeeRatePerHour(attendance.employee_id)
 
-      // --- Attendance Calculations ---
-      const hours_worked = attendanceLogic.calculateHoursWorked(attendance.start_time, end_time)
+      // Only count up to scheduled out for hours_worked
+      function minTime(a, b) {
+        // Compare two time strings (HH:mm:ss)
+        return a < b ? a : b
+      }
+      const actualOutForWork = minTime(end_time, schedule.time_out)
+      const hours_worked = attendanceLogic.calculateHoursWorked(
+        attendance.start_time,
+        actualOutForWork,
+      )
       const regular_hours = attendanceLogic.calculateHoursWorked(
         attendance.start_time,
         schedule.time_out,
       )
-      const overtime_hours = attendanceLogic.calculateOvertime(schedule.time_out, end_time)
       const undertime = attendanceLogic.calculateUndertime(schedule.time_out, end_time)
       const nightDiff = attendanceLogic.calculateNightDifferential(
         attendance.start_time,
@@ -185,14 +192,13 @@ const attendanceController = {
           end_time,
           hours_worked,
           regular_hours,
-          overtime_hours,
           undertime,
           holiday_pay: holidayPay,
           special_holiday_pay: specialHolidayPay,
           rest_day_pay: restDayPay,
           night_diff_hours: nightDiff.nightHours,
           night_diff_pay: nightDiff.nightDiffPay,
-          // ...add deductions fields if needed
+          // DO NOT set overtime_hours here!
         },
         { transaction: t },
       )
@@ -891,27 +897,32 @@ const attendanceController = {
         updateFields.overtime_proof = req.file.path
       }
 
-      // Optionally, recalculate working_hours/overtime_hours if start_time/end_time changed
+      // Optionally, recalculate working_hours if start_time/end_time changed
       if (updateFields.start_time && updateFields.end_time) {
-        // Calculate working hours (same logic as in timeOut)
+        // Fetch the attendance record's schedule
+        const empSchedule = await EmployeeSchedule.findOne({
+          where: { id: attendance.schedule_id, deleted_at: null },
+          include: [{ model: AvailableSchedule, as: 'schedule' }],
+          transaction: t,
+        })
+        const schedule = empSchedule?.schedule
+        const scheduledOut = schedule?.time_out || '17:00:00'
+
+        // Parse times
         const parseTimeToMinutes = (timeStr) => {
           const [hours, minutes, seconds] = timeStr.split(':').map(Number)
           return hours * 60 + minutes + (seconds || 0) / 60
         }
         const inMinutes = parseTimeToMinutes(updateFields.start_time)
         const outMinutes = parseTimeToMinutes(updateFields.end_time)
-        const regularEnd = 17 * 60 // 17:00 in minutes
-        const workingEnd = Math.min(outMinutes, regularEnd)
+        const scheduledOutMinutes = parseTimeToMinutes(scheduledOut)
+
+        // Use dynamic scheduled out
+        const workingEnd = Math.min(outMinutes, scheduledOutMinutes)
         const totalWorkingMinutes = Math.max(0, workingEnd - inMinutes)
         updateFields.hours_worked = (totalWorkingMinutes / 60).toFixed(2)
 
-        // Overtime calculation (if end_time >= 18:00)
-        const overtimeStart = 18 * 60
-        let overtimeMinutes = 0
-        if (outMinutes > overtimeStart) {
-          overtimeMinutes = outMinutes - overtimeStart
-        }
-        updateFields.overtime_hours = (overtimeMinutes / 60).toFixed(2)
+        // DO NOT set overtime_hours here!
       }
 
       await attendance.update(updateFields, { transaction: t })
@@ -951,6 +962,56 @@ const attendanceController = {
 
       await t.commit()
       res.json({ success: true, data: attendance })
+    } catch (error) {
+      await t.rollback()
+      res.status(500).json({ success: false, message: error.message })
+    }
+  },
+
+  // Add this to your attendanceController
+  async rejectAttendance(req, res) {
+    const t = await sequelize.transaction()
+    try {
+      const { id } = req.params
+
+      // Find the attendance record
+      const attendance = await EmployeeAttendance.findOne({
+        where: { id, deleted_at: null },
+        transaction: t,
+      })
+
+      if (!attendance) {
+        await t.rollback()
+        return res.status(404).json({
+          success: false,
+          message: 'Attendance record not found',
+        })
+      }
+
+      // Mark as rejected and clear all attendance fields
+      await attendance.update(
+        {
+          status: 'Absent',
+          approval_status: 'Rejected',
+          start_time: null,
+          end_time: null,
+          hours_worked: 0,
+          overtime_hours: 0,
+          overtime_proof: null,
+          late_minutes: 0,
+          tardiness_deduction: 0,
+          undertime: 0,
+          holiday_pay: 0,
+          special_holiday_pay: 0,
+          rest_day_pay: 0,
+          night_diff_hours: 0,
+          night_diff_pay: 0,
+        },
+        { transaction: t },
+      )
+
+      await t.commit()
+      res.json({ success: true, message: 'Attendance record rejected and reset.' })
     } catch (error) {
       await t.rollback()
       res.status(500).json({ success: false, message: error.message })

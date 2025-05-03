@@ -97,9 +97,7 @@ const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
       (r) =>
         r.employee_id === employee.employee_id &&
         (r.attendanceType === 'regular' || r.attendance_type === 'regular') &&
-        r.date === selectedDate &&
-        r.approvalStatus !== 'Rejected' &&
-        r.approval_status !== 'Rejected',
+        r.date === selectedDate,
     )
 
     // Find the approved overtime record for this employee and date
@@ -151,18 +149,9 @@ const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
 
 // Update the permission check to use HR_MANAGE_ATTENDANCE
 const canManageAttendance = computed(() => {
-  const userRole = authStore.currentUser?.role
   const userPermissions = authStore.currentUser?.permissions || []
-
-  // Allow Super Admin or users with specific permissions
-  return (
-    userRole === 'Super Admin' ||
-    userPermissions.some(
-      (permission) =>
-        permission === PERMISSION_IDS.HR_MANAGE_ATTENDANCE ||
-        permission === PERMISSION_IDS.HR_FULL_ACCESS,
-    )
-  )
+  // Only allow users with HR_FULL_ACCESS
+  return userPermissions.includes(PERMISSION_IDS.HR_FULL_ACCESS)
 })
 
 const attendanceEmployees = computed(() =>
@@ -225,10 +214,14 @@ const columns = [
       const status = cell.getValue()
       const record = cell.getRow().getData()
       let displayStatus = status
-      if (record.signIn === '-' || record.signIn === 'N/A') {
-        displayStatus = 'Absent'
+      let statusClass = statusClasses[displayStatus] || ''
+
+      // If rejected, show "Rejected" badge
+      if (record.approvalStatus === 'Rejected') {
+        displayStatus = 'Rejected'
+        statusClass = 'badge badge-outline badge-error'
       }
-      const statusClass = statusClasses[displayStatus] || ''
+
       return `<span class="px-2 py-1 text-xs font-medium rounded-full ${statusClass}">${displayStatus}</span>`
     },
   },
@@ -239,18 +232,25 @@ const columns = [
       const record = cell.getRow().getData()
       const status = cell.getValue()
       const statusClass = approvalStatusClasses[status] || ''
-      return `
-        <div class="flex flex-col gap-1">
-          <span class="px-2 py-1 text-xs font-medium rounded-full ${statusClass}">
-            ${status}
-          </span>
-          ${
-            status === 'Approved' && record.approved_by
-              ? `<span class="text-xs text-gray-600">by ${record.approved_by}</span>`
-              : ''
-          }
-        </div>
-      `
+      if (record.overtimeProof || record.overtime_proof) {
+        return `
+          <span class="badge badge-warning">OT Pending</span>
+          <span class="text-xs text-gray-500">Approve in Overtime tab</span>
+        `
+      } else {
+        return `
+          <div class="flex flex-col gap-1">
+            <span class="px-2 py-1 text-xs font-medium rounded-full ${statusClass}">
+              ${status}
+            </span>
+            ${
+              status === 'Approved' && record.approved_by
+                ? `<span class="text-xs text-gray-600">by ${record.approved_by}</span>`
+                : ''
+            }
+          </div>
+        `
+      }
     },
   },
   {
@@ -271,38 +271,34 @@ const columns = [
       if (isAbsentRecord || !hasAttendance || isRejected) {
         return ''
       }
-      return `
-        <div class="flex gap-2">
-          <button class="${commonButtonClasses} hover:bg-primaryColor/80 view-button">
+
+      // Always show View button
+      let actions = `
+        <button class="${commonButtonClasses} hover:bg-primaryColor/80 view-button" title="View Attendance">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        </button>
+      `
+
+      // Only show Approve/Reject if user has HR Full Access and record is pending
+      if (canManageAttendance.value && isPending) {
+        actions += `
+          <button class="${commonButtonClasses} hover:bg-green-500 approve-button" title="Approve Attendance">
             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-              <circle cx="12" cy="12" r="3" />
+              <path d="M20 6L9 17l-5-5" />
             </svg>
           </button>
-          ${
-            isPending
-              ? `
-            <button class="${commonButtonClasses} hover:bg-green-500 approve-button"
-                    title="Approve Attendance">
-              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M20 6L9 17l-5-5" />
-              </svg>
-            </button>
-          `
-              : ''
-          }
-          ${
-            !isApproved
-              ? `
-            <button class="${commonButtonClasses} hover:bg-red-400 delete-button">
-              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M18 6 6 18M6 6l12 12" />
-              </svg>
-            </button>
-          `
-              : ''
-          }
-        </div>`
+          <button class="${commonButtonClasses} hover:bg-red-400 reject-button" title="Reject Attendance">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        `
+      }
+
+      return `<div class="flex gap-2">${actions}</div>`
     },
     headerSort: false,
     cellClick: async (e, cell) => {
@@ -315,12 +311,12 @@ const columns = [
         openApprovalModal(record)
       } else if (e.target.closest('.view-button')) {
         emit('view', record)
-      } else if (e.target.closest('.delete-button') && canManageAttendance.value) {
+      } else if (e.target.closest('.reject-button') && canManageAttendance.value) {
         if (record.approvalStatus === 'Approved') {
-          showToast('Cannot delete an approved attendance record', 'error')
+          showToast('Cannot reject an approved attendance record', 'error')
           return
         }
-        openDeleteModal(record)
+        openRejectOTModal(record)
       }
     },
   },
@@ -610,9 +606,7 @@ const rows = computed(() => {
     .filter(
       (r) =>
         (r.attendanceType === 'regular' || r.attendance_type === 'regular') &&
-        r.date === selectedDate &&
-        r.approvalStatus !== 'Rejected' &&
-        r.approval_status !== 'Rejected',
+        r.date === selectedDate,
     )
     .filter((r) => {
       const emp = employeeStore.employees.find((e) => e.employee_id === r.employee_id)
