@@ -608,7 +608,7 @@ export const useAttendanceStore = defineStore('attendance', () => {
       const now = new Date()
       const timeInData = {
         employee_id: employee_id,
-        time_in: now.toLocaleTimeString('en-US', {
+        start_time: now.toLocaleTimeString('en-US', {
           hour12: false,
           hour: '2-digit',
           minute: '2-digit',
@@ -661,13 +661,13 @@ export const useAttendanceStore = defineStore('attendance', () => {
       const now = new Date()
       const timeOutData = {
         employee_id: employee_id,
-        time_out: now.toLocaleTimeString('en-US', {
+        end_time: now.toLocaleTimeString('en-US', {
           hour12: false,
           hour: '2-digit',
           minute: '2-digit',
           second: '2-digit',
         }),
-        date: now.toISOString().split('T')[0], // Add the date field
+        date: now.toISOString().split('T')[0],
       }
 
       console.log('Sending time out data:', timeOutData)

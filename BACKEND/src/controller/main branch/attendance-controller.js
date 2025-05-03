@@ -58,6 +58,30 @@ const attendanceController = {
       const [inH, inM] = start_time.split(':').map(Number)
       const scheduledStartMinutes = schedH * 60 + schedM
       const actualStartMinutes = inH * 60 + inM
+
+      // Calculate allowed time-in window
+      const minAllowedMinutes = scheduledStartMinutes - 30 // 30 mins before scheduled time-in
+      const maxAllowedMinutes = scheduledStartMinutes + 300 // 5 hours after scheduled time-in
+
+      if (actualStartMinutes < minAllowedMinutes) {
+        await t.rollback()
+        return res.status(400).json({
+          success: false,
+          message: `Too early to time-in. You can only time-in starting at ${String(Math.floor(minAllowedMinutes / 60)).padStart(2, '0')}:${String(
+            minAllowedMinutes % 60,
+          )
+            .padStart(2, '0')
+            .padStart(2, '0')}.`,
+        })
+      }
+      if (actualStartMinutes > maxAllowedMinutes) {
+        await t.rollback()
+        return res.status(400).json({
+          success: false,
+          message: `Too late to time-in. You can only time-in up to 5 hours after your scheduled time-in.`,
+        })
+      }
+
       const late_minutes = attendanceLogic.calculateLateMinutes(scheduledStart, start_time)
       let status = late_minutes > 0 ? 'Late' : 'Present'
       const ratePerHour = await getEmployeeRatePerHour(employee_id)

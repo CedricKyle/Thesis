@@ -8,11 +8,13 @@ import { useToast } from '@/composables/Admin Composables/User & Role/role/useTo
 import { TabulatorFull as Tabulator } from 'tabulator-tables'
 import { PERMISSION_IDS } from '@/composables/Admin Composables/User & Role/role/permissionsId'
 import { TriangleAlert } from 'lucide-vue-next'
+import { useEmployeeScheduleStore } from '@/stores/HR Management/employeeScheduleStore'
 const { formatDate, calculateOvertime } = useAttendanceLogic()
 const employeeStore = useEmployeeStore()
 const authStore = useAuthStore()
 const attendanceStore = useAttendanceStore()
 const { showToast } = useToast()
+const employeeScheduleStore = useEmployeeScheduleStore()
 
 const props = defineProps({
   records: {
@@ -74,7 +76,8 @@ const getDefaultAttendanceData = (employees) => {
   }))
 }
 
-// Simplify mergeAttendanceWithEmployees
+const getType = (r) => r.attendanceType || r.attendance_type
+
 const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
   const filteredEmployees = employees.filter(
     (emp) => !emp.deleted_at && emp.roleInfo?.role_name !== 'Super Admin',
@@ -84,8 +87,10 @@ const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
   filteredEmployees.forEach((employee) => {
     const selectedDate = attendanceStore.selectedDate
 
-    // Use only attendanceType
-    const getType = (r) => r.attendanceType
+    // Get the active schedule for this employee
+    const activeSchedule = getActiveSchedule(employee.employee_id)
+    const scheduleTimeIn = activeSchedule?.timeIn || '08:00'
+    const scheduleTimeOut = activeSchedule?.timeOut || '17:00'
 
     // Find the regular attendance record for this employee and date
     const regular = attendanceRecords.find(
@@ -112,8 +117,8 @@ const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
         employee_id: regular.employee_id,
         full_name: regular.full_name || employee.full_name,
         department: regular.department || employee.department,
-        scheduleTimeIn: regular.scheduleTimeIn,
-        scheduleTimeOut: regular.scheduleTimeOut,
+        scheduleTimeIn,
+        scheduleTimeOut,
         signIn: regular.signIn || regular.start_time || '-',
         signOut: regular.signOut || regular.end_time || '-',
         workingHours: regular.workingHours ?? regular.working_hours ?? '-',
@@ -129,6 +134,8 @@ const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
         employee_id: employee.employee_id,
         full_name: employee.full_name,
         department: employee.department,
+        scheduleTimeIn,
+        scheduleTimeOut,
         signIn: '-',
         signOut: '-',
         workingHours: '-',
@@ -255,10 +262,10 @@ const columns = [
       const isApproved = record.approvalStatus === 'Approved'
       const hasAttendance =
         record.signIn &&
-          record.signIn !== '-' &&
-          record.signIn !== 'N/A' &&
-          record.signOut &&
-          record.signOut !== '-' &&
+        record.signIn !== '-' &&
+        record.signIn !== 'N/A' &&
+        record.signOut &&
+        record.signOut !== '-' &&
         record.signOut !== 'N/A'
       const isRejected = record.approvalStatus === 'Rejected'
       if (isAbsentRecord || !hasAttendance || isRejected) {
@@ -652,6 +659,13 @@ const confirmRejectOT = async () => {
     await rejectOvertime(recordToRejectOT.value)
     closeRejectOTModal()
   }
+}
+
+function getActiveSchedule(employeeId) {
+  // Find the active schedule for the employee
+  return employeeScheduleStore.employeeSchedules.find(
+    (sched) => sched.employee_id === employeeId && sched.deleted_at === null,
+  )
 }
 </script>
 

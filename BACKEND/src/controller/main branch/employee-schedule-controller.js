@@ -166,10 +166,36 @@ const restoreEmployeeSchedule = async (req, res) => {
   }
 }
 
+async function getEmployeeSchedule(req, res) {
+  const { employee_id } = req.params
+  try {
+    const schedule = await EmployeeSchedule.findOne({
+      where: { employee_id, deleted_at: null },
+      include: [{ model: AvailableSchedule, as: 'schedule' }],
+    })
+    if (!schedule) {
+      return res.status(404).json({ success: false, message: 'No schedule found' })
+    }
+    res.json({
+      success: true,
+      data: {
+        time_in: schedule.schedule.time_in,
+        time_out: schedule.schedule.time_out,
+        type: schedule.schedule.type,
+        work_days: schedule.schedule.work_days,
+        day_off: schedule.schedule.day_off,
+      },
+    })
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message })
+  }
+}
+
 module.exports = {
   assignSchedule,
   getEmployeeSchedules,
   updateEmployeeSchedule,
   deleteEmployeeSchedule,
   restoreEmployeeSchedule,
+  getEmployeeSchedule,
 }

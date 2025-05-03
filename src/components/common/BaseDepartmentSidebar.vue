@@ -67,6 +67,21 @@ onBeforeUnmount(() => {
   }
 })
 
+const fetchEmployeeSchedule = async (employeeId) => {
+  try {
+    const response = await axios.get(`/api/employee-schedules/${employeeId}`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+    })
+    if (response.data.success) {
+      return response.data.data
+    }
+    return null
+  } catch (error) {
+    console.error('Error fetching employee schedule:', error)
+    return null
+  }
+}
+
 const loadCurrentUserData = async () => {
   try {
     // Wait for auth store to initialize
@@ -95,16 +110,18 @@ const loadCurrentUserData = async () => {
     const userEmployee = employeeStore.employees.find((emp) => emp.email === userEmail)
 
     if (userEmployee) {
-      console.log('Found employee data:', userEmployee)
-      currentUserEmployee.value = userEmployee
+      // Fetch schedule and attach to employee object
+      const schedule = await fetchEmployeeSchedule(userEmployee.employee_id)
+      currentUserEmployee.value = { ...userEmployee, schedule }
     } else {
       // If no match found by email, try matching by employee_id
       const employeeById = employeeStore.employees.find(
         (emp) => emp.employee_id === authStore.currentUser.id,
       )
       if (employeeById) {
-        console.log('Found employee by ID:', employeeById)
-        currentUserEmployee.value = employeeById
+        // Fetch schedule and attach to employee object
+        const schedule = await fetchEmployeeSchedule(employeeById.employee_id)
+        currentUserEmployee.value = { ...employeeById, schedule }
       } else {
         console.log('No matching employee found')
       }
@@ -566,6 +583,27 @@ function clearOvertimeFile() {
     overtimeFileInput.value.value = ''
   }
 }
+
+const formattedSchedule = computed(() => {
+  if (!currentUserEmployee.value?.schedule) return null
+
+  const schedule = currentUserEmployee.value.schedule
+  try {
+    const workDays = JSON.parse(schedule.work_days)
+    const dayOff = JSON.parse(schedule.day_off)
+
+    return {
+      timeIn: schedule.time_in,
+      timeOut: schedule.time_out,
+      type: schedule.type,
+      workDays: workDays.join(', '),
+      dayOff: dayOff.join(', '),
+    }
+  } catch (error) {
+    console.error('Error parsing schedule:', error)
+    return null
+  }
+})
 </script>
 
 <template>
@@ -763,6 +801,21 @@ function clearOvertimeFile() {
               </div>
             </div>
 
+            <!-- Scheduled Time -->
+            <div class="flex flex-row">
+              <div class="w-40 text-gray-500">Scheduled Time:</div>
+              <div class="text-gray-700">
+                <template v-if="formattedSchedule">
+                  {{ formattedSchedule.timeIn }} - {{ formattedSchedule.timeOut }}
+                  <div class="text-xs text-gray-500 mt-1">
+                    {{ formattedSchedule.type }} ({{ formattedSchedule.workDays }})
+                  </div>
+                  <div class="text-xs text-gray-500">Day Off: {{ formattedSchedule.dayOff }}</div>
+                </template>
+                <template v-else>-</template>
+              </div>
+            </div>
+
             <!-- Time In -->
             <div class="flex flex-row">
               <div class="w-40 text-gray-500">Time In:</div>
@@ -797,7 +850,7 @@ function clearOvertimeFile() {
             <div class="flex flex-row">
               <div class="w-40 text-gray-500">Working Hours:</div>
               <div class="text-blue-600">
-                {{ attendanceStore.todayAttendance.working_hours }} hours
+                {{ attendanceStore.todayAttendance?.workingHours || 0 }} hours
               </div>
             </div>
 

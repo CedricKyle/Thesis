@@ -9,5 +9,6 @@ router.post('/', verifyToken, controller.assignSchedule)
 router.put('/:id', verifyToken, controller.updateEmployeeSchedule)
 router.delete('/:id', verifyToken, controller.deleteEmployeeSchedule)
 router.post('/:id/restore', verifyToken, controller.restoreEmployeeSchedule)
+router.get('/:employee_id', verifyToken, controller.getEmployeeSchedule)
 
 module.exports = router
