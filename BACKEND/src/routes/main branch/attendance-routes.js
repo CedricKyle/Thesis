@@ -4,6 +4,7 @@ const attendanceController = require('../../controller/main branch/attendance-co
 const { verifyToken } = require('../../middleware/auth-middleware.js')
 const multer = require('multer')
 const path = require('path')
+const { markAllAbsentForToday } = require('../../controller/main branch/attendance-controller')
 
 // Configure storage for overtime proof images
 const storage = multer.diskStorage({
@@ -56,5 +57,8 @@ router.put(
 
 // Reject OT route
 router.put('/attendance/:id/reject-ot', attendanceController.rejectOvertime)
+
+// Add this new route for marking all employees absent for today
+router.post('/attendance/mark-all-absent', markAllAbsentForToday)
 
 module.exports = router

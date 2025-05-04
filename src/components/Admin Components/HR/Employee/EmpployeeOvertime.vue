@@ -27,7 +27,7 @@ const columns = [
       if (!value) return '-'
       const url = value.startsWith('http')
         ? value
-        : `http://localhost:3000/${value.replace(/^\//, '')}`
+        : `http://localhost:3000/${value.startsWith('/') ? value.slice(1) : value}`
       return `<img src="${url}" style="max-width:30px;max-height:30px;cursor:pointer;" onclick="window.open('${url}','_blank')" />`
     },
   },
@@ -37,10 +37,10 @@ const columns = [
     formatter: (cell) => {
       const status = cell.getValue()
       if (status === 'Approved')
-        return `<span class="badge badge-success badge-outline">${status}</span>`
+        return `<span class="badge badge-success badge-outline badge-sm">${status}</span>`
       if (status === 'Rejected')
-        return `<span class="badge badge-error badge-outline">${status}</span>`
-      return `<span class="badge badge-warning badge-outline">${status}</span>`
+        return `<span class="badge badge-error badge-outline badge-sm">${status}</span>`
+      return `<span class="badge badge-warning badge-outline badge-sm">${status}</span>`
     },
   },
   {
@@ -51,8 +51,8 @@ const columns = [
       if (record.approvalStatus === 'Pending') {
         if (canManageOT.value) {
           return `
-            <button class="btn btn-xs btn-success approve-ot">Approve</button>
-            <button class="btn btn-xs btn-error reject-ot">Reject</button>
+            <button class="btn-primaryStyle btn-xs approve-ot">Approve</button>
+            <button class="btn-errorStyle btn-xs reject-ot">Reject</button>
           `
         } else {
           return `<span class="text-xs text-gray-400">HR Only</span>`
@@ -130,7 +130,11 @@ onMounted(() => {
 
 const overtimeRecords = computed(() =>
   attendanceStore.attendanceRecords.filter(
-    (record) => record.overtimeProof || record.overtime_proof,
+    (record) =>
+      (record.overtimeProof || record.overtime_proof) &&
+      (selectedDate.value
+        ? new Date(record.date).toISOString().split('T')[0] === selectedDate.value
+        : true),
   ),
 )
 
