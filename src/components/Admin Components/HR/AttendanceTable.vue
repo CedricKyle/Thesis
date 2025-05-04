@@ -8,11 +8,13 @@ import { useToast } from '@/composables/Admin Composables/User & Role/role/useTo
 import { TabulatorFull as Tabulator } from 'tabulator-tables'
 import { PERMISSION_IDS } from '@/composables/Admin Composables/User & Role/role/permissionsId'
 import { TriangleAlert } from 'lucide-vue-next'
+import { useEmployeeScheduleStore } from '@/stores/HR Management/employeeScheduleStore'
 const { formatDate, calculateOvertime } = useAttendanceLogic()
 const employeeStore = useEmployeeStore()
 const authStore = useAuthStore()
 const attendanceStore = useAttendanceStore()
 const { showToast } = useToast()
+const employeeScheduleStore = useEmployeeScheduleStore()
 
 const props = defineProps({
   records: {
@@ -74,7 +76,8 @@ const getDefaultAttendanceData = (employees) => {
   }))
 }
 
-// Simplify mergeAttendanceWithEmployees
+const getType = (r) => r.attendanceType || r.attendance_type
+
 const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
   const filteredEmployees = employees.filter(
     (emp) => !emp.deleted_at && emp.roleInfo?.role_name !== 'Super Admin',
@@ -84,14 +87,16 @@ const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
   filteredEmployees.forEach((employee) => {
     const selectedDate = attendanceStore.selectedDate
 
-    // Use only attendanceType
-    const getType = (r) => r.attendanceType
+    // Get the active schedule for this employee
+    const activeSchedule = getActiveSchedule(employee.employee_id)
+    const scheduleTimeIn = activeSchedule?.timeIn || '08:00'
+    const scheduleTimeOut = activeSchedule?.timeOut || '17:00'
 
     // Find the regular attendance record for this employee and date
     const regular = attendanceRecords.find(
       (r) =>
         r.employee_id === employee.employee_id &&
-        getType(r) === 'regular' &&
+        (r.attendanceType === 'regular' || r.attendance_type === 'regular') &&
         r.date === selectedDate,
     )
 
@@ -110,18 +115,13 @@ const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
         employee_id: regular.employee_id,
         full_name: regular.full_name || employee.full_name,
         department: regular.department || employee.department,
-        signIn: regular.signIn || regular.time_in || '-',
-        signOut: regular.signOut || regular.time_out || '-',
+        scheduleTimeIn,
+        scheduleTimeOut,
+        signIn: regular.signIn || regular.start_time || '-',
+        signOut: regular.signOut || regular.end_time || '-',
         workingHours: regular.workingHours ?? regular.working_hours ?? '-',
-        overtimeHours: overtime ? (overtime.overtimeHours ?? overtime.overtime_hours ?? '-') : '-',
         status: regular.status || 'Present',
         approvalStatus: regular.approvalStatus || regular.approval_status || 'Pending',
-        overtimeProof:
-          regular.overtimeProof ||
-          regular.overtime_proof ||
-          (overtime && (overtime.overtimeProof || overtime.overtime_proof)) ||
-          null,
-        isOvertime: false,
         date: regular.date,
         approved_by: regular.approved_by,
       })
@@ -132,14 +132,13 @@ const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
         employee_id: employee.employee_id,
         full_name: employee.full_name,
         department: employee.department,
+        scheduleTimeIn,
+        scheduleTimeOut,
         signIn: '-',
         signOut: '-',
         workingHours: '-',
-        overtimeHours: '-',
         status: 'Absent',
         approvalStatus: 'Pending',
-        overtimeProof: null,
-        isOvertime: false,
         date: selectedDate,
       })
     }
@@ -150,18 +149,9 @@ const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
 
 // Update the permission check to use HR_MANAGE_ATTENDANCE
 const canManageAttendance = computed(() => {
-  const userRole = authStore.currentUser?.role
   const userPermissions = authStore.currentUser?.permissions || []
-
-  // Allow Super Admin or users with specific permissions
-  return (
-    userRole === 'Super Admin' ||
-    userPermissions.some(
-      (permission) =>
-        permission === PERMISSION_IDS.HR_MANAGE_ATTENDANCE ||
-        permission === PERMISSION_IDS.HR_FULL_ACCESS,
-    )
-  )
+  // Only allow users with HR_FULL_ACCESS
+  return userPermissions.includes(PERMISSION_IDS.HR_FULL_ACCESS)
 })
 
 const attendanceEmployees = computed(() =>
@@ -182,64 +172,38 @@ const columns = [
     headerSort: true,
   },
   {
+    title: 'Scheduled Time',
+    field: 'scheduleTimeIn',
+    formatter: (cell) => {
+      const data = cell.getRow().getData()
+      return `${(data.scheduleTimeIn || '08:00').slice(0, 5)} - ${(data.scheduleTimeOut || '17:00').slice(0, 5)}`
+    },
+    headerSort: false,
+  },
+  {
     title: 'Time In',
     field: 'signIn',
     formatter: (cell) => {
       const value = cell.getValue()
-      if (!value || value === '-' || value === 'N/A') return value
-      const timeParts = value.split(':')
-      return timeParts.slice(0, 2).join(':')
+      return value && value !== '-' ? value.slice(0, 5) : '-'
     },
     headerSort: true,
-    sorter: (a, b) => {
-      if (a === '-' || a === 'N/A') return 1
-      if (b === '-' || b === 'N/A') return -1
-      return a.localeCompare(b)
-    },
   },
   {
     title: 'Time Out',
     field: 'signOut',
     formatter: (cell) => {
       const value = cell.getValue()
-      if (!value || value === '-' || value === 'N/A') return value
-      const timeParts = value.split(':')
-      return timeParts.slice(0, 2).join(':')
+      return value && value !== '-' ? value.slice(0, 5) : '-'
     },
     headerSort: true,
-    sorter: (a, b) => {
-      if (a === '-' || a === 'N/A') return 1
-      if (b === '-' || b === 'N/A') return -1
-      return a.localeCompare(b)
-    },
   },
   {
     title: 'Working Hours',
     field: 'workingHours',
     formatter: (cell) => {
-      const record = cell.getRow().getData()
-      if (record.isOvertime) return '-'
-      if (
-        record.status === 'Absent' ||
-        record.workingHours === '-' ||
-        record.workingHours === null ||
-        record.workingHours === undefined ||
-        Number(record.workingHours) === 0
-      ) {
-        return '-'
-      }
-      return `${Number(record.workingHours).toFixed(2)}`
-    },
-    headerSort: true,
-  },
-  {
-    title: 'Overtime Hours',
-    field: 'overtimeHours',
-    formatter: (cell) => {
-      const record = cell.getRow().getData()
-      return record.overtimeHours && record.overtimeHours > 0
-        ? `${Number(record.overtimeHours).toFixed(2)}`
-        : '-'
+      const value = cell.getValue()
+      return value && value !== '-' ? Number(value).toFixed(2) : '-'
     },
     headerSort: true,
   },
@@ -250,14 +214,14 @@ const columns = [
       const status = cell.getValue()
       const record = cell.getRow().getData()
       let displayStatus = status
-      if (record.isOvertime) {
-        displayStatus = 'Overtime'
-      } else if (record.signIn === '-' || record.signIn === 'N/A') {
-        displayStatus = 'Absent'
+      let statusClass = statusClasses[displayStatus] || ''
+
+      // If rejected, show "Rejected" badge
+      if (record.approvalStatus === 'Rejected') {
+        displayStatus = 'Rejected'
+        statusClass = 'badge badge-outline badge-error'
       }
-      const statusClass = record.isOvertime
-        ? 'badge badge-outline badge-info'
-        : statusClasses[displayStatus] || ''
+
       return `<span class="px-2 py-1 text-xs font-medium rounded-full ${statusClass}">${displayStatus}</span>`
     },
   },
@@ -268,34 +232,26 @@ const columns = [
       const record = cell.getRow().getData()
       const status = cell.getValue()
       const statusClass = approvalStatusClasses[status] || ''
-      return `
-        <div class="flex flex-col gap-1">
-          <span class="px-2 py-1 text-xs font-medium rounded-full ${statusClass}">
-            ${status}
-          </span>
-          ${
-            status === 'Approved' && record.approved_by
-              ? `<span class="text-xs text-gray-600">by ${record.approved_by}</span>`
-              : ''
-          }
-        </div>
-      `
+      if (record.overtimeProof || record.overtime_proof) {
+        return `
+          <span class="badge badge-warning">OT Pending</span>
+          <span class="text-xs text-gray-500">Approve in Overtime tab</span>
+        `
+      } else {
+        return `
+          <div class="flex flex-col gap-1">
+            <span class="px-2 py-1 text-xs font-medium rounded-full ${statusClass}">
+              ${status}
+            </span>
+            ${
+              status === 'Approved' && record.approved_by
+                ? `<span class="text-xs text-gray-600">by ${record.approved_by}</span>`
+                : ''
+            }
+          </div>
+        `
+      }
     },
-  },
-  {
-    title: 'Overtime Proof',
-    field: 'overtimeProof',
-    formatter: (cell) => {
-      let value = cell.getValue()
-      console.log('Overtime Proof value:', value)
-      if (!value) return '-'
-      value = value.replace(/\\/g, '/')
-      const url = value.startsWith('http')
-        ? value
-        : `http://localhost:3000/${value.replace(/^\//, '')}`
-      return `<img src="${url}" alt="Overtime Proof" style="max-width:30px;max-height:30px;border-radius:4px;cursor:pointer;" onclick="window.open('${url}','_blank')" />`
-    },
-    headerSort: false,
   },
   {
     title: 'Action',
@@ -305,66 +261,48 @@ const columns = [
       const isPending = record.approvalStatus === 'Pending'
       const isApproved = record.approvalStatus === 'Approved'
       const hasAttendance =
-        (record.isOvertime && record.overtimeProof) ||
-        (record.signIn &&
-          record.signIn !== '-' &&
-          record.signIn !== 'N/A' &&
-          record.signOut &&
-          record.signOut !== '-' &&
-          record.signOut !== 'N/A')
-      const hasOT = !!record.overtimeProof
-      const showRejectOT = hasOT && record.approvalStatus !== 'Approved'
-      if (isAbsentRecord || !hasAttendance) {
+        record.signIn &&
+        record.signIn !== '-' &&
+        record.signIn !== 'N/A' &&
+        record.signOut &&
+        record.signOut !== '-' &&
+        record.signOut !== 'N/A'
+      const isRejected = record.approvalStatus === 'Rejected'
+      if (isAbsentRecord || !hasAttendance || isRejected) {
         return ''
       }
-      return `
-        <div class="flex gap-2">
-          <button class="${commonButtonClasses} hover:bg-primaryColor/80 view-button">
+
+      // Always show View button
+      let actions = `
+        <button class="${commonButtonClasses} hover:bg-primaryColor/80 view-button" title="View Attendance">
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        </button>
+      `
+
+      // Only show Approve/Reject if user has HR Full Access and record is pending
+      if (canManageAttendance.value && isPending) {
+        actions += `
+          <button class="${commonButtonClasses} hover:bg-green-500 approve-button" title="Approve Attendance">
             <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
-              <circle cx="12" cy="12" r="3" />
+              <path d="M20 6L9 17l-5-5" />
             </svg>
           </button>
-          ${
-            isPending
-              ? `
-            <button class="${commonButtonClasses} hover:bg-green-500 approve-button"
-                    title="Approve Attendance">
-              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M20 6L9 17l-5-5" />
-              </svg>
-            </button>
-          `
-              : ''
-          }
-          ${
-            !isApproved
-              ? `
-            <button class="${commonButtonClasses} hover:bg-red-400 delete-button">
-              <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M18 6 6 18M6 6l12 12" />
-              </svg>
-            </button>
-          `
-              : ''
-          }
-          ${
-            showRejectOT
-              ? `<button 
-                  title="Reject OT"
-                  class="${commonButtonClasses} hover:bg-yellow-500 text-black reject-ot-button">
-                    <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                      <path d="M18 6 6 18M6 6l12 12" />
-                    </svg>
-                </button>`
-              : ''
-          }
-        </div>`
+          <button class="${commonButtonClasses} hover:bg-red-400 reject-button" title="Reject Attendance">
+            <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        `
+      }
+
+      return `<div class="flex gap-2">${actions}</div>`
     },
     headerSort: false,
     cellClick: async (e, cell) => {
       const record = cell.getRow().getData()
-      // Defensive: Prevent double approval
       if (e.target.closest('.approve-button') && canManageAttendance.value) {
         if (record.approvalStatus === 'Approved') {
           showToast('This record is already approved', 'warning')
@@ -373,13 +311,11 @@ const columns = [
         openApprovalModal(record)
       } else if (e.target.closest('.view-button')) {
         emit('view', record)
-      } else if (e.target.closest('.delete-button') && canManageAttendance.value) {
+      } else if (e.target.closest('.reject-button') && canManageAttendance.value) {
         if (record.approvalStatus === 'Approved') {
-          showToast('Cannot delete an approved attendance record', 'error')
+          showToast('Cannot reject an approved attendance record', 'error')
           return
         }
-        openDeleteModal(record)
-      } else if (e.target.closest('.reject-ot-button')) {
         openRejectOTModal(record)
       }
     },
@@ -454,10 +390,6 @@ const initTable = async () => {
         },
         rowFormatter: function (row) {
           const data = row.getData()
-          if (data.isOvertime) {
-            row.getElement().style.background = '#e6f7ff'
-            row.getElement().style.fontWeight = 'bold'
-          }
         },
       })
 
@@ -688,10 +620,8 @@ const rows = computed(() => {
       signIn: r.signIn || '-',
       signOut: r.signOut || '-',
       workingHours: r.workingHours ?? '-',
-      overtimeHours: r.overtimeHours ?? '-',
       status: r.status || 'Absent',
       approvalStatus: r.approvalStatus || 'Pending',
-      overtimeProof: r.overtimeProof || null,
       date: r.date,
       approved_by: r.approved_by,
     }))
@@ -723,6 +653,13 @@ const confirmRejectOT = async () => {
     await rejectOvertime(recordToRejectOT.value)
     closeRejectOTModal()
   }
+}
+
+function getActiveSchedule(employeeId) {
+  // Find the active schedule for the employee
+  return employeeScheduleStore.employeeSchedules.find(
+    (sched) => sched.employee_id === employeeId && sched.deleted_at === null,
+  )
 }
 </script>
 

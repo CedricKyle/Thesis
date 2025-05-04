@@ -532,6 +532,7 @@ watch(
       </div>
     </div>
 
+
     <!-- View Modal -->
     <dialog :open="modalState.view" class="modal">
       <div class="modal-box bg-white text-black">

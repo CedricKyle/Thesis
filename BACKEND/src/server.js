@@ -13,8 +13,10 @@ const stockAdjustmentRoutes = require('./routes/main branch/scm routes/stock-adj
 const positionRoutes = require('./routes/main branch/employee-positions-routes.js')
 const deductionRoutes = require('./routes/main branch/employee-deduction-routes.js')
 const availableScheduleRoutes = require('./routes/main branch/available-schedule-routes.js')
+const employeeScheduleRoutes = require('./routes/main branch/employee-schedule-routes.js')
 const path = require('path')
-
+const leaveRoutes = require('./routes/main branch/leave-routes.js')
+const payrollRoutes = require('./routes/main branch/payroll-routes.js')
 dotenv.config()
 
 const app = express()
@@ -68,6 +70,10 @@ app.use('/api/stock-adjustment', stockAdjustmentRoutes)
 app.use('/api/positions', positionRoutes)
 app.use('/api/employee-deductions', deductionRoutes)
 app.use('/api/available-schedules', availableScheduleRoutes)
+app.use('/api/employee-schedules', employeeScheduleRoutes)
+app.use('/api/leaves', leaveRoutes)
+app.use('/api/payrolls', payrollRoutes)
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack)

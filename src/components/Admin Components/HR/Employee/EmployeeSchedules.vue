@@ -346,7 +346,7 @@ watch(showArchived, async () => {
               <option value="Mid Shift">Mid Shift</option>
               <option value="Afternoon Shift">Afternoon Shift</option>
               <option value="Night Shift (with night differential)">
-                Night Shift <span class="text-xs">(with night differential)</span>
+                Night Shift (with night differential)
               </option>
               <option value="Graveyard Shift">Graveyard Shift</option>
               <option value="Custom Shift">Custom Shift</option>
@@ -422,7 +422,7 @@ watch(showArchived, async () => {
               <option value="Mid Shift">Mid Shift</option>
               <option value="Afternoon Shift">Afternoon Shift</option>
               <option value="Night Shift (with night differential)">
-                Night Shift <span class="text-xs">(with night differential)</span>
+                Night Shift (with night differential)
               </option>
               <option value="Graveyard Shift">Graveyard Shift</option>
               <option value="Custom Shift">Custom Shift</option>

@@ -67,6 +67,21 @@ onBeforeUnmount(() => {
   }
 })
 
+const fetchEmployeeSchedule = async (employeeId) => {
+  try {
+    const response = await axios.get(`/api/employee-schedules/${employeeId}`, {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+    })
+    if (response.data.success) {
+      return response.data.data
+    }
+    return null
+  } catch (error) {
+    console.error('Error fetching employee schedule:', error)
+    return null
+  }
+}
+
 const loadCurrentUserData = async () => {
   try {
     // Wait for auth store to initialize
@@ -95,16 +110,18 @@ const loadCurrentUserData = async () => {
     const userEmployee = employeeStore.employees.find((emp) => emp.email === userEmail)
 
     if (userEmployee) {
-      console.log('Found employee data:', userEmployee)
-      currentUserEmployee.value = userEmployee
+      // Fetch schedule and attach to employee object
+      const schedule = await fetchEmployeeSchedule(userEmployee.employee_id)
+      currentUserEmployee.value = { ...userEmployee, schedule }
     } else {
       // If no match found by email, try matching by employee_id
       const employeeById = employeeStore.employees.find(
         (emp) => emp.employee_id === authStore.currentUser.id,
       )
       if (employeeById) {
-        console.log('Found employee by ID:', employeeById)
-        currentUserEmployee.value = employeeById
+        // Fetch schedule and attach to employee object
+        const schedule = await fetchEmployeeSchedule(employeeById.employee_id)
+        currentUserEmployee.value = { ...employeeById, schedule }
       } else {
         console.log('No matching employee found')
       }
@@ -432,14 +449,21 @@ const loadTodayAttendance = async () => {
           employee_id: attendance.employee_id,
           full_name: currentUserEmployee.value.full_name,
           department: currentUserEmployee.value.department,
-          signIn: attendance.time_in || '-',
-          signOut: attendance.time_out || '-',
-          status: attendance.status || 'Absent',
+          signIn: attendance.start_time || '-',
+          signOut: attendance.end_time || '-',
+          status:
+            attendance.approval_status === 'Rejected'
+              ? 'Rejected'
+              : attendance.start_time && attendance.end_time
+                ? attendance.status || 'Present'
+                : attendance.start_time
+                  ? attendance.status || 'Present'
+                  : 'Absent',
           approvalStatus: attendance.approval_status || 'Not Submitted',
           overtime: attendance.overtime_hours || 0,
           workingHours: attendance.working_hours || 0,
-          time_in: attendance.time_in || '-',
-          time_out: attendance.time_out || '-',
+          time_in: attendance.start_time || '-',
+          time_out: attendance.end_time || '-',
           approvedBy: attendance.approved_by || '-',
           approvedAt: attendance.approved_at || '-',
           overtime_hours: attendance.overtime_hours || 0,
@@ -559,6 +583,27 @@ function clearOvertimeFile() {
     overtimeFileInput.value.value = ''
   }
 }
+
+const formattedSchedule = computed(() => {
+  if (!currentUserEmployee.value?.schedule) return null
+
+  const schedule = currentUserEmployee.value.schedule
+  try {
+    const workDays = JSON.parse(schedule.work_days)
+    const dayOff = JSON.parse(schedule.day_off)
+
+    return {
+      timeIn: schedule.time_in,
+      timeOut: schedule.time_out,
+      type: schedule.type,
+      workDays: workDays.join(', '),
+      dayOff: dayOff.join(', '),
+    }
+  } catch (error) {
+    console.error('Error parsing schedule:', error)
+    return null
+  }
+})
 </script>
 
 <template>
@@ -756,15 +801,26 @@ function clearOvertimeFile() {
               </div>
             </div>
 
+            <!-- Scheduled Time -->
+            <div class="flex flex-row">
+              <div class="w-40 text-gray-500">Scheduled Time:</div>
+              <div class="text-gray-700">
+                <template v-if="formattedSchedule">
+                  {{ formattedSchedule.timeIn }} - {{ formattedSchedule.timeOut }}
+                  <div class="text-xs text-gray-500 mt-1">
+                    {{ formattedSchedule.type }} ({{ formattedSchedule.workDays }})
+                  </div>
+                  <div class="text-xs text-gray-500">Day Off: {{ formattedSchedule.dayOff }}</div>
+                </template>
+                <template v-else>-</template>
+              </div>
+            </div>
+
             <!-- Time In -->
             <div class="flex flex-row">
               <div class="w-40 text-gray-500">Time In:</div>
               <div class="text-secondaryColor">
-                {{
-                  attendanceStore.todayAttendance?.signIn ||
-                  attendanceStore.todayAttendance?.time_in ||
-                  '-'
-                }}
+                {{ attendanceStore.todayAttendance?.signIn || '-' }}
               </div>
             </div>
 
@@ -772,11 +828,7 @@ function clearOvertimeFile() {
             <div class="flex flex-row">
               <div class="w-40 text-gray-500">Time Out:</div>
               <div class="text-red-400">
-                {{
-                  attendanceStore.todayAttendance?.signOut ||
-                  attendanceStore.todayAttendance?.time_out ||
-                  '-'
-                }}
+                {{ attendanceStore.todayAttendance?.signOut || '-' }}
               </div>
             </div>
 
@@ -787,23 +839,18 @@ function clearOvertimeFile() {
                 :class="{
                   'text-green-600': attendanceStore.todayAttendance?.status === 'Present',
                   'text-yellow-600': attendanceStore.todayAttendance?.status === 'Late',
-                  'text-red-600':
-                    !attendanceStore.todayAttendance?.signIn ||
-                    attendanceStore.todayAttendance?.status === 'Absent',
+                  'text-red-600': attendanceStore.todayAttendance?.status === 'Absent',
+                  'text-red-600': attendanceStore.todayAttendance?.status === 'Rejected',
                 }"
               >
-                {{
-                  !attendanceStore.todayAttendance?.signIn
-                    ? 'Absent'
-                    : attendanceStore.todayAttendance?.status || 'Absent'
-                }}
+                {{ attendanceStore.todayAttendance?.status || 'Absent' }}
               </div>
             </div>
             <!-- Working Hours -->
             <div class="flex flex-row">
               <div class="w-40 text-gray-500">Working Hours:</div>
               <div class="text-blue-600">
-                {{ attendanceStore.todayAttendance.working_hours }} hours
+                {{ attendanceStore.todayAttendance?.workingHours || 0 }} hours
               </div>
             </div>
 
@@ -813,14 +860,14 @@ function clearOvertimeFile() {
               <div class="text-blue-600">{{ attendanceStore.todayAttendance.overtime }} hours</div>
             </div>
 
-            <!-- Add Approval Status -->
+            <!-- Approval Status -->
             <div class="flex flex-row">
               <div class="w-40 text-gray-500">Approval Status:</div>
               <div
                 :class="{
                   'text-green-600': attendanceStore.todayAttendance?.approvalStatus === 'Approved',
                   'text-yellow-600': attendanceStore.todayAttendance?.approvalStatus === 'Pending',
-                  'text-red-600': !attendanceStore.todayAttendance?.approvalStatus,
+                  'text-red-600': attendanceStore.todayAttendance?.approvalStatus === 'Rejected',
                 }"
               >
                 {{ attendanceStore.todayAttendance?.approvalStatus || 'Not Submitted' }}

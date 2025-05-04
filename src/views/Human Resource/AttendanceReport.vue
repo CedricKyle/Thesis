@@ -3,6 +3,7 @@ import { ref, onMounted, watch, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useAttendanceStore } from '@/stores/HR Management/attendanceStore'
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
+import { useEmployeeScheduleStore } from '@/stores/HR Management/employeeScheduleStore'
 import AttendanceReportForm from '@/components/Admin Components/HR/Attendance Report/AttendanceReportForm.vue'
 import AttendanceReportSummary from '@/components/Admin Components/HR/Attendance Report/AttendanceReportSummary.vue'
 import AttendanceReportTable from '@/components/Admin Components/HR/Attendance Report/AttendanceReportTable.vue'
@@ -25,6 +26,7 @@ const isDevelopment = import.meta.env.MODE === 'development'
 // Store setup
 const attendanceStore = useAttendanceStore()
 const employeeStore = useEmployeeStore()
+const employeeScheduleStore = useEmployeeScheduleStore()
 const {
   reportFilters,
   getAttendanceReport,
@@ -52,6 +54,15 @@ const isLoading = ref(false)
 // Add a state to track if a report has been generated
 const hasGeneratedReport = ref(false)
 
+// Helper to check if a date is a day off for the employee
+function isDayOff(dateString, dayOffString) {
+  if (!dayOffString) return false
+  const dayOffs = dayOffString.split(',').map((d) => d.trim().toLowerCase())
+  const date = new Date(dateString)
+  const dayName = date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase()
+  return dayOffs.includes(dayName)
+}
+
 // Load initial data and reset report
 onMounted(async () => {
   try {
@@ -59,6 +70,7 @@ onMounted(async () => {
     error.value = null
     await employeeStore.loadEmployees()
     await attendanceStore.loadRecords()
+    await employeeScheduleStore.fetchEmployeeSchedules()
     attendanceStore.resetReportFilters()
     hasGeneratedReport.value = false
   } catch (err) {
@@ -237,6 +249,194 @@ const handleExportPDF = () => {
     generatePDF(formData.value, reportSummary.value, getAttendanceReport.value, [])
   }
 }
+
+console.log(
+  'Attendance Report Records:',
+  isDepartmentReport.value ? mappedDepartmentAttendance.value : getAttendanceReport.value,
+)
+
+const correctedReportSummary = computed(() => {
+  const records = getAttendanceReport.value || []
+  if (!records.length) return {}
+
+  // Get the employee's schedule (assuming only one schedule per employee)
+  const schedule = employeeScheduleStore.employeeSchedules.find(
+    (s) => s.employee_id === reportFilters.value.employeeId,
+  )
+  const dayOffString = schedule?.dayOff || ''
+
+  // Only count scheduled workdays (exclude day offs)
+  const workdayRecords = records.filter((r) => !isDayOff(r.date, dayOffString))
+
+  const presentDays = workdayRecords.filter((r) => r.status === 'Present').length
+  const lateDays = workdayRecords.filter((r) => r.status === 'Late').length
+  const totalPresentDays = presentDays + lateDays
+  const absentDays = workdayRecords.filter((r) => r.status === 'Absent').length
+  const onLeaveDays = workdayRecords.filter((r) => r.status === 'On Leave').length
+  const totalRegularHours = workdayRecords
+    .filter((r) => r.status !== 'Absent' && r.status !== 'On Leave')
+    .reduce((sum, r) => sum + Number(r.regular_hours || 0), 0)
+  const totalHours = workdayRecords
+    .filter((r) => r.status !== 'Absent' && r.status !== 'On Leave')
+    .reduce((sum, r) => sum + Number(r.workingHours ?? r.hours_worked ?? 0), 0)
+  const totalOvertime = workdayRecords
+    .filter((r) => r.status !== 'Absent' && r.status !== 'On Leave')
+    .reduce((sum, r) => sum + Number(r.overtime_hours || 0), 0)
+
+  return {
+    'Total Days': workdayRecords.length,
+    'Present Days': presentDays,
+    'Late Days': lateDays,
+    'Total Present Days': totalPresentDays,
+    'Absent Days': absentDays,
+    'On Leave Days': onLeaveDays,
+    'Regular Hours': totalRegularHours,
+    'Total Hours': totalHours,
+    'Total Overtime': totalOvertime,
+    // ...other stats
+  }
+})
+
+// Group mappedDepartmentAttendance by employee_id
+const departmentEmployeeRecords = computed(() => {
+  const map = {}
+  mappedDepartmentAttendance.value.forEach((rec) => {
+    if (!map[rec.full_name]) map[rec.full_name] = []
+    map[rec.full_name].push(rec)
+  })
+  return map
+})
+
+const correctedDepartmentEmployeeSummaries = computed(() => {
+  if (!mappedDepartmentAttendance.value.length) return []
+
+  // Group records by employee
+  const employeeMap = {}
+  mappedDepartmentAttendance.value.forEach((rec) => {
+    if (!employeeMap[rec.employee_id]) employeeMap[rec.employee_id] = []
+    employeeMap[rec.employee_id].push(rec)
+  })
+
+  return Object.entries(employeeMap).map(([employee_id, records]) => {
+    // Get employee name and department from first record
+    const { full_name, department } = records[0] || {}
+
+    // Get schedule for this employee
+    const schedule = employeeScheduleStore.employeeSchedules.find(
+      (s) => s.employee_id === employee_id,
+    )
+    const dayOffString = schedule?.dayOff || ''
+
+    // Filter out day offs
+    const filteredRecords = records.filter((r) => !isDayOff(r.date, dayOffString))
+
+    const present = filteredRecords.filter((r) => r.status === 'Present').length
+    const late = filteredRecords.filter((r) => r.status === 'Late').length
+    const absent = filteredRecords.filter((r) => r.status === 'Absent').length
+    const onLeave = filteredRecords.filter((r) => r.status === 'On Leave').length
+    const totalHours = filteredRecords
+      .filter((r) => r.status !== 'Absent' && r.status !== 'On Leave')
+      .reduce((sum, r) => sum + Number(r.workingHours ?? r.hours_worked ?? 0), 0)
+    const avgHours = filteredRecords.length ? (totalHours / filteredRecords.length).toFixed(2) : 0
+
+    return {
+      name: full_name,
+      department,
+      present,
+      late,
+      absent,
+      onLeave,
+      totalHours,
+      avgHours,
+    }
+  })
+})
+
+const allRecords = computed(() => {
+  // Combine all records from all employees, excluding their day offs
+  return departmentFullEmployeeSummaries.value.flatMap((emp) => {
+    const schedule = employeeScheduleStore.employeeSchedules.find(
+      (s) => s.employee_id === emp.employee_id,
+    )
+    const dayOffString = schedule?.dayOff || ''
+    return (emp.records || []).filter((r) => !isDayOff(r.date, dayOffString))
+  })
+})
+
+const companyWideSummary = computed(() => {
+  const records = allRecords.value
+  if (!records.length) return {}
+
+  const presentDays = records.filter((r) => r.status === 'Present' || r.status === 'Late').length
+  const lateDays = records.filter((r) => r.status === 'Late').length
+  const absentDays = records.filter((r) => r.status === 'Absent').length
+  const onLeaveDays = records.filter((r) => r.status === 'On Leave').length
+  const totalHours = records
+    .filter((r) => r.status !== 'Absent' && r.status !== 'On Leave')
+    .reduce((sum, r) => sum + Number(r.workingHours ?? r.hours_worked ?? 0), 0)
+  const totalOvertime = records
+    .filter((r) => r.status !== 'Absent' && r.status !== 'On Leave')
+    .reduce((sum, r) => sum + Number(r.overtime_hours || 0), 0)
+
+  return {
+    'Total Days': records.length,
+    'Present Days': presentDays,
+    'Late Days': lateDays,
+    'Absent Days': absentDays,
+    'On Leave Days': onLeaveDays,
+    'Total Hours': totalHours,
+    'Total Overtime': totalOvertime,
+    // ...other stats
+  }
+})
+
+function getStatusWithDayOff(record, dayOffString) {
+  if (isDayOff(record.date, dayOffString)) {
+    return 'Day Off'
+  }
+  return record.status
+}
+
+const tableRecords = computed(() => {
+  // Example: for individual report
+  const records = getAttendanceReport.value || []
+  const schedule = employeeScheduleStore.employeeSchedules.find(
+    (s) => s.employee_id === reportFilters.value.employeeId,
+  )
+  const dayOffString = schedule?.dayOff || ''
+  return records.map((r) => ({
+    ...r,
+    status: isDayOff(r.date, dayOffString) ? 'Day Off' : r.status,
+  }))
+})
+
+const departmentTableRecords = computed(() => {
+  return mappedDepartmentAttendance.value.map((rec) => {
+    // Hanapin ang schedule ng employee
+    const schedule = employeeScheduleStore.employeeSchedules.find(
+      (s) => s.employee_id === rec.employee_id,
+    )
+    const dayOffString = schedule?.dayOff || ''
+    return {
+      ...rec,
+      status: isDayOff(rec.date, dayOffString) ? 'Day Off' : rec.status,
+    }
+  })
+})
+
+const companyTableRecords = computed(() => {
+  // Combine all records from all employees
+  return mappedDepartmentAttendance.value.map((rec) => {
+    const schedule = employeeScheduleStore.employeeSchedules.find(
+      (s) => s.employee_id === rec.employee_id,
+    )
+    const dayOffString = schedule?.dayOff || ''
+    return {
+      ...rec,
+      status: isDayOff(rec.date, dayOffString) ? 'Day Off' : rec.status,
+    }
+  })
+})
 </script>
 
 <template>
@@ -338,10 +538,10 @@ const handleExportPDF = () => {
       </div>
 
       <AttendanceReportSummary
-        v-if="hasGeneratedReport && (isDepartmentReport ? departmentFullSummary : reportSummary)"
-        :employee-name="isDepartmentReport ? formData.department : formData.employeeName"
-        :summary="isDepartmentReport ? departmentFullSummary : reportSummary"
-      ></AttendanceReportSummary>
+        v-if="hasGeneratedReport && !isDepartmentReport && correctedReportSummary"
+        :employee-name="formData.employeeName"
+        :summary="correctedReportSummary"
+      />
 
       <!-- Employee Attendance Chart -->
       <div
@@ -387,7 +587,7 @@ const handleExportPDF = () => {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="emp in departmentFullEmployeeSummaries" :key="emp.name">
+              <tr v-for="emp in correctedDepartmentEmployeeSummaries" :key="emp.name">
                 <td class="px-2 py-1">{{ emp.name }}</td>
                 <td class="px-2 py-1">{{ emp.present }}</td>
                 <td class="px-2 py-1">{{ emp.late }}</td>
@@ -408,9 +608,12 @@ const handleExportPDF = () => {
           ((isDepartmentReport && mappedDepartmentAttendance.length > 0) ||
             (!isDepartmentReport && getAttendanceReport.length > 0))
         "
-        :records="isDepartmentReport ? mappedDepartmentAttendance : getAttendanceReport"
+        :records="isDepartmentReport ? departmentTableRecords : tableRecords"
         :is-department-report="isDepartmentReport"
         :selected-department="formData.department"
+        :form-data="formData"
+        :summary="isDepartmentReport ? departmentFullSummary : reportSummary"
+        :department-employee-summaries="departmentFullEmployeeSummaries"
         @generate-pdf="handleExportPDF"
       />
 
@@ -425,6 +628,13 @@ const handleExportPDF = () => {
       >
         No attendance records found for the selected period.
       </div>
+
+      <!-- Company-Wide Summary -->
+      <AttendanceReportSummary
+        v-if="hasGeneratedReport && isDepartmentReport && companyWideSummary"
+        employee-name="All Employees"
+        :summary="companyWideSummary"
+      />
     </div>
   </div>
 </template>

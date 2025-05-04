@@ -136,7 +136,7 @@ const getPayPeriodMonth = (payPeriod) => {
 
     <!-- Payroll History Table -->
     <div class="overflow-x-auto mb-8">
-      <h3 class="font-semibold text-black mb-4">Payroll Records</h3>
+      <h3 class="font-semibold text-black mb-4">For Employees Payroll Records</h3>
       <table class="table text-black w-full text-xs border border-gray-300 rounded-md">
         <thead class="text-black text-xs">
           <tr>
@@ -196,9 +196,13 @@ const getPayPeriodMonth = (payPeriod) => {
               <span
                 :class="[
                   'badge',
-                  row.status === 'Processed' ? 'badge-success' :
-                  row.status === 'For Review' ? 'badge-warning' :
-                  row.status === 'Approved' ? 'badge-info' : 'badge-neutral'
+                  row.status === 'Processed'
+                    ? 'badge-success'
+                    : row.status === 'For Review'
+                      ? 'badge-warning'
+                      : row.status === 'Approved'
+                        ? 'badge-info'
+                        : 'badge-neutral',
                 ]"
               >
                 {{ row.status }}
@@ -206,10 +210,14 @@ const getPayPeriodMonth = (payPeriod) => {
             </td>
             <td>
               <div class="flex gap-1">
-                <button class="text-black hover:text-white hover:bg-primaryColor/80 rounded-full p-1">
+                <button
+                  class="text-black hover:text-white hover:bg-primaryColor/80 rounded-full p-1"
+                >
                   <EyeIcon class="w-4 h-4" />
                 </button>
-                <button class="text-black hover:text-white hover:bg-primaryColor/80 rounded-full p-1">
+                <button
+                  class="text-black hover:text-white hover:bg-primaryColor/80 rounded-full p-1"
+                >
                   <BookCheck class="w-4 h-4" />
                 </button>
               </div>
@@ -224,7 +232,7 @@ const getPayPeriodMonth = (payPeriod) => {
 
     <!-- Transaction History Table -->
     <div class="overflow-x-auto">
-      <h3 class="font-semibold text-black mb-4">Transaction Records</h3>
+      <h3 class="font-semibold text-black mb-4">For Suppliers Transaction Records</h3>
       <table class="table text-black w-full text-xs border border-gray-300 rounded-md">
         <thead class="text-black text-xs">
           <tr>
@@ -251,14 +259,27 @@ const getPayPeriodMonth = (payPeriod) => {
             <td>{{ transaction.location }}</td>
             <td>{{ transaction.product }}</td>
             <td>{{ transaction.quantity }}</td>
-            <td>₱{{ Number(transaction.unit_price).toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
-            <td>₱{{ Number(transaction.total_price).toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
+            <td>
+              ₱{{
+                Number(transaction.unit_price).toLocaleString('en-PH', { minimumFractionDigits: 2 })
+              }}
+            </td>
+            <td>
+              ₱{{
+                Number(transaction.total_price).toLocaleString('en-PH', {
+                  minimumFractionDigits: 2,
+                })
+              }}
+            </td>
             <td>
               <span
                 :class="[
                   'badge',
-                  transaction.status === 'Completed' ? 'badge-success' :
-                  transaction.status === 'Pending' ? 'badge-warning' : 'badge-neutral'
+                  transaction.status === 'Completed'
+                    ? 'badge-success'
+                    : transaction.status === 'Pending'
+                      ? 'badge-warning'
+                      : 'badge-neutral',
                 ]"
               >
                 {{ transaction.status }}
@@ -272,7 +293,6 @@ const getPayPeriodMonth = (payPeriod) => {
       </table>
 
       <StockMonitoring />
-      
     </div>
   </div>
 </template>

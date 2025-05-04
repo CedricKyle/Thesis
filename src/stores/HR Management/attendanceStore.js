@@ -4,6 +4,7 @@ import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
 import { useAttendanceLogic } from '@/composables/Admin Composables/Human Resource/useAttendanceLogic'
 import axios from 'axios'
 import { useAuthStore } from '@/stores/Authentication/authStore'
+import { useEmployeeScheduleStore } from '@/stores/HR Management/employeeScheduleStore'
 
 export const useAttendanceStore = defineStore('attendance', () => {
   const { determineStatus, calculateHours, calculateOvertime } = useAttendanceLogic()
@@ -177,7 +178,12 @@ export const useAttendanceStore = defineStore('attendance', () => {
         allDates.push({
           ...existingRecord,
           date: new Date(currentDate).toLocaleDateString(),
-          workingHours: workingHours || 0,
+          workingHours:
+            existingRecord.hours_worked != null
+              ? Number(existingRecord.hours_worked).toFixed(2)
+              : workingHours
+                ? Number(workingHours).toFixed(2)
+                : '0.00',
           status: existingRecord.status || determineStatus(existingRecord.signIn),
         })
       } else {
@@ -276,6 +282,16 @@ export const useAttendanceStore = defineStore('attendance', () => {
       if (record.status === 'Present') perfectAttendanceDays++
 
       // Count status
+      const dateObj = new Date(record.date)
+      const dayOfWeek = dateObj.getDay() // 0=Sunday, 1=Monday, etc.
+      const dayOffs = getEmployeeDayOff(record.employee_id)
+
+      // If this day is a day off, skip absent count
+      if (record.status === 'Absent' && dayOffs.includes(dayOfWeek)) {
+        // Do not count as absent
+        return
+      }
+
       switch (record.status) {
         case 'Present':
           presentDays++
@@ -344,6 +360,13 @@ export const useAttendanceStore = defineStore('attendance', () => {
     const today = new Date()
     const recordDate = new Date(date)
     return recordDate.toDateString() !== today.toDateString()
+  }
+
+  // Helper to parse time string to minutes
+  function parseTimeToMinutes(timeStr) {
+    if (!timeStr) return 0
+    const [h, m] = timeStr.split(':').map(Number)
+    return h * 60 + m
   }
 
   // Actions
@@ -456,51 +479,57 @@ export const useAttendanceStore = defineStore('attendance', () => {
       })
 
       if (response.data.success) {
-        const employeeStore = useEmployeeStore()
-        await employeeStore.loadEmployees()
-
-        // Separate regular and overtime records
         const allRecords = response.data.data
-        const regularRecords = allRecords.filter(
-          (r) => r.attendance_type === 'regular' || r.attendanceType === 'regular',
-        )
-        const overtimeRecords = allRecords.filter(
-          (r) => r.attendance_type === 'overtime' || r.attendanceType === 'overtime',
-        )
+        const records = allRecords.map((record) => {
+          // Default schedule times
+          let scheduleTimeIn = '08:00:00'
+          let scheduleTimeOut = '17:00:00'
 
-        // Map regular records, merging overtime proof if present
-        const records = regularRecords.map((record) => {
-          // Find matching overtime record for this employee/date
-          const ot = overtimeRecords.find(
-            (otRec) =>
-              otRec.employee_id === record.employee_id &&
-              otRec.date === record.date &&
-              otRec.overtime_proof,
-          )
+          // Check for nested schedule (EmployeeSchedule -> AvailableSchedule)
+          if (record.schedule && record.schedule.schedule) {
+            scheduleTimeIn = record.schedule.schedule.time_in || scheduleTimeIn
+            scheduleTimeOut = record.schedule.schedule.time_out || scheduleTimeOut
+          } else if (record.schedule) {
+            scheduleTimeIn = record.schedule.time_in || scheduleTimeIn
+            scheduleTimeOut = record.schedule.time_out || scheduleTimeOut
+          }
+
+          // Fallback for full_name and department
+          const full_name =
+            record.full_name ||
+            (record.employee && record.employee.full_name) ||
+            (record.employee && record.employee.fullName) ||
+            'Unknown'
+          const department =
+            record.department || (record.employee && record.employee.department) || 'Unknown'
+
+          // Always map workingHours from hours_worked (backend), fallback to regular_hours, else '0.00'
+          const workingHours =
+            record.hours_worked != null
+              ? Number(record.hours_worked).toFixed(2)
+              : record.regular_hours != null
+                ? Number(record.regular_hours).toFixed(2)
+                : '0.00'
+
           return {
             ...record,
-            overtimeProof: ot ? ot.overtime_proof : record.overtime_proof || null,
-            id: record.id,
-            employee_id: record.employee_id,
-            full_name: record.employee?.full_name || record.full_name,
-            department: record.employee?.department,
-            signIn: record.time_in || '-',
-            signOut: record.time_out || '-',
-            workingHours:
-              record.working_hours != null ? Number(record.working_hours).toFixed(2) : '-',
-            status: record.status || 'Absent',
-            date: record.date,
-            approvalStatus: record.approval_status || 'Pending',
+            scheduleTimeIn,
+            scheduleTimeOut,
+            signIn: record.start_time || '-',
+            signOut: record.end_time || '-',
+            workingHours, // <-- always present, always string
             overtimeHours:
-              record.overtime_hours && record.overtime_hours > 0
-                ? Number(record.overtime_hours).toFixed(2)
-                : '-',
+              record.overtime_hours != null ? Number(record.overtime_hours).toFixed(2) : '0.00',
+            status: record.status || (record.absent ? 'Absent' : 'Present'),
+            approvalStatus: record.approval_status || 'Pending',
+            overtimeProof: record.overtime_proof || null,
             attendanceType: record.attendance_type || 'regular',
             approved_by: record.approved_by || null,
+            date: record.date,
+            full_name,
+            department,
           }
         })
-
-        console.log('Mapped attendanceRecords:', records)
         attendanceRecords.value = records
       }
     } catch (error) {
@@ -579,7 +608,7 @@ export const useAttendanceStore = defineStore('attendance', () => {
       const now = new Date()
       const timeInData = {
         employee_id: employee_id,
-        time_in: now.toLocaleTimeString('en-US', {
+        start_time: now.toLocaleTimeString('en-US', {
           hour12: false,
           hour: '2-digit',
           minute: '2-digit',
@@ -632,13 +661,13 @@ export const useAttendanceStore = defineStore('attendance', () => {
       const now = new Date()
       const timeOutData = {
         employee_id: employee_id,
-        time_out: now.toLocaleTimeString('en-US', {
+        end_time: now.toLocaleTimeString('en-US', {
           hour12: false,
           hour: '2-digit',
           minute: '2-digit',
           second: '2-digit',
         }),
-        date: now.toISOString().split('T')[0], // Add the date field
+        date: now.toISOString().split('T')[0],
       }
 
       console.log('Sending time out data:', timeOutData)
@@ -907,6 +936,16 @@ export const useAttendanceStore = defineStore('attendance', () => {
       totalHours = 0
 
     records.forEach((record) => {
+      const dateObj = new Date(record.date)
+      const dayOfWeek = dateObj.getDay() // 0=Sunday, 1=Monday, etc.
+      const dayOffs = getEmployeeDayOff(record.employee_id)
+
+      // If this day is a day off, skip absent count
+      if (record.status === 'Absent' && dayOffs.includes(dayOfWeek)) {
+        // Do not count as absent
+        return
+      }
+
       switch (record.status) {
         case 'Present':
           present++
@@ -939,6 +978,18 @@ export const useAttendanceStore = defineStore('attendance', () => {
     const records = getDepartmentAttendanceReport.value
     if (!records.length) return []
 
+    // Always get the latest schedule store instance
+    const scheduleStore = useEmployeeScheduleStore()
+
+    function getEmployeeDayOff(employeeId) {
+      const sched = scheduleStore.employeeSchedules.find((s) => s.employee_id === employeeId)
+      if (!sched || !sched.dayOff) return []
+      return sched.dayOff
+        .split(',')
+        .map((d) => Number(d.trim()))
+        .filter((n) => !isNaN(n))
+    }
+
     // Group by employee
     const summaryMap = {}
     records.forEach((rec) => {
@@ -952,6 +1003,12 @@ export const useAttendanceStore = defineStore('attendance', () => {
           totalHours: 0,
           count: 0,
         }
+      }
+      const dayOffs = getEmployeeDayOff(rec.employee_id)
+      const dayOfWeek = new Date(rec.date).getDay()
+      if (rec.status === 'Absent' && dayOffs.includes(dayOfWeek)) {
+        // Skip counting as absent
+        return
       }
       switch (rec.status) {
         case 'Present':
@@ -1015,7 +1072,7 @@ export const useAttendanceStore = defineStore('attendance', () => {
         date: record.date,
         signIn: record.signIn,
         signOut: record.signOut,
-        workingHours: Number(record.workingHours || 0).toFixed(2),
+        workingHours: record.hoursWorked != null ? Number(record.hoursWorked).toFixed(2) : '0.00',
         status: record.status,
         approval_status: record.approval_status,
         overtime_hours: Number(record.overtime_hours || 0).toFixed(2),
@@ -1044,6 +1101,16 @@ export const useAttendanceStore = defineStore('attendance', () => {
       totalHours = 0
 
     records.forEach((record) => {
+      const dateObj = new Date(record.date)
+      const dayOfWeek = dateObj.getDay() // 0=Sunday, 1=Monday, etc.
+      const dayOffs = getEmployeeDayOff(record.employee_id)
+
+      // If this day is a day off, skip absent count
+      if (record.status === 'Absent' && dayOffs.includes(dayOfWeek)) {
+        // Do not count as absent
+        return
+      }
+
       switch (record.status) {
         case 'Present':
           present++
@@ -1090,6 +1157,14 @@ export const useAttendanceStore = defineStore('attendance', () => {
           count: 0,
         }
       }
+      const dayOffs = getEmployeeDayOff(rec.employee_id)
+      const dayOfWeek = new Date(rec.date).getDay()
+
+      // Only count as absent if NOT a day off
+      if (rec.status === 'Absent' && dayOffs.includes(dayOfWeek)) {
+        return
+      }
+
       switch (rec.status) {
         case 'Present':
           summaryMap[rec.full_name].present++
@@ -1160,6 +1235,19 @@ export const useAttendanceStore = defineStore('attendance', () => {
       console.error('Error rejecting overtime:', error)
       throw error
     }
+  }
+
+  // Example: Get day off for an employee (replace with real logic)
+  function getEmployeeDayOff(employeeId) {
+    // Always get the latest store instance
+    const scheduleStore = useEmployeeScheduleStore()
+    const sched = scheduleStore.employeeSchedules.find((s) => s.employee_id === employeeId)
+    if (!sched || !sched.dayOff) return []
+    // Convert "0, 6" to [0, 6]
+    return sched.dayOff
+      .split(',')
+      .map((d) => Number(d.trim()))
+      .filter((n) => !isNaN(n))
   }
 
   return {

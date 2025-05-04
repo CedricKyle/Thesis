@@ -1,6 +1,10 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import BaseTable from '@/components/common/BaseTable.vue'
+import { useAttendanceStore } from '@/stores/HR Management/attendanceStore'
+import { PERMISSION_IDS } from '@/composables/Admin Composables/User & Role/role/permissionsId'
+
+const attendanceStore = useAttendanceStore()
 
 // Calendar logic
 const today = new Date().toISOString().split('T')[0]
@@ -8,60 +12,61 @@ const selectedDate = ref(today)
 
 // Table columns
 const columns = [
-  { title: 'Date', field: 'date', sorter: 'date', hozAlign: 'left' },
-  { title: 'Name', field: 'name', sorter: 'string' },
+  { title: 'Date', field: 'date', sorter: 'date' },
+  { title: 'Name', field: 'full_name', sorter: 'string' },
   {
     title: 'No. Hours',
-    field: 'hours',
-    sorter: 'number',
-    hozAlign: 'right',
-    formatter: (cell) =>
-      Number(cell.getValue()).toLocaleString('en-PH', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }),
+    field: 'overtimeHours',
+    formatter: (cell) => Number(cell.getValue()).toFixed(2),
   },
   {
-    title: 'Rate',
-    field: 'rate',
-    sorter: 'number',
-    hozAlign: 'right',
-    formatter: (cell) =>
-      `₱ ${Number(cell.getValue()).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    title: 'Proof',
+    field: 'overtimeProof',
+    formatter: (cell) => {
+      const value = cell.getValue()
+      if (!value) return '-'
+      const url = value.startsWith('http')
+        ? value
+        : `http://localhost:3000/${value.replace(/^\//, '')}`
+      return `<img src="${url}" style="max-width:30px;max-height:30px;cursor:pointer;" onclick="window.open('${url}','_blank')" />`
+    },
+  },
+  {
+    title: 'Approval Status',
+    field: 'approvalStatus',
+    formatter: (cell) => {
+      const status = cell.getValue()
+      if (status === 'Approved')
+        return `<span class="badge badge-success badge-outline">${status}</span>`
+      if (status === 'Rejected')
+        return `<span class="badge badge-error badge-outline">${status}</span>`
+      return `<span class="badge badge-warning badge-outline">${status}</span>`
+    },
   },
   {
     title: 'Actions',
     field: 'actions',
-    formatter: () => `
-      <div class="flex gap-2">
-        <button class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost view-button" title="View">
-          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
-            <circle cx="12" cy="12" r="3"/>
-          </svg>
-        </button>
-        <button class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost" title="Edit">
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-          </svg>
-        </button>
-        <button class="btn btn-sm btn-circle hover:bg-red-400 border-none btn-ghost" title="Delete">
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 6 6 18M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-    `,
-    headerSort: false,
-    hozAlign: 'center',
-    width: 150,
-    cellClick: (e, cell) => {
+    formatter: (cell) => {
       const record = cell.getRow().getData()
-      if (e.target.closest('.view-button')) {
-        openViewModal(record)
+      if (record.approvalStatus === 'Pending') {
+        if (canManageOT.value) {
+          return `
+            <button class="btn btn-xs btn-success approve-ot">Approve</button>
+            <button class="btn btn-xs btn-error reject-ot">Reject</button>
+          `
+        } else {
+          return `<span class="text-xs text-gray-400">HR Only</span>`
+        }
       }
-      // Add edit/delete logic here if needed
+      return ''
+    },
+    cellClick: async (e, cell) => {
+      const record = cell.getRow().getData()
+      if (e.target.classList.contains('approve-ot')) {
+        openConfirmModal('approve', record.id)
+      } else if (e.target.classList.contains('reject-ot')) {
+        openConfirmModal('reject', record.id)
+      }
     },
   },
 ]
@@ -118,6 +123,58 @@ function openViewModal(overtime) {
 function closeViewModal() {
   viewModal.value?.close()
 }
+
+onMounted(() => {
+  attendanceStore.loadRecords()
+})
+
+const overtimeRecords = computed(() =>
+  attendanceStore.attendanceRecords.filter(
+    (record) => record.overtimeProof || record.overtime_proof,
+  ),
+)
+
+const confirmModal = ref(null)
+const confirmActionType = ref('') // 'approve' or 'reject'
+const selectedOvertimeId = ref(null)
+const rejectRemarks = ref('') // For remarks if needed
+const isProcessing = ref(false)
+
+function openConfirmModal(action, id) {
+  confirmActionType.value = action
+  selectedOvertimeId.value = id
+  rejectRemarks.value = ''
+  confirmModal.value?.showModal()
+}
+
+function closeConfirmModal() {
+  confirmModal.value?.close()
+  selectedOvertimeId.value = null
+  confirmActionType.value = ''
+  rejectRemarks.value = ''
+}
+
+async function confirmOvertimeAction() {
+  isProcessing.value = true
+  try {
+    if (confirmActionType.value === 'approve') {
+      await attendanceStore.approveAttendance(selectedOvertimeId.value)
+    } else if (confirmActionType.value === 'reject') {
+      await attendanceStore.rejectOvertime(selectedOvertimeId.value, rejectRemarks.value)
+    }
+    await attendanceStore.loadRecords()
+    closeConfirmModal()
+  } catch (error) {
+    closeConfirmModal()
+  } finally {
+    isProcessing.value = false
+  }
+}
+
+const canManageOT = computed(() => {
+  const userPermissions = authStore.currentUser?.permissions || []
+  return userPermissions.includes(PERMISSION_IDS.HR_FULL_ACCESS)
+})
 </script>
 
 <template>
@@ -131,7 +188,7 @@ function closeViewModal() {
     </div>
 
     <!-- Table -->
-    <BaseTable :columns="columns" :data="filteredOvertimes" :showExport="false" />
+    <BaseTable :columns="columns" :data="overtimeRecords" :showExport="false" />
     <div class="flex justify-end gap-2 mt-4">
       <input type="checkbox" class="checkbox checkbox-xs checkbox-neutral" />
       <span class="text-sm cursor-pointer hover:text-gray-500 text-black"
@@ -236,6 +293,43 @@ function closeViewModal() {
         </div>
         <div class="modal-action justify-end gap-4 mt-5">
           <button type="button" class="btn-secondaryStyle" @click="closeViewModal">Close</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Confirmation Modal -->
+    <dialog ref="confirmModal" class="modal">
+      <div class="modal-box bg-white w-96">
+        <h3 class="font-bold text-md text-black">Confirm Action</h3>
+        <div
+          class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
+        ></div>
+        <p class="py-4 text-center text-black text-sm">
+          Are you sure you want to
+          <span class="font-bold">
+            {{ confirmActionType === 'approve' ? 'approve' : 'reject' }}
+          </span>
+          this overtime request?
+        </p>
+        <div v-if="confirmActionType === 'reject'" class="mb-2">
+          <label class="block text-xs text-black mb-1">Remarks (optional):</label>
+          <textarea
+            v-model="rejectRemarks"
+            class="input-search w-full"
+            rows="2"
+            placeholder="Enter remarks"
+          ></textarea>
+        </div>
+        <div class="modal-action justify-center gap-4">
+          <button
+            class="btn-primaryStyle"
+            :class="{ 'btn-errorStyle': confirmActionType === 'reject' }"
+            :disabled="isProcessing"
+            @click="confirmOvertimeAction"
+          >
+            Yes
+          </button>
+          <button class="btn-secondaryStyle" @click="closeConfirmModal">Cancel</button>
         </div>
       </div>
     </dialog>

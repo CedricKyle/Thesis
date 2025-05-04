@@ -7,7 +7,13 @@ const logoUrl = '/public/countryside-logo.png'
 export function usePDFGenerator() {
   const { calculateOvertime } = useAttendanceLogic()
 
-  const generatePDF = async (formData, summary, records, departmentEmployeeSummaries = []) => {
+  const generatePDF = async (
+    formData,
+    summary,
+    records,
+    departmentEmployeeSummaries = [],
+    preview = false,
+  ) => {
     try {
       const doc = new jsPDF()
       let currentY = 10
@@ -229,7 +235,13 @@ export function usePDFGenerator() {
 
       // --- Save PDF ---
       const fileName = `attendance_report_${(formData.employeeName || 'ALL').replace(/\s+/g, '_')}_${formData.startDate || 'start'}_${formData.endDate || 'end'}.pdf`
-      doc.save(fileName)
+      if (preview) {
+        // Return a blob URL for preview/print
+        return doc.output('bloburl')
+      } else {
+        // Save as file
+        doc.save(fileName)
+      }
     } catch (error) {
       console.error('Error generating PDF:', error)
     }
