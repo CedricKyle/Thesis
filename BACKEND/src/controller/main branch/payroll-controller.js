@@ -333,18 +333,20 @@ const payrollController = {
   async submitPayroll(req, res) {
     try {
       const { id } = req.params
+      const { remarks } = req.body
       const payroll = await Payroll.findByPk(id)
       if (!payroll) return res.status(404).json({ success: false, message: 'Payroll not found.' })
       if (payroll.status !== 0)
         return res
           .status(400)
           .json({ success: false, message: 'Only Draft payrolls can be submitted.' })
-      await payroll.update({ status: 1 }) // For Review
+      await payroll.update({ status: 1 })
       await AuditLog.create({
         payroll_id: payroll.id,
-        user_id: req.user.id,
+        user_id: req.user.employee_id,
+        employee_id: payroll.employee_id,
         action: 'submit',
-        remarks: null,
+        remarks: remarks || null,
       })
       res.json({ success: true, message: 'Payroll submitted for review.' })
     } catch (error) {
@@ -356,6 +358,7 @@ const payrollController = {
   async approvePayroll(req, res) {
     try {
       const { id } = req.params
+      const { remarks } = req.body
       const payroll = await Payroll.findByPk(id)
       if (!payroll) return res.status(404).json({ success: false, message: 'Payroll not found.' })
       if (payroll.status !== 1)
@@ -365,9 +368,10 @@ const payrollController = {
       await payroll.update({ status: 2 })
       await AuditLog.create({
         payroll_id: payroll.id,
-        user_id: req.user.id,
+        user_id: req.user.employee_id,
+        employee_id: payroll.employee_id,
         action: 'approve',
-        remarks: null,
+        remarks: remarks || null,
       })
       res.json({ success: true, message: 'Payroll approved.' })
     } catch (error) {
@@ -389,7 +393,8 @@ const payrollController = {
       await payroll.update({ status: 3, remarks })
       await AuditLog.create({
         payroll_id: payroll.id,
-        user_id: req.user.id,
+        user_id: req.user.employee_id,
+        employee_id: payroll.employee_id,
         action: 'reject',
         remarks: remarks,
       })
@@ -412,7 +417,8 @@ const payrollController = {
       await payroll.update({ status: 9 })
       await AuditLog.create({
         payroll_id: payroll.id,
-        user_id: req.user.id,
+        user_id: req.user.employee_id,
+        employee_id: payroll.employee_id,
         action: 'process',
         remarks: null,
       })
@@ -448,7 +454,8 @@ const payrollController = {
       // Log the edit
       await AuditLog.create({
         payroll_id: payroll.id,
-        user_id: req.user.id,
+        user_id: req.user.employee_id,
+        employee_id: payroll.employee_id,
         action: 'edit',
         remarks: updates.remarks || null,
       })

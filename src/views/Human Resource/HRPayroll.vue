@@ -9,6 +9,7 @@ import {
   MoveRight,
   BookMarked,
   FileText,
+  Printer,
 } from 'lucide-vue-next'
 import { usePayrollStore } from '@/stores/HR Management/payrollStore'
 import { usePermissions } from '@/composables/Admin Composables/User & Role/role/usePermissions'
@@ -16,6 +17,7 @@ import { PERMISSION_IDS } from '@/composables/Admin Composables/User & Role/role
 import { useUserStore } from '@/stores/Users & Role/userStore'
 import { useAuthStore } from '@/stores/Authentication/authStore'
 import { usePayrollExport } from '@/composables/Admin Composables/Human Resource/usePayrollExport'
+import PayslipModal from '@/components/Payroll/PayslipModal.vue'
 
 const userStore = useUserStore()
 const currentUserRole = computed(() => userStore.currentUser.role)
@@ -59,6 +61,8 @@ const showApproveModal = ref(false)
 const showRejectModal = ref(false)
 const selectedPayroll = ref(null)
 const remarks = ref('')
+const submitRemarks = ref('')
+const payrollToSubmit = ref(null)
 
 const statusMap = {
   0: { label: 'Draft', color: 'badge badge-neutral badge-outline text-xs font-thin' },
@@ -93,11 +97,27 @@ function openRejectModal(row) {
   showRejectModal.value = true
 }
 function submitToFinance(row) {
-  payrollStore.submitPayroll(row.id).then(() => {
-    if (currentDateRange.value.start_date && currentDateRange.value.end_date) {
-      payrollStore.fetchPayrolls(currentDateRange.value)
-    }
-  })
+  if (!row || !row.id) {
+    showToastMessage('Payroll data not found. Please try again.', 'error')
+    return
+  }
+  payrollStore
+    .submitPayroll(row.id, submitRemarks.value)
+    .then(() => {
+      if (currentDateRange.value.start_date && currentDateRange.value.end_date) {
+        payrollStore.fetchPayrolls(currentDateRange.value)
+      }
+      showToastMessage('Payroll submitted for review!', 'success')
+      submitRemarks.value = ''
+      showSubmitModal.value = false
+      payrollToSubmit.value = null
+    })
+    .catch((err) => {
+      showToastMessage(
+        'Failed to submit payroll: ' + (err?.response?.data?.message || err.message),
+        'error',
+      )
+    })
 }
 function markAsPaid(row) {
   payrollStore.processPayroll(row.id).then(() => {
@@ -238,7 +258,7 @@ async function handleConfirmAction() {
       })
       showToastMessage('Payroll generated successfully!', 'success')
     } else if (confirmActionType.value === 'submit') {
-      await payrollStore.submitPayroll(confirmActionPayload.value.id)
+      await payrollStore.submitPayroll(confirmActionPayload.value.id, submitRemarks.value)
       await payrollStore.fetchPayrolls(currentDateRange.value)
       showToastMessage('Payroll submitted for review!', 'success')
     }
@@ -287,6 +307,38 @@ function getDeductionAmount(type) {
     (d) => normalize(d.deduction_type) === normalize(type),
   )
   return found ? Number(found.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 }) : '0.00'
+}
+
+const printableAuditLog = ref(null)
+
+function printAuditLog() {
+  const printContents = document.getElementById('printable-audit-log').innerHTML
+  const printWindow = window.open('', '', 'height=600,width=800')
+  printWindow.document.write('<html><head><title>Audit Log</title>')
+  printWindow.document.write(
+    '<style>body{font-family:sans-serif;} table{width:100%;border-collapse:collapse;} th,td{border:1px solid #333;padding:4px;}</style>',
+  )
+  printWindow.document.write('</head><body >')
+  printWindow.document.write(printContents)
+  printWindow.document.write('</body></html>')
+  printWindow.document.close()
+  printWindow.focus()
+  printWindow.print()
+  printWindow.close()
+}
+
+const showSubmitModal = ref(false)
+
+function openSubmitModal(row) {
+  payrollToSubmit.value = row
+  submitRemarks.value = ''
+  showSubmitModal.value = true
+}
+
+function closeSubmitModal() {
+  showSubmitModal.value = false
+  payrollToSubmit.value = null
+  submitRemarks.value = ''
 }
 </script>
 
@@ -439,7 +491,7 @@ function getDeductionAmount(type) {
                   "
                   class="text-black hover:text-white hover:bg-primaryColor/80 rounded-full p-1 cursor-pointer"
                   title="Submit to Finance"
-                  @click="openConfirmModal('submit', row)"
+                  @click="openSubmitModal(row)"
                 >
                   <SendIcon class="w-4 h-4" />
                 </button>
@@ -532,7 +584,21 @@ function getDeductionAmount(type) {
     <div class="mt-8 text-black">
       <div class="flex justify-between mb-2">
         <h3 class="font-semibold text-black">Payroll History</h3>
-        <button class="btn-secondaryStyle" @click="exportPayroll">Export</button>
+        <div class="flex gap-2">
+          <button
+            class="btn-primaryStyle"
+            @click="() => downloadPayrollHistoryPDF(payrollHistory, statusMap)"
+          >
+            Download PDF
+          </button>
+          <button
+            class="btn-secondaryStyle"
+            @click="() => printPayrollHistory(payrollHistory, statusMap)"
+          >
+            Print
+          </button>
+          <!-- (Optional) Add CSV/Excel export here -->
+        </div>
       </div>
       <div class="overflow-x-auto">
         <table class="table text-black w-full text-xs border border-gray-300 rounded-md">
@@ -772,41 +838,47 @@ function getDeductionAmount(type) {
 
     <!-- Audit Log Modal -->
     <dialog v-if="showAuditLogModal" open class="modal">
-      <div class="modal-box bg-white text-black max-w-lg">
+      <div class="modal-box bg-white text-black max-w-3xl">
         <h3 class="font-bold text-lg mb-2">Audit Log</h3>
-
-        <div v-if="payrollStore.auditLogs.length" class="flex flex-col gap-3">
-          <div
-            v-for="log in payrollStore.auditLogs"
-            :key="log.id"
-            class="bg-gray-50 p-3 rounded-lg flex flex-col gap-1"
-          >
-            <div class="flex justify-between items-center">
-              <span class="font-semibold text-primaryColor capitalize">
-                {{ log.action.replace(/_/g, ' ') }}
-              </span>
-              <span class="text-xs text-gray-500">
-                {{ new Date(log.created_at).toLocaleString() }}
-              </span>
-            </div>
-            <div class="flex gap-2 text-sm">
-              <span class="text-gray-500">By User:</span>
-              <span class="font-medium">{{ log.user_id }}</span>
-            </div>
-            <div
-              v-if="log.remarks"
-              class="text-xs text-yellow-700 bg-yellow-100 rounded px-2 py-1 mt-1"
-            >
-              <span class="font-semibold">Remarks:</span> {{ log.remarks }}
-            </div>
-          </div>
+        <div ref="printableAuditLog" id="printable-audit-log" class="print-audit-log">
+          <table class="table table-xs w-full text-black">
+            <thead class="text-black text-xs">
+              <tr>
+                <th>Date</th>
+                <th>Action</th>
+                <th>By User</th>
+                <th>Employee</th>
+                <th>Payroll Period</th>
+                <th>Remarks</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="log in payrollStore.auditLogs" :key="log.id">
+                <td>{{ new Date(log.created_at).toLocaleString() }}</td>
+                <td>{{ log.action.replace(/_/g, ' ') }}</td>
+                <td>{{ log.actor?.full_name || log.user_id }}</td>
+                <td>{{ log.employee?.full_name || log.employee_id }}</td>
+                <td>
+                  {{
+                    log.payroll?.start_date
+                      ? new Date(log.payroll.start_date).toLocaleDateString()
+                      : ''
+                  }}
+                  to
+                  {{
+                    log.payroll?.end_date ? new Date(log.payroll.end_date).toLocaleDateString() : ''
+                  }}
+                </td>
+                <td>{{ log.remarks || '-' }}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
-        <div v-else class="text-center text-gray-500 py-4">
-          No audit log entries found for this payroll.
-        </div>
-
-        <div class="modal-action">
-          <button class="btn-primaryStyle" @click="showAuditLogModal = false">Close</button>
+        <div class="modal-action flex gap-2">
+          <button class="btn-primaryStyle" @click="printAuditLog">
+            <Printer class="w-4 h-4" /> Print Audit Log
+          </button>
+          <button class="btn-secondaryStyle" @click="showAuditLogModal = false">Close</button>
         </div>
       </div>
     </dialog>
@@ -1042,268 +1114,34 @@ function getDeductionAmount(type) {
     </dialog>
 
     <!-- Payslip Modal -->
-    <dialog v-if="showPayslipModal" open class="modal payslip-print-area">
-      <div class="modal-box bg-white text-black max-w-4xl" id="payslip-modal-content">
-        <div class="flex flex-col gap-2">
-          <!-- Top Bar -->
-          <div class="flex justify-end items-start mb-2">
-            <div class="text-xs text-gray-500">{{ new Date().toLocaleString() }}</div>
-          </div>
-          <!-- Main Content -->
-          <div class="flex flex-row gap-8">
-            <!-- Left Column -->
-            <div class="w-1/3 border-r pr-4">
-              <div class="mb-4">
-                <div class="text-sm">
-                  I acknowledge to have receive from <b>Countryside</b>,<br />
-                  the amount stated below and have further claims for services
-                </div>
-                <div class="mt-4 flex items-center justify-between">
-                  <div class="">
-                    <b class="text-sm">Pay Period:</b>
-                  </div>
-                  <div class="">
-                    <span class="text-xs">{{ selectedPayslip.start_date }}</span>
-                    <span class="text-sm font-bold mx-1">to</span>
-                    <span class="text-xs">{{ selectedPayslip.end_date }}</span>
-                  </div>
-                </div>
-                <div class="mt-2 flex items-center justify-between">
-                  <b class="text-sm">Employee Id:</b>
-                  <span class="text-xs">{{ selectedPayslip.employee_id }}</span>
-                </div>
-                <div class="mt-2 flex items-center justify-between">
-                  <b class="text-sm">Name :</b>
-                  <span class="text-xs">{{
-                    selectedPayslip.employee?.full_name || selectedPayslip.employee_id
-                  }}</span>
-                </div>
-                <div class="mt-4 flex items-center justify-between">
-                  <b class="text-sm">Total Earnings:</b>
-                  <span class="text-xs"
-                    >₱{{
-                      selectedPayslip.gross_pay.toLocaleString('en-PH', {
-                        minimumFractionDigits: 2,
-                      })
-                    }}</span
-                  >
-                </div>
-                <div class="mt-2 flex items-center justify-between">
-                  <b class="text-sm">Deduction:</b>
-                  <span class="text-xs"
-                    >₱{{
-                      selectedPayslip.deduction.toLocaleString('en-PH', {
-                        minimumFractionDigits: 2,
-                      })
-                    }}</span
-                  >
-                </div>
-                <div class="mt-2 flex items-center justify-between">
-                  <b class="text-sm">Net Pay:</b>
-                  <span class="text-xs"
-                    >₱{{
-                      selectedPayslip.net_pay.toLocaleString('en-PH', { minimumFractionDigits: 2 })
-                    }}</span
-                  >
-                </div>
-              </div>
-              <div class="mt-12 pt-8">
-                <div class="border-t border-gray-400 w-3/4 mx-auto mb-1"></div>
-                <div class="text-center text-xs text-gray-600">Signature over printed name</div>
-              </div>
-            </div>
-            <!-- Right Column -->
-            <div class="w-2/3">
-              <div class="text-center font-bold text-lg mb-2">
-                <div class="flex justify-center items-center gap-2">
-                  <img
-                    src="/public/countryside-logo.png"
-                    alt="Countryside Logo"
-                    class="w-7 h-7"
-                  />Countryside
-                </div>
-              </div>
-              <div class="flex justify-between mb-2">
-                <div>
-                  <b class="text-sm mr-3">Employee:</b>
-                  <span class="text-sm">{{
-                    selectedPayslip.employee?.full_name || selectedPayslip.employee_id
-                  }}</span>
-                  <br />
-                  <b class="text-sm mr-3">Pay Period:</b>
-                  <span class="text-xs">{{ selectedPayslip.start_date }}</span>
-                  <span class="text-sm font-bold mx-1">to</span>
-                  <span class="text-xs">{{ selectedPayslip.end_date }}</span>
-                </div>
-                <div class="text-right">
-                  <b class="text-sm mr-3">Days of Week:</b>
-                  <span class="text-sm">{{ selectedPayslip.days_of_week || 14 }}</span>
-                  <br />
-                  <b class="text-sm mr-3">Days Present:</b>
-                  <span class="text-sm">{{ selectedPayslip.days_present }}</span>
-                </div>
-              </div>
-              <!-- Earnings/Deductions Table -->
-              <table class="w-full text-xs border border-gray-300 mb-2">
-                <thead>
-                  <tr>
-                    <th class="border px-2">Earnings</th>
-                    <th class="border px-2">Hours</th>
-                    <th class="border px-2">Amount</th>
-                    <th class="border px-2">Deductions</th>
-                    <th class="border px-2">Hours</th>
-                    <th class="border px-2">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <!-- Earnings Rows -->
-                  <tr>
-                    <td class="border px-2">Total Hours Worked</td>
-                    <td class="border px-2">
-                      {{ selectedPayslip.total_hours_worked?.toFixed(2) ?? '-' }}
-                    </td>
-                    <td class="border px-2">
-                      ₱{{
-                        selectedPayslip.regular_hour_pay?.toLocaleString('en-PH', {
-                          minimumFractionDigits: 2,
-                        }) ?? '0.00'
-                      }}
-                    </td>
-                    <td class="border px-2">SSS</td>
-                    <td class="border px-2">-</td>
-                    <td class="border px-2">₱{{ getDeductionAmount('SSS') }}</td>
-                  </tr>
-                  <tr>
-                    <td class="border px-2">Overtime Pay</td>
-                    <td class="border px-2">
-                      {{ selectedPayslip.overtime_hours?.toFixed(2) ?? '-' }}
-                    </td>
-                    <td class="border px-2">
-                      ₱{{
-                        selectedPayslip.overtime_pay?.toLocaleString('en-PH', {
-                          minimumFractionDigits: 2,
-                        }) ?? '0.00'
-                      }}
-                    </td>
-                    <td class="border px-2">Pag-ibig</td>
-                    <td class="border px-2">-</td>
-                    <td class="border px-2">₱{{ getDeductionAmount('Pag-ibig') }}</td>
-                  </tr>
-                  <tr>
-                    <td class="border px-2">Paid Holiday</td>
-                    <td class="border px-2">-</td>
-                    <td class="border px-2">
-                      ₱{{
-                        selectedPayslip.paid_holiday?.toLocaleString('en-PH', {
-                          minimumFractionDigits: 2,
-                        }) ?? '0.00'
-                      }}
-                    </td>
-                    <td class="border px-2">Philhealth</td>
-                    <td class="border px-2">-</td>
-                    <td class="border px-2">₱{{ getDeductionAmount('Philhealth') }}</td>
-                  </tr>
-                  <tr>
-                    <td class="border px-2">Allowance</td>
-                    <td class="border px-2">-</td>
-                    <td class="border px-2">
-                      ₱{{
-                        selectedPayslip.allowance?.toLocaleString('en-PH', {
-                          minimumFractionDigits: 2,
-                        }) ?? '0.00'
-                      }}
-                    </td>
-                    <td class="border px-2">Tardiness</td>
-                    <td class="border px-2">
-                      {{ selectedPayslip.tardiness_hours?.toFixed(2) ?? '-' }}
-                    </td>
-                    <td class="border px-2">
-                      ₱{{
-                        selectedPayslip.tardiness_deduction?.toLocaleString('en-PH', {
-                          minimumFractionDigits: 2,
-                        }) ?? '0.00'
-                      }}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="border px-2">Bonus</td>
-                    <td class="border px-2">-</td>
-                    <td class="border px-2">
-                      ₱{{
-                        selectedPayslip.bonus?.toLocaleString('en-PH', {
-                          minimumFractionDigits: 2,
-                        }) ?? '0.00'
-                      }}
-                    </td>
-                    <td class="border px-2">Tax</td>
-                    <td class="border px-2">-</td>
-                    <td class="border px-2">
-                      ₱{{
-                        selectedPayslip.tax_deduction?.toLocaleString('en-PH', {
-                          minimumFractionDigits: 2,
-                        }) ?? '0.00'
-                      }}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="border px-2">Rest Day Pay</td>
-                    <td class="border px-2">
-                      {{ selectedPayslip.rest_day_hours?.toFixed(2) ?? '-' }}
-                    </td>
-                    <td class="border px-2">
-                      ₱{{
-                        selectedPayslip.rest_day_pay?.toLocaleString('en-PH', {
-                          minimumFractionDigits: 2,
-                        }) ?? '0.00'
-                      }}
-                    </td>
-                    <td class="border px-2"></td>
-                    <td class="border px-2"></td>
-                    <td class="border px-2"></td>
-                  </tr>
-                </tbody>
-              </table>
-              <div class="flex justify-between font-bold mt-2">
-                <div>
-                  <b class="text-xs mr-3">Total Earnings :</b>
-                  <span class="text-sm font-thin"
-                    >₱{{
-                      selectedPayslip.gross_pay.toLocaleString('en-PH', {
-                        minimumFractionDigits: 2,
-                      })
-                    }}</span
-                  >
-                </div>
-                <div>
-                  <b class="text-xs mr-3">Total Deduction :</b>
-                  <span class="text-sm font-thin"
-                    >₱{{
-                      selectedPayslip.deduction.toLocaleString('en-PH', {
-                        minimumFractionDigits: 2,
-                      })
-                    }}</span
-                  >
-                </div>
-                <div>
-                  <b class="text-xs mr-3">Net Pay :</b>
-                  <span class="text-sm font-thin"
-                    >₱{{
-                      selectedPayslip.net_pay.toLocaleString('en-PH', { minimumFractionDigits: 2 })
-                    }}</span
-                  >
-                </div>
-              </div>
-              <div class="text-xs text-gray-500 mt-2">
-                <p class="text-xs font-bold">Remarks:</p>
-                <span class="text-xs">{{ selectedPayslip.remarks }}</span>
-              </div>
-            </div>
-          </div>
-          <!-- Modal Actions -->
-          <div class="modal-action flex gap-2">
-            <button class="btn-primaryStyle" @click="printPayslip">Print</button>
-            <button class="btn-secondaryStyle" @click="showPayslipModal = false">Close</button>
-          </div>
+    <PayslipModal
+      :payslip="selectedPayslip"
+      :show="showPayslipModal"
+      :onClose="() => (showPayslipModal = false)"
+    />
+
+    <!-- Submit Remarks Modal -->
+    <dialog v-if="showSubmitModal" open class="modal">
+      <div class="modal-box bg-white w-96 text-black">
+        <h3 class="font-bold text-md text-black">Submit Payroll for Review</h3>
+        <p class="text-gray-500 mt-2 text-xs">
+          Please provide a brief explanation for why you are submitting this payroll for review.
+        </p>
+        <textarea
+          v-model="submitRemarks"
+          class="textarea w-full h-24 bg-white border-black border"
+          placeholder="Enter remarks (required)"
+          required
+        ></textarea>
+        <div class="modal-action">
+          <button class="btn-secondaryStyle" @click="closeSubmitModal">Cancel</button>
+          <button
+            class="btn-primaryStyle"
+            :disabled="!submitRemarks.trim()"
+            @click="submitToFinance(payrollToSubmit)"
+          >
+            Submit
+          </button>
         </div>
       </div>
     </dialog>

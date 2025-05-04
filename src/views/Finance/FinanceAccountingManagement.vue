@@ -4,6 +4,7 @@ import FinanceAccountantPayroll from '@/components/Finance Components/Accountant
 import FinanceFinancialStatement from '@/components/Finance Components/Accountant Components/FinanceFinancialStatement.vue'
 import FinanceSupplierPayments from '@/components/Finance Components/Accountant Components/FinanceSupplierPayments.vue'
 import FinanceTransactionRecords from '@/components/Finance Components/Accountant Components/FinanceTransactionRecords.vue'
+import FinancePayrollAuditLog from '@/components/Finance Components/Accountant Components/FinancePayrollAuditLog.vue'
 
 // Dummy payroll data
 const payrolls = ref([
@@ -139,6 +140,12 @@ const getPayPeriodMonth = (payPeriod) => {
       <input type="radio" name="my_tabs_2" class="tab" aria-label="Payroll" checked="checked" />
       <div class="tab-content bg-white p-2">
         <FinanceAccountantPayroll />
+      </div>
+
+      <!-- Payroll Audit Log Tab -->
+      <input type="radio" name="my_tabs_2" class="tab" aria-label="Audit Log" />
+      <div class="tab-content bg-white p-2">
+        <FinancePayrollAuditLog />
       </div>
 
       <!-- Financial Statement Tab -->

@@ -33,12 +33,12 @@ export const usePayrollStore = defineStore('payroll', {
         this.loading = false
       }
     },
-    async submitPayroll(id) {
-      await axios.post(`/api/payrolls/${id}/submit`)
+    async submitPayroll(id, remarks) {
+      await axios.post(`/api/payrolls/${id}/submit`, { remarks })
       await this.fetchPayrolls()
     },
-    async approvePayroll(id) {
-      await axios.post(`/api/payrolls/${id}/approve`)
+    async approvePayroll(id, remarks) {
+      await axios.post(`/api/payrolls/${id}/approve`, { remarks })
       await this.fetchPayrolls()
     },
     async rejectPayroll(id, remarks) {

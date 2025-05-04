@@ -1,10 +1,15 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { MoveRight, EyeIcon, CheckIcon, XIcon, BookCheck } from 'lucide-vue-next'
+import { MoveRight, EyeIcon, CheckIcon, XIcon, BookCheck, FileText } from 'lucide-vue-next'
 import { usePayrollStore } from '@/stores/HR Management/payrollStore'
 import { useAttendanceStore } from '@/stores/HR Management/attendanceStore'
 import { useLeavesStore } from '@/stores/HR Management/LeavesStore'
+import { usePayrollExport } from '@/composables/Admin Composables/Human Resource/usePayrollExport'
+import FinancePayrollAuditLog from '@/components/Finance Components/Accountant Components/FinancePayrollAuditLog.vue'
 import Toast from '@/components/Admin Components/HR/Toast.vue'
+import PayslipModal from '@/components/Payroll/PayslipModal.vue'
+
+const { downloadPayrollHistoryPDF, printPayrollHistory } = usePayrollExport()
 
 const statusMap = {
   1: { label: 'For Review', color: 'badge badge-warning badge-outline text-xs font-thin' },
@@ -55,6 +60,16 @@ const toastType = ref('success') // or 'error', 'info'
 
 const showApproveModal = ref(false)
 const payrollToApprove = ref(null)
+const approveRemarks = ref('')
+
+const payrollHistory = computed(() =>
+  Array.isArray(payrollStore.payrolls)
+    ? payrollStore.payrolls.filter((row) => row.status === 9)
+    : [],
+)
+
+const showPayslipModal = ref(false)
+const selectedPayslip = ref(null)
 
 onMounted(() => {
   payrollStore.fetchPayrolls()
@@ -118,18 +133,38 @@ function triggerToast(message, type = 'success') {
 
 async function confirmApprovePayroll() {
   try {
-    await payrollStore.approvePayroll(payrollToApprove.value.id)
+    await payrollStore.approvePayroll(payrollToApprove.value.id, approveRemarks.value)
     triggerToast('Payroll approved!', 'success')
   } catch (err) {
     triggerToast('Failed to approve payroll.', 'error')
   } finally {
     showApproveModal.value = false
+    approveRemarks.value = ''
   }
 }
 
 function openApproveModal(row) {
   payrollToApprove.value = row
+  approveRemarks.value = ''
   showApproveModal.value = true
+}
+
+function openPayslipModal(row) {
+  selectedPayslip.value = row
+  showPayslipModal.value = true
+}
+
+function printPayslip() {
+  window.print()
+}
+
+function getDeductionAmount(type) {
+  if (!selectedPayslip.value?.deductions) return '0.00'
+  const normalize = (str) => str.toLowerCase().replace(/-/g, '')
+  const found = selectedPayslip.value.deductions.find(
+    (d) => normalize(d.deduction_type) === normalize(type),
+  )
+  return found ? Number(found.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 }) : '0.00'
 }
 </script>
 
@@ -299,6 +334,119 @@ function openApproveModal(row) {
       </table>
     </div>
   </div>
+
+  <!-- Payroll History Table -->
+  <div class="mt-8 text-black">
+    <div class="flex justify-between mb-2">
+      <h3 class="font-semibold text-black">Payroll History</h3>
+      <div class="flex gap-2">
+        <button
+          class="btn-primaryStyle"
+          @click="() => downloadPayrollHistoryPDF(payrollHistory, statusMap)"
+        >
+          Download PDF
+        </button>
+        <button
+          class="btn-secondaryStyle"
+          @click="() => printPayrollHistory(payrollHistory, statusMap)"
+        >
+          Print
+        </button>
+      </div>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="table text-black w-full text-xs border border-gray-300 rounded-md">
+        <thead class="text-black text-xs">
+          <tr>
+            <th>No.</th>
+            <th>Employee Name</th>
+            <th>Month</th>
+            <th>Quarter</th>
+            <th>Week</th>
+            <th>Start Date</th>
+            <th>End Date</th>
+            <th>Payroll Date</th>
+            <th>Days Present</th>
+            <th>Total Hours Worked</th>
+            <th>Regular Hour Pay</th>
+            <th>Days Absent</th>
+            <th>Absent Deduction</th>
+            <th>Overtime Pay</th>
+            <th>Tardiness Deduction</th>
+            <th>Rest Day Pay</th>
+            <th>Rest Day Hours</th>
+            <th>Status</th>
+            <th>Allowance</th>
+            <th>Bonus</th>
+            <th>Paid Holiday</th>
+            <th>Deduction</th>
+            <th>Gross Pay</th>
+            <th>Salary Before Tax</th>
+            <th>Net Pay</th>
+            <th>Tax Deduction</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(row, idx) in payrollHistory" :key="row.id">
+            <td>{{ idx + 1 }}</td>
+            <td>{{ row.employee?.full_name || row.employee_id }}</td>
+            <td>{{ row.month }}</td>
+            <td>{{ row.quarter }}</td>
+            <td>{{ row.week }}</td>
+            <td>{{ row.start_date }}</td>
+            <td>{{ row.end_date }}</td>
+            <td>{{ row.payroll_date }}</td>
+            <td>{{ row.days_present }}</td>
+            <td>{{ row.total_hours_worked }}</td>
+            <td>{{ row.regular_hour_pay }}</td>
+            <td>{{ row.days_absent }}</td>
+            <td>{{ row.absent_deduction }}</td>
+            <td>{{ row.overtime_pay }}</td>
+            <td>{{ row.tardiness_deduction }}</td>
+            <td>₱{{ Number(row.rest_day_pay ?? 0).toFixed(2) }}</td>
+            <td>{{ Number(row.rest_day_hours ?? 0).toFixed(2) }}</td>
+            <td>
+              <span :class="statusMap[row.status]?.color">
+                {{ statusMap[row.status]?.label || row.status }}
+              </span>
+            </td>
+            <td>{{ row.allowance }}</td>
+            <td>{{ row.bonus }}</td>
+            <td>{{ row.paid_holiday }}</td>
+            <td>{{ row.deduction }}</td>
+            <td>{{ row.gross_pay }}</td>
+            <td>{{ row.salary_before_tax }}</td>
+            <td>{{ row.net_pay }}</td>
+            <td>{{ row.tax_deduction }}</td>
+            <td>
+              <div class="flex gap-1">
+                <button
+                  class="text-black hover:text-white hover:bg-primaryColor/80 rounded-full p-1 cursor-pointer"
+                  title="Preview Payslip"
+                  @click="openPayslipModal(row)"
+                >
+                  <FileText class="w-4 h-4" />
+                </button>
+                <button
+                  class="text-black hover:text-white hover:bg-blue-500/80 rounded-full p-1 cursor-pointer"
+                  title="Audit Log"
+                  @click="openAuditLogModal(row)"
+                >
+                  <BookCheck class="w-4 h-4" />
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr v-if="!Array.isArray(payrollHistory) || !payrollHistory.length">
+            <td colspan="27" class="text-center py-4 text-gray-500">No payroll history found</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <FinancePayrollAuditLog :logs="payrollStore.auditLogs" />
 
   <dialog v-if="showViewModal" open class="modal z-50">
     <div class="modal-box bg-white text-black max-w-2xl">
@@ -511,9 +659,20 @@ function openApproveModal(row) {
   <dialog v-if="showApproveModal" open class="modal z-50">
     <div class="modal-box bg-white text-black max-w-md">
       <h3 class="font-bold text-lg mb-2">Approve Payroll</h3>
-      <p>Are you sure you want to approve this payroll?</p>
+      <textarea
+        v-model="approveRemarks"
+        class="textarea w-full bg-white border border-black rounded-md"
+        placeholder="Enter remarks (required)"
+        required
+      ></textarea>
       <div class="modal-action">
-        <button class="btn-primaryStyle" @click="confirmApprovePayroll">Yes, Approve</button>
+        <button
+          class="btn-primaryStyle"
+          :disabled="!approveRemarks.trim()"
+          @click="confirmApprovePayroll"
+        >
+          Yes, Approve
+        </button>
         <button class="btn-secondaryStyle" @click="showApproveModal = false">Cancel</button>
       </div>
     </div>
@@ -565,6 +724,13 @@ function openApproveModal(row) {
       </div>
     </div>
   </dialog>
+
+  <PayslipModal
+    v-if="selectedPayslip"
+    :payslip="selectedPayslip"
+    :show="showPayslipModal"
+    @close="() => (showPayslipModal = false)"
+  />
 
   <Toast :show="showToast" :message="toastMessage" :type="toastType" />
 </template>

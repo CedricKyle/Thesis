@@ -30,7 +30,33 @@ import NotificationModal from '/src/components/common/NotificationModal.vue'
     box-shadow: none !important;
     z-index: 9999 !important;
   }
-  .modal-action {
+  #printable-audit-log,
+  #printable-audit-log * {
+    visibility: visible !important;
+  }
+  #printable-audit-log {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 24px !important;
+    background: white !important;
+    color: black !important;
+    z-index: 9999 !important;
+    box-shadow: none !important;
+  }
+  .modal,
+  .modal-box {
+    position: static !important;
+    display: block !important;
+    width: 100% !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    background: white !important;
+  }
+  .modal-action,
+  .btn-primaryStyle,
+  .btn-secondaryStyle {
     display: none !important;
   }
 }

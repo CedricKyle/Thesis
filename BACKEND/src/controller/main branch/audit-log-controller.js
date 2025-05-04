@@ -1,4 +1,4 @@
-const { AuditLog } = require('../../model/Index.js')
+const { AuditLog, User, Employee, Payroll } = require('../../model/Index.js')
 
 async function getAuditLogs(req, res) {
   try {
@@ -9,6 +9,11 @@ async function getAuditLogs(req, res) {
     const logs = await AuditLog.findAll({
       where: { payroll_id },
       order: [['created_at', 'ASC']],
+      include: [
+        { model: Employee, as: 'employee', attributes: ['full_name', 'employee_id'] },
+        { model: Employee, as: 'actor', attributes: ['full_name', 'employee_id'] },
+        { model: Payroll, as: 'payroll', attributes: ['start_date', 'end_date'] },
+      ],
     })
     res.json({ success: true, data: logs })
   } catch (error) {
