@@ -12,6 +12,11 @@ const PDFDocument = require('pdfkit')
 const moment = require('moment')
 const attendanceLogic = require('../../utils/attendance-logic-calculator.js')
 const { getEmployeeRatePerHour } = require('../../utils/employee-utils.js')
+const dayjs = require('dayjs')
+const utc = require('dayjs/plugin/utc')
+const timezone = require('dayjs/plugin/timezone')
+dayjs.extend(utc)
+dayjs.extend(timezone)
 
 const attendanceController = {
   // Record time in
@@ -34,6 +39,63 @@ const attendanceController = {
       })
 
       if (!attendance) {
+        // Hanapin kung may Day Off record
+        const dayOffAttendance = await EmployeeAttendance.findOne({
+          where: { employee_id, date, status: 'Day Off', deleted_at: null },
+          transaction: t,
+        })
+        if (dayOffAttendance) {
+          // I-update ang Day Off record to Rest Day attendance
+          await dayOffAttendance.update(
+            {
+              start_time,
+              status: 'Rest Day',
+              absent: false,
+              approval_status: 'Pending',
+              hours_worked: 0,
+              regular_hours: 0,
+              overtime_hours: 0,
+            },
+            { transaction: t },
+          )
+          await t.commit()
+          return res.json({ success: true, data: dayOffAttendance })
+        }
+        // Check if today is day off
+        const empSchedule = await EmployeeSchedule.findOne({
+          where: { employee_id, deleted_at: null },
+          include: [{ model: AvailableSchedule, as: 'schedule' }],
+        })
+        if (!empSchedule || !empSchedule.schedule) {
+          await t.rollback()
+          return res.status(404).json({
+            success: false,
+            message: 'No schedule assigned for this employee.',
+          })
+        }
+        const schedule = empSchedule.schedule
+        const isDayOff = schedule && schedule.type === 'Day Off'
+        if (isDayOff) {
+          // Create rest day attendance record
+          const newAttendance = await EmployeeAttendance.create(
+            {
+              employee_id,
+              date,
+              start_time,
+              status: 'Rest Day',
+              absent: false,
+              schedule_id: empSchedule.id,
+              approval_status: 'Pending',
+              hours_worked: 0,
+              regular_hours: 0,
+              overtime_hours: 0,
+            },
+            { transaction: t },
+          )
+          await t.commit()
+          return res.json({ success: true, data: newAttendance })
+        }
+        // Else, error as usual
         await t.rollback()
         return res.status(404).json({
           success: false,
@@ -346,9 +408,10 @@ const attendanceController = {
       }
 
       // Update the regular record with OT info
+      const filePath = `/uploads/overtime_proofs/${image.filename}`
       await regular.update(
         {
-          overtime_proof: image.path,
+          overtime_proof: filePath,
           approval_status: 'Pending', // If you want a separate OT approval status, add a new field
         },
         { transaction: t },
@@ -894,7 +957,8 @@ const attendanceController = {
 
       // If OT proof image is uploaded
       if (req.file) {
-        updateFields.overtime_proof = req.file.path
+        const filePath = `/uploads/overtime_proofs/${req.file.filename}`
+        updateFields.overtime_proof = filePath
       }
 
       // Optionally, recalculate working_hours if start_time/end_time changed
@@ -908,21 +972,15 @@ const attendanceController = {
         const schedule = empSchedule?.schedule
         const scheduledOut = schedule?.time_out || '17:00:00'
 
-        // Parse times
-        const parseTimeToMinutes = (timeStr) => {
-          const [hours, minutes, seconds] = timeStr.split(':').map(Number)
-          return hours * 60 + minutes + (seconds || 0) / 60
-        }
-        const inMinutes = parseTimeToMinutes(updateFields.start_time)
-        const outMinutes = parseTimeToMinutes(updateFields.end_time)
-        const scheduledOutMinutes = parseTimeToMinutes(scheduledOut)
+        // Use the logic function for break deduction
+        // Get the earlier of end_time and scheduledOut
+        const actualOutForWork =
+          updateFields.end_time < scheduledOut ? updateFields.end_time : scheduledOut
 
-        // Use dynamic scheduled out
-        const workingEnd = Math.min(outMinutes, scheduledOutMinutes)
-        const totalWorkingMinutes = Math.max(0, workingEnd - inMinutes)
-        updateFields.hours_worked = (totalWorkingMinutes / 60).toFixed(2)
-
-        // DO NOT set overtime_hours here!
+        updateFields.hours_worked = attendanceLogic.calculateHoursWorked(
+          updateFields.start_time,
+          actualOutForWork,
+        )
       }
 
       await attendance.update(updateFields, { transaction: t })
@@ -1015,6 +1073,75 @@ const attendanceController = {
     } catch (error) {
       await t.rollback()
       res.status(500).json({ success: false, message: error.message })
+    }
+  },
+
+  // Add this function to your controller object
+  async markAllAbsentForToday(req, res) {
+    try {
+      const today = dayjs().tz('Asia/Manila').format('YYYY-MM-DD')
+      const dayOfWeek = dayjs(today).tz('Asia/Manila').format('dddd')
+      const employees = await Employee.findAll({ where: { deleted_at: null } })
+
+      let marked = 0
+      for (const emp of employees) {
+        const empSchedule = await EmployeeSchedule.findOne({
+          where: { employee_id: emp.employee_id, deleted_at: null },
+          include: [{ model: AvailableSchedule, as: 'schedule' }],
+        })
+        if (!empSchedule || !empSchedule.schedule) continue
+
+        let workDays = empSchedule.schedule.work_days
+        if (typeof workDays === 'string') {
+          try {
+            workDays = JSON.parse(workDays)
+          } catch {
+            workDays = []
+          }
+        }
+        if (!Array.isArray(workDays)) workDays = []
+        if (!workDays.includes(dayOfWeek)) {
+          // Insert Day Off record if not exists
+          const existing = await EmployeeAttendance.findOne({
+            where: { employee_id: emp.employee_id, date: today, deleted_at: null },
+          })
+          if (!existing) {
+            await EmployeeAttendance.create({
+              employee_id: emp.employee_id,
+              schedule_id: empSchedule.id,
+              date: today,
+              absent: false,
+              status: 'Day Off',
+              approval_status: '',
+              hours_worked: 0,
+              regular_hours: 0,
+              overtime_hours: 0,
+            })
+          }
+          continue
+        }
+
+        const existing = await EmployeeAttendance.findOne({
+          where: { employee_id: emp.employee_id, date: today, deleted_at: null },
+        })
+        if (!existing) {
+          await EmployeeAttendance.create({
+            employee_id: emp.employee_id,
+            schedule_id: empSchedule.id,
+            date: today,
+            absent: true,
+            status: 'Absent',
+            approval_status: 'Pending',
+            hours_worked: 0,
+            regular_hours: 0,
+            overtime_hours: 0,
+          })
+          marked++
+        }
+      }
+      return res.json({ success: true, message: `Marked ${marked} employees as absent for today.` })
+    } catch (err) {
+      return res.status(500).json({ success: false, message: err.message })
     }
   },
 }

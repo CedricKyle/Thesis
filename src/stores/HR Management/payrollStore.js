@@ -22,19 +22,23 @@ export const usePayrollStore = defineStore('payroll', {
           params.end_date = `${year}-${month}-15` // or calculate last day of month
         }
         const { data } = await axios.get('/api/payrolls', { params })
-        this.payrolls = data.data
+        this.payrolls = data.data.map((row) => ({
+          ...row,
+          rest_day_hours: Number(row.rest_day_hours ?? 0),
+          rest_day_pay: Number(row.rest_day_pay ?? 0),
+        }))
       } catch (err) {
         this.error = err
       } finally {
         this.loading = false
       }
     },
-    async submitPayroll(id) {
-      await axios.post(`/api/payrolls/${id}/submit`)
+    async submitPayroll(id, remarks) {
+      await axios.post(`/api/payrolls/${id}/submit`, { remarks })
       await this.fetchPayrolls()
     },
-    async approvePayroll(id) {
-      await axios.post(`/api/payrolls/${id}/approve`)
+    async approvePayroll(id, remarks) {
+      await axios.post(`/api/payrolls/${id}/approve`, { remarks })
       await this.fetchPayrolls()
     },
     async rejectPayroll(id, remarks) {

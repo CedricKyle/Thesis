@@ -9,6 +9,8 @@ import { TabulatorFull as Tabulator } from 'tabulator-tables'
 import { PERMISSION_IDS } from '@/composables/Admin Composables/User & Role/role/permissionsId'
 import { TriangleAlert } from 'lucide-vue-next'
 import { useEmployeeScheduleStore } from '@/stores/HR Management/employeeScheduleStore'
+import axios from 'axios'
+
 const { formatDate, calculateOvertime } = useAttendanceLogic()
 const employeeStore = useEmployeeStore()
 const authStore = useAuthStore()
@@ -44,6 +46,7 @@ const statusClasses = {
   Absent: 'badge badge-outline badge-error',
   Late: 'badge badge-outline badge-warning',
   'On Leave': 'badge badge-outline badge-info',
+  'Day Off': 'badge badge-outline badge-neutral',
 }
 
 const approvalStatusClasses = {
@@ -78,57 +81,74 @@ const getDefaultAttendanceData = (employees) => {
 
 const getType = (r) => r.attendanceType || r.attendance_type
 
+function isDayOff(date, workDays) {
+  if (!workDays) return false
+  if (typeof workDays === 'string') {
+    try {
+      workDays = JSON.parse(workDays)
+    } catch {
+      workDays = []
+    }
+  }
+  if (!Array.isArray(workDays)) workDays = []
+  const dayOfWeek = new Date(date).toLocaleString('en-US', { weekday: 'long' })
+  return !workDays.includes(dayOfWeek)
+}
+
 const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
   const filteredEmployees = employees.filter(
     (emp) => !emp.deleted_at && emp.roleInfo?.role_name !== 'Super Admin',
   )
   const rows = []
+  const selectedDate = attendanceStore.selectedDate
 
   filteredEmployees.forEach((employee) => {
-    const selectedDate = attendanceStore.selectedDate
-
     // Get the active schedule for this employee
     const activeSchedule = getActiveSchedule(employee.employee_id)
     const scheduleTimeIn = activeSchedule?.timeIn || '08:00'
     const scheduleTimeOut = activeSchedule?.timeOut || '17:00'
 
-    // Find the regular attendance record for this employee and date
-    const regular = attendanceRecords.find(
+    // Find the attendance record for this employee and date
+    const record = attendanceRecords.find(
       (r) =>
         r.employee_id === employee.employee_id &&
         (r.attendanceType === 'regular' || r.attendance_type === 'regular') &&
         r.date === selectedDate,
     )
 
-    // Find the approved overtime record for this employee and date
-    const overtime = attendanceRecords.find(
-      (r) =>
-        r.employee_id === employee.employee_id &&
-        getType(r) === 'overtime' &&
-        r.date === selectedDate &&
-        (r.approvalStatus === 'Approved' || r.approval_status === 'Approved'),
-    )
-
-    if (regular) {
+    if (record) {
+      // May attendance record, sundan ang status
       rows.push({
-        id: regular.id,
-        employee_id: regular.employee_id,
-        full_name: regular.full_name || employee.full_name,
-        department: regular.department || employee.department,
+        id: record.id,
+        employee_id: record.employee_id,
+        full_name: record.full_name || employee.full_name,
+        department: record.department || employee.department,
         scheduleTimeIn,
         scheduleTimeOut,
-        signIn: regular.signIn || regular.start_time || '-',
-        signOut: regular.signOut || regular.end_time || '-',
-        workingHours: regular.workingHours ?? regular.working_hours ?? '-',
-        status: regular.status || 'Present',
-        approvalStatus: regular.approvalStatus || regular.approval_status || 'Pending',
-        date: regular.date,
-        approved_by: regular.approved_by,
+        signIn: record.signIn || record.start_time || '-',
+        signOut: record.signOut || record.end_time || '-',
+        workingHours: record.workingHours ?? record.working_hours ?? '-',
+        status: record.status || 'Present',
+        approvalStatus: record.approvalStatus || record.approval_status || 'Pending',
+        date: record.date,
+        approved_by: record.approved_by,
       })
     } else {
-      // If no regular record, show as absent
+      // Walang attendance record, check if day off
+      let workDays = activeSchedule?.work_days
+      if (typeof workDays === 'string') {
+        try {
+          workDays = JSON.parse(workDays)
+        } catch {
+          workDays = []
+        }
+      }
+      if (!Array.isArray(workDays)) workDays = []
+      const dayOfWeek = new Date(selectedDate).toLocaleString('en-US', { weekday: 'long' })
+      const isDayOff = !workDays.includes(dayOfWeek)
+
       rows.push({
-        id: `absent-${employee.employee_id}`,
+        id: isDayOff ? `dayoff-${employee.employee_id}` : `absent-${employee.employee_id}`,
         employee_id: employee.employee_id,
         full_name: employee.full_name,
         department: employee.department,
@@ -137,8 +157,8 @@ const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
         signIn: '-',
         signOut: '-',
         workingHours: '-',
-        status: 'Absent',
-        approvalStatus: 'Pending',
+        status: isDayOff ? 'Day Off' : 'Absent',
+        approvalStatus: isDayOff ? '' : 'Pending',
         date: selectedDate,
       })
     }
@@ -582,7 +602,6 @@ function formatToYYYYMMDD(date) {
   return `${year}-${month}-${day}`
 }
 
-console.log('Selected date:', attendanceStore.selectedDate)
 attendanceStore.attendanceRecords.forEach((r) => {
   if (
     r.employee_id === '2025-50001' &&
@@ -620,7 +639,7 @@ const rows = computed(() => {
       signIn: r.signIn || '-',
       signOut: r.signOut || '-',
       workingHours: r.workingHours ?? '-',
-      status: r.status || 'Absent',
+      status: isDayOff(r.date, r.work_days) ? 'Day Off' : r.status || 'Absent',
       approvalStatus: r.approvalStatus || 'Pending',
       date: r.date,
       approved_by: r.approved_by,
@@ -661,10 +680,46 @@ function getActiveSchedule(employeeId) {
     (sched) => sched.employee_id === employeeId && sched.deleted_at === null,
   )
 }
+
+const isMarkingAbsent = ref(false)
+
+const handleMarkAllAbsent = async () => {
+  console.log('Mark All Absent button clicked!')
+  isMarkingAbsent.value = true
+  try {
+    const response = await axios.post(
+      '/api/attendance/attendance/mark-all-absent',
+      {},
+      {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+      },
+    )
+    if (response.data.success) {
+      showToast('Successfully marked all scheduled employees as absent for today!', 'success')
+      await refreshTableData()
+    } else {
+      showToast(response.data.message || 'Failed to mark absences.', 'error')
+    }
+  } catch (error) {
+    showToast(error.response?.data?.message || 'Error marking absences. Please try again.', 'error')
+  } finally {
+    isMarkingAbsent.value = false
+  }
+}
 </script>
 
 <template>
   <div class="w-full bg-white shadow-md rounded-md">
+    <div class="flex justify-between items-center">
+      <h3 class="font-bold text-lg text-gray-800">Attendance Records</h3>
+      <!-- Mark All Absent Button -->
+      <div class="flex justify-end p-4" v-if="canManageAttendance">
+        <button class="btn-primaryStyle" @click="handleMarkAllAbsent" :disabled="isMarkingAbsent">
+          <span v-if="isMarkingAbsent" class="loading loading-spinner loading-xs"></span>
+          Mark All Absent for Today
+        </button>
+      </div>
+    </div>
     <div ref="tableRef"></div>
   </div>
 

@@ -7,12 +7,21 @@ const {
   AvailableSchedule,
 } = require('../model/Index')
 
+const dayjs = require('dayjs')
+const utc = require('dayjs/plugin/utc')
+const timezone = require('dayjs/plugin/timezone')
+dayjs.extend(utc)
+dayjs.extend(timezone)
+
+
 console.log('DB_USER:', process.env.DB_USER)
 console.log('DB_NAME:', process.env.DB_NAME)
 
 async function markScheduledEmployeesAbsentForToday() {
-  const today = new Date().toISOString().split('T')[0]
-  const dayOfWeek = new Date(today).toLocaleString('en-US', { weekday: 'long' }) // e.g., "Monday"
+  const today = dayjs().tz('Asia/Manila').format('YYYY-MM-DD')
+  const dayOfWeek = dayjs(today).tz('Asia/Manila').format('dddd')
+  console.log('Today:', today)
+  console.log('Day of Week:', dayOfWeek)
   const employees = await Employee.findAll({ where: { deleted_at: null } })
 
   for (const emp of employees) {
