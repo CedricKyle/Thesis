@@ -7,9 +7,11 @@ const {
   AuditLog,
   PayrollDeduction,
   EmployeeSchedule,
+  AvailableSchedule,
 } = require('../../model/Index.js')
 const { Op } = require('sequelize')
 const { computePHWithholdingTax } = require('../../utils/ph-tax-calculator')
+const attendanceLogic = require('../../utils/attendance-logic-calculator.js')
 
 function getWeekNumber(dateString) {
   const date = new Date(dateString)
@@ -31,9 +33,22 @@ function getDateRangeArray(start, end) {
 function getEmployeeDayOffs(schedule) {
   if (!schedule || !schedule.day_off) return []
   try {
-    return JSON.parse(schedule.day_off).map(Number)
+    const arr = JSON.parse(schedule.day_off)
+    // If array of numbers, return as is. If array of strings, map to numbers.
+    if (typeof arr[0] === 'number') return arr
+    // Map string days to numbers
+    const dayMap = {
+      Sunday: 0,
+      Monday: 1,
+      Tuesday: 2,
+      Wednesday: 3,
+      Thursday: 4,
+      Friday: 5,
+      Saturday: 6,
+    }
+    return arr.map((d) => dayMap[d] ?? Number(d))
   } catch {
-    return schedule.day_off.split(',').map((d) => Number(d.trim()))
+    return []
   }
 }
 
@@ -78,19 +93,80 @@ const payrollController = {
         // 2. Get employee's schedule (to get day_off)
         const employeeSchedule = await EmployeeSchedule.findOne({
           where: { employee_id: emp.employee_id, deleted_at: null },
+          include: [{ model: AvailableSchedule, as: 'schedule' }],
         })
 
         // 3. Build date range and count present/absent
         const allDates = getDateRangeArray(start_date, end_date)
-        const dayOffs = getEmployeeDayOffs(employeeSchedule)
+        const dayOffs = getEmployeeDayOffs(employeeSchedule?.schedule)
         let daysPresent = 0
         let daysAbsent = 0
 
+        let restDayPay = 0
+        let restDayHours = 0
+
+        // Move this before the for-loop
+        const position = await Position.findOne({ where: { id: emp.position_id } })
+        const ratePerHour = position ? position.rate_per_hour : 0
+
+        console.log(
+          'EMPLOYEE:',
+          emp.employee_id,
+          'SCHEDULE:',
+          employeeSchedule?.schedule?.day_off,
+          'dayOffs:',
+          dayOffs,
+        )
         for (const date of allDates) {
           const dayOfWeek = new Date(date).getDay()
-          if (dayOffs.includes(dayOfWeek)) continue // skip day off
-
           const rec = attendance.find((a) => a.date === date)
+          console.log(
+            'DATE:',
+            date,
+            'dayOfWeek:',
+            dayOfWeek,
+            'isDayOff:',
+            dayOffs.includes(dayOfWeek),
+            'rec:',
+            rec?.status,
+          )
+
+          if (dayOffs.includes(dayOfWeek)) {
+            // Day off
+            if (
+              rec &&
+              rec.approval_status === 'Approved' &&
+              rec.status === 'Rest Day' &&
+              rec.start_time &&
+              rec.end_time
+            ) {
+              console.log('REST DAY PAY DEBUG:', {
+                employee: emp.employee_id,
+                date,
+                hours_worked: rec.hours_worked,
+                ratePerHour: position ? position.rate_per_hour : 0,
+                calculated: attendanceLogic.calculateRestDayPay(
+                  true,
+                  false,
+                  rec.hours_worked,
+                  position ? position.rate_per_hour : 0,
+                ),
+              })
+              restDayPay += Number(
+                attendanceLogic.calculateRestDayPay(
+                  true,
+                  false,
+                  rec.hours_worked,
+                  position ? position.rate_per_hour : 0,
+                ),
+              )
+              restDayHours += Number(rec.hours_worked)
+            }
+            // else: skip, walang attendance sa day off
+            continue
+          }
+
+          // Regular workday
           if (rec && rec.approval_status === 'Approved' && !rec.absent) {
             daysPresent++
           } else {
@@ -124,13 +200,9 @@ const payrollController = {
           0,
         )
 
-        // Position/rate
-        const position = await Position.findOne({ where: { id: emp.position_id } })
-        const ratePerHour = position ? position.rate_per_hour : 0
-
         const regularPay = totalHours * ratePerHour
         const overtimePay = overtimeHours * (ratePerHour * 1.25)
-        const grossPay = regularPay + overtimePay + holidayPay
+        const grossPay = regularPay + overtimePay + holidayPay + restDayPay
 
         // If semi-monthly, multiply grossPay by 2 to get monthly equivalent
         const monthlyTax = computePHWithholdingTax(grossPay * 2)
@@ -202,6 +274,8 @@ const payrollController = {
           tax_deduction: taxDeduction,
           overtime_hours: overtimeHours,
           tardiness_deduction: tardinessDeduction,
+          rest_day_pay: restDayPay,
+          rest_day_hours: restDayHours,
         })
 
         // Now save deduction breakdowns

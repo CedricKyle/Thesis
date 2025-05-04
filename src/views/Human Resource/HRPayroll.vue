@@ -358,6 +358,8 @@ function getDeductionAmount(type) {
             <th>Absent Deduction</th>
             <th>Overtime Pay</th>
             <th>Tardiness Deduction</th>
+            <th>Rest Day Pay</th>
+            <th>Rest Day Hours</th>
             <th>Status</th>
             <th>Allowance</th>
             <th>Bonus</th>
@@ -399,6 +401,10 @@ function getDeductionAmount(type) {
             <td>
               ₱{{ row.tardiness_deduction.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}
             </td>
+            <td>₱{{ Number(row.rest_day_pay ?? 0).toFixed(2) }}</td>
+            <td>
+              {{ Number(row.rest_day_hours ?? 0).toFixed(2) }}
+            </td>
             <td>
               <span
                 v-if="statusMap[row.status]"
@@ -411,9 +417,9 @@ function getDeductionAmount(type) {
               </span>
               <span v-else>{{ row.status }}</span>
             </td>
-            <td>₱{{ row.allowance.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
-            <td>₱{{ row.bonus.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
-            <td>₱{{ row.paid_holiday.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
+            <td>{{ row.allowance.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
+            <td>{{ row.bonus.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
+            <td>{{ row.paid_holiday.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
             <td>₱{{ row.deduction.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
             <td>₱{{ row.gross_pay.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
             <td>
@@ -550,6 +556,8 @@ function getDeductionAmount(type) {
               <th>Absent Deduction</th>
               <th>Overtime Pay</th>
               <th>Tardiness Deduction</th>
+              <th>Rest Day Pay</th>
+              <th>Rest Day Hours</th>
               <th>Status</th>
               <th>Allowance</th>
               <th>Bonus</th>
@@ -574,16 +582,14 @@ function getDeductionAmount(type) {
               <td>{{ row.payroll_date }}</td>
               <td>{{ row.days_present }}</td>
               <td>{{ row.total_hours_worked }}</td>
-              <td>
-                ₱{{ row.regular_hour_pay.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}
-              </td>
+              <td>{{ row.regular_hour_pay }}</td>
               <td>{{ row.days_absent }}</td>
+              <td>{{ row.absent_deduction }}</td>
+              <td>{{ row.overtime_pay }}</td>
+              <td>{{ row.tardiness_deduction }}</td>
+              <td>₱{{ Number(row.rest_day_pay ?? 0).toFixed(2) }}</td>
               <td>
-                ₱{{ row.absent_deduction.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}
-              </td>
-              <td>₱{{ row.overtime_pay.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
-              <td>
-                ₱{{ row.tardiness_deduction.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}
+                {{ Number(row.rest_day_hours ?? 0).toFixed(2) }}
               </td>
               <td>
                 <span
@@ -597,18 +603,14 @@ function getDeductionAmount(type) {
                 </span>
                 <span v-else>{{ row.status }}</span>
               </td>
-              <td>₱{{ row.allowance.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
-              <td>₱{{ row.bonus.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
-              <td>₱{{ row.paid_holiday.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
-              <td>₱{{ row.deduction.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
-              <td>₱{{ row.gross_pay.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
-              <td>
-                ₱{{ row.salary_before_tax.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}
-              </td>
-              <td>₱{{ row.net_pay.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
-              <td>
-                ₱{{ row.tax_deduction.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}
-              </td>
+              <td>{{ row.allowance }}</td>
+              <td>{{ row.bonus }}</td>
+              <td>{{ row.paid_holiday }}</td>
+              <td>{{ row.deduction }}</td>
+              <td>{{ row.gross_pay }}</td>
+              <td>{{ row.salary_before_tax }}</td>
+              <td>{{ row.net_pay }}</td>
+              <td>{{ row.tax_deduction }}</td>
               <td>
                 <div class="flex gap-1">
                   <button
@@ -973,6 +975,8 @@ function getDeductionAmount(type) {
                 <th>Absent Deduction</th>
                 <th>Overtime Pay</th>
                 <th>Tardiness Deduction</th>
+                <th>Rest Day Pay</th>
+                <th>Rest Day Hours</th>
                 <th>Status</th>
                 <th>Allowance</th>
                 <th>Bonus</th>
@@ -1001,6 +1005,10 @@ function getDeductionAmount(type) {
                 <td>{{ row.absent_deduction }}</td>
                 <td>{{ row.overtime_pay }}</td>
                 <td>{{ row.tardiness_deduction }}</td>
+                <td>₱{{ Number(row.rest_day_pay ?? 0).toFixed(2) }}</td>
+                <td>
+                  {{ Number(row.rest_day_hours ?? 0).toFixed(2) }}
+                </td>
                 <td>{{ statusMap[row.status]?.label || row.status }}</td>
                 <td>{{ row.allowance }}</td>
                 <td>{{ row.bonus }}</td>
@@ -1240,6 +1248,22 @@ function getDeductionAmount(type) {
                         }) ?? '0.00'
                       }}
                     </td>
+                  </tr>
+                  <tr>
+                    <td class="border px-2">Rest Day Pay</td>
+                    <td class="border px-2">
+                      {{ selectedPayslip.rest_day_hours?.toFixed(2) ?? '-' }}
+                    </td>
+                    <td class="border px-2">
+                      ₱{{
+                        selectedPayslip.rest_day_pay?.toLocaleString('en-PH', {
+                          minimumFractionDigits: 2,
+                        }) ?? '0.00'
+                      }}
+                    </td>
+                    <td class="border px-2"></td>
+                    <td class="border px-2"></td>
+                    <td class="border px-2"></td>
                   </tr>
                 </tbody>
               </table>

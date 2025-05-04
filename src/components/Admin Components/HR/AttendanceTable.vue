@@ -684,6 +684,7 @@ function getActiveSchedule(employeeId) {
 const isMarkingAbsent = ref(false)
 
 const handleMarkAllAbsent = async () => {
+  console.log('Mark All Absent button clicked!')
   isMarkingAbsent.value = true
   try {
     const response = await axios.post(

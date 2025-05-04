@@ -39,6 +39,63 @@ const attendanceController = {
       })
 
       if (!attendance) {
+        // Hanapin kung may Day Off record
+        const dayOffAttendance = await EmployeeAttendance.findOne({
+          where: { employee_id, date, status: 'Day Off', deleted_at: null },
+          transaction: t,
+        })
+        if (dayOffAttendance) {
+          // I-update ang Day Off record to Rest Day attendance
+          await dayOffAttendance.update(
+            {
+              start_time,
+              status: 'Rest Day',
+              absent: false,
+              approval_status: 'Pending',
+              hours_worked: 0,
+              regular_hours: 0,
+              overtime_hours: 0,
+            },
+            { transaction: t },
+          )
+          await t.commit()
+          return res.json({ success: true, data: dayOffAttendance })
+        }
+        // Check if today is day off
+        const empSchedule = await EmployeeSchedule.findOne({
+          where: { employee_id, deleted_at: null },
+          include: [{ model: AvailableSchedule, as: 'schedule' }],
+        })
+        if (!empSchedule || !empSchedule.schedule) {
+          await t.rollback()
+          return res.status(404).json({
+            success: false,
+            message: 'No schedule assigned for this employee.',
+          })
+        }
+        const schedule = empSchedule.schedule
+        const isDayOff = schedule && schedule.type === 'Day Off'
+        if (isDayOff) {
+          // Create rest day attendance record
+          const newAttendance = await EmployeeAttendance.create(
+            {
+              employee_id,
+              date,
+              start_time,
+              status: 'Rest Day',
+              absent: false,
+              schedule_id: empSchedule.id,
+              approval_status: 'Pending',
+              hours_worked: 0,
+              regular_hours: 0,
+              overtime_hours: 0,
+            },
+            { transaction: t },
+          )
+          await t.commit()
+          return res.json({ success: true, data: newAttendance })
+        }
+        // Else, error as usual
         await t.rollback()
         return res.status(404).json({
           success: false,
@@ -915,21 +972,15 @@ const attendanceController = {
         const schedule = empSchedule?.schedule
         const scheduledOut = schedule?.time_out || '17:00:00'
 
-        // Parse times
-        const parseTimeToMinutes = (timeStr) => {
-          const [hours, minutes, seconds] = timeStr.split(':').map(Number)
-          return hours * 60 + minutes + (seconds || 0) / 60
-        }
-        const inMinutes = parseTimeToMinutes(updateFields.start_time)
-        const outMinutes = parseTimeToMinutes(updateFields.end_time)
-        const scheduledOutMinutes = parseTimeToMinutes(scheduledOut)
+        // Use the logic function for break deduction
+        // Get the earlier of end_time and scheduledOut
+        const actualOutForWork =
+          updateFields.end_time < scheduledOut ? updateFields.end_time : scheduledOut
 
-        // Use dynamic scheduled out
-        const workingEnd = Math.min(outMinutes, scheduledOutMinutes)
-        const totalWorkingMinutes = Math.max(0, workingEnd - inMinutes)
-        updateFields.hours_worked = (totalWorkingMinutes / 60).toFixed(2)
-
-        // DO NOT set overtime_hours here!
+        updateFields.hours_worked = attendanceLogic.calculateHoursWorked(
+          updateFields.start_time,
+          actualOutForWork,
+        )
       }
 
       await attendance.update(updateFields, { transaction: t })
@@ -1049,7 +1100,26 @@ const attendanceController = {
           }
         }
         if (!Array.isArray(workDays)) workDays = []
-        if (!workDays.includes(dayOfWeek)) continue
+        if (!workDays.includes(dayOfWeek)) {
+          // Insert Day Off record if not exists
+          const existing = await EmployeeAttendance.findOne({
+            where: { employee_id: emp.employee_id, date: today, deleted_at: null },
+          })
+          if (!existing) {
+            await EmployeeAttendance.create({
+              employee_id: emp.employee_id,
+              schedule_id: empSchedule.id,
+              date: today,
+              absent: false,
+              status: 'Day Off',
+              approval_status: '',
+              hours_worked: 0,
+              regular_hours: 0,
+              overtime_hours: 0,
+            })
+          }
+          continue
+        }
 
         const existing = await EmployeeAttendance.findOne({
           where: { employee_id: emp.employee_id, date: today, deleted_at: null },
