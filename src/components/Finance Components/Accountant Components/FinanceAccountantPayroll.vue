@@ -551,5 +551,20 @@ function openApproveModal(row) {
     </div>
   </dialog>
 
+  <dialog v-if="showRejectModal" open class="modal z-50">
+    <div class="modal-box bg-white text-black max-w-md">
+      <h3 class="font-bold text-lg mb-2">Reject Payroll</h3>
+      <textarea
+        v-model="rejectRemarks"
+        class="textarea w-full bg-white border border-black rounded-md"
+        placeholder="Enter remarks"
+      ></textarea>
+      <div class="modal-action">
+        <button class="btn-secondaryStyle" @click="showRejectModal = false">Cancel</button>
+        <button class="btn-errorStyle" @click="rejectPayroll">Reject</button>
+      </div>
+    </div>
+  </dialog>
+
   <Toast :show="showToast" :message="toastMessage" :type="toastType" />
 </template>

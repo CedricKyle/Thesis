@@ -7,6 +7,7 @@ import {
   XIcon,
   BookCheck,
   MoveRight,
+  BookMarked,
   FileText,
 } from 'lucide-vue-next'
 import { usePayrollStore } from '@/stores/HR Management/payrollStore'
@@ -34,10 +35,6 @@ onMounted(() => {
   dateTo.value = `${yyyy}-${mm}-15` // or last day of month
   fetchPayrollsByDate()
 })
-
-const payrolls = ref([
-  // ...sample objects...
-])
 
 const search = ref('')
 const statusFilter = ref('')
@@ -503,7 +500,7 @@ function getDeductionAmount(type) {
                   title="View Audit Log"
                   @click="openAuditLogModal(row)"
                 >
-                  <BookCheck class="w-4 h-4" />
+                  <BookMarked class="w-4 h-4" />
                 </button>
               </div>
             </td>
@@ -777,7 +774,6 @@ function getDeductionAmount(type) {
     <dialog v-if="showAuditLogModal" open class="modal">
       <div class="modal-box bg-white text-black max-w-lg">
         <h3 class="font-bold text-lg mb-2">Audit Log</h3>
-        <div class="divider"></div>
 
         <div v-if="payrollStore.auditLogs.length" class="flex flex-col gap-3">
           <div
