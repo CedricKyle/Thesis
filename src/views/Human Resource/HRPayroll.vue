@@ -18,6 +18,7 @@ import { useUserStore } from '@/stores/Users & Role/userStore'
 import { useAuthStore } from '@/stores/Authentication/authStore'
 import { usePayrollExport } from '@/composables/Admin Composables/Human Resource/usePayrollExport'
 import PayslipModal from '@/components/Payroll/PayslipModal.vue'
+import Toast from '@/components/Admin Components/HR/Toast.vue'
 
 const userStore = useUserStore()
 const currentUserRole = computed(() => userStore.currentUser.role)
@@ -98,7 +99,7 @@ function openRejectModal(row) {
 }
 function submitToFinance(row) {
   if (!row || !row.id) {
-    showToastMessage('Payroll data not found. Please try again.', 'error')
+    showToastMsg('Payroll data not found. Please try again.', 'error')
     return
   }
   payrollStore
@@ -107,13 +108,13 @@ function submitToFinance(row) {
       if (currentDateRange.value.start_date && currentDateRange.value.end_date) {
         payrollStore.fetchPayrolls(currentDateRange.value)
       }
-      showToastMessage('Payroll submitted for review!', 'success')
+      showToastMsg('Payroll submitted for review!', 'success')
       submitRemarks.value = ''
       showSubmitModal.value = false
       payrollToSubmit.value = null
     })
     .catch((err) => {
-      showToastMessage(
+      showToastMsg(
         'Failed to submit payroll: ' + (err?.response?.data?.message || err.message),
         'error',
       )
@@ -221,13 +222,13 @@ const showToast = ref(false)
 const toastMessage = ref('')
 const toastType = ref('success') // 'success', 'error', 'warning', 'info'
 
-function showToastMessage(message, type = 'success') {
+function showToastMsg(message, type = 'success') {
   toastMessage.value = message
   toastType.value = type
   showToast.value = true
   setTimeout(() => {
     showToast.value = false
-  }, 3000)
+  }, 2500)
 }
 
 const confirmModal = ref(false)
@@ -256,30 +257,30 @@ async function handleConfirmAction() {
         start_date: dateFrom.value,
         end_date: dateTo.value,
       })
-      showToastMessage('Payroll generated successfully!', 'success')
+      showToastMsg('Payroll generated successfully!', 'success')
     } else if (confirmActionType.value === 'submit') {
       await payrollStore.submitPayroll(confirmActionPayload.value.id, submitRemarks.value)
       await payrollStore.fetchPayrolls(currentDateRange.value)
-      showToastMessage('Payroll submitted for review!', 'success')
+      showToastMsg('Payroll submitted for review!', 'success')
     }
     // Repeat for approve, reject, process, etc.
     confirmModal.value = false
   } catch (err) {
-    showToastMessage(err?.response?.data?.message || err.message, 'error')
+    showToastMsg(err?.response?.data?.message || err.message, 'error')
     confirmModal.value = false
   }
 }
 
 const showEditModal = ref(false)
+const showEditConfirmModal = ref(false)
 
 async function saveEditedPayroll() {
   await payrollStore.editPayroll(selectedPayroll.value.id, {
     ...selectedPayroll.value,
     status: 0,
   })
-  showEditModal.value = false
   fetchPayrollsByDate()
-  showToastMessage('Payroll updated. Please resubmit for review.', 'success')
+  showToastMsg('Payroll updated. Please resubmit for review.', 'success')
 }
 
 function openEditPayrollModal(row) {
@@ -339,6 +340,12 @@ function closeSubmitModal() {
   showSubmitModal.value = false
   payrollToSubmit.value = null
   submitRemarks.value = ''
+}
+
+function confirmEditPayroll() {
+  showEditConfirmModal.value = false
+  saveEditedPayroll()
+  showEditModal.value = false
 }
 </script>
 
@@ -409,7 +416,7 @@ function closeSubmitModal() {
             <th>Tardiness Deduction</th>
             <th>Rest Day Pay</th>
             <th>Rest Day Hours</th>
-            <th>Status</th>
+
             <th>Allowance</th>
             <th>Bonus</th>
             <th>Paid Holiday</th>
@@ -418,6 +425,7 @@ function closeSubmitModal() {
             <th>Salary Before Tax</th>
             <th>Net Pay</th>
             <th>Tax Deduction</th>
+            <th>Status</th>
             <th>Actions</th>
           </tr>
         </thead>
@@ -454,6 +462,17 @@ function closeSubmitModal() {
             <td>
               {{ Number(row.rest_day_hours ?? 0).toFixed(2) }}
             </td>
+
+            <td>{{ row.allowance.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
+            <td>{{ row.bonus.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
+            <td>{{ row.paid_holiday.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
+            <td>₱{{ row.deduction.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
+            <td>₱{{ row.gross_pay.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
+            <td>
+              ₱{{ row.salary_before_tax.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}
+            </td>
+            <td>₱{{ row.net_pay.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
+            <td>₱{{ row.tax_deduction.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
             <td>
               <span
                 v-if="statusMap[row.status]"
@@ -466,16 +485,6 @@ function closeSubmitModal() {
               </span>
               <span v-else>{{ row.status }}</span>
             </td>
-            <td>{{ row.allowance.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
-            <td>{{ row.bonus.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
-            <td>{{ row.paid_holiday.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
-            <td>₱{{ row.deduction.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
-            <td>₱{{ row.gross_pay.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
-            <td>
-              ₱{{ row.salary_before_tax.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}
-            </td>
-            <td>₱{{ row.net_pay.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
-            <td>₱{{ row.tax_deduction.toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}</td>
             <td>
               <div class="flex gap-1">
                 <button
@@ -621,7 +630,6 @@ function closeSubmitModal() {
               <th>Tardiness Deduction</th>
               <th>Rest Day Pay</th>
               <th>Rest Day Hours</th>
-              <th>Status</th>
               <th>Allowance</th>
               <th>Bonus</th>
               <th>Paid Holiday</th>
@@ -630,6 +638,7 @@ function closeSubmitModal() {
               <th>Salary Before Tax</th>
               <th>Net Pay</th>
               <th>Tax Deduction</th>
+              <th>Status</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -654,6 +663,15 @@ function closeSubmitModal() {
               <td>
                 {{ Number(row.rest_day_hours ?? 0).toFixed(2) }}
               </td>
+
+              <td>{{ row.allowance }}</td>
+              <td>{{ row.bonus }}</td>
+              <td>{{ row.paid_holiday }}</td>
+              <td>{{ row.deduction }}</td>
+              <td>{{ row.gross_pay }}</td>
+              <td>{{ row.salary_before_tax }}</td>
+              <td>{{ row.net_pay }}</td>
+              <td>{{ row.tax_deduction }}</td>
               <td>
                 <span
                   v-if="statusMap[row.status]"
@@ -666,14 +684,6 @@ function closeSubmitModal() {
                 </span>
                 <span v-else>{{ row.status }}</span>
               </td>
-              <td>{{ row.allowance }}</td>
-              <td>{{ row.bonus }}</td>
-              <td>{{ row.paid_holiday }}</td>
-              <td>{{ row.deduction }}</td>
-              <td>{{ row.gross_pay }}</td>
-              <td>{{ row.salary_before_tax }}</td>
-              <td>{{ row.net_pay }}</td>
-              <td>{{ row.tax_deduction }}</td>
               <td>
                 <div class="flex gap-1">
                   <button
@@ -928,18 +938,7 @@ function closeSubmitModal() {
       </div>
     </dialog>
 
-    <div
-      v-if="showToast"
-      :class="{
-        'fixed bottom-4 right-4 p-4 rounded-lg shadow-lg z-50 transition-all duration-300': true,
-        'bg-green-500': toastType === 'success',
-        'bg-red-500': toastType === 'error',
-        'bg-yellow-500': toastType === 'warning',
-        'bg-blue-500': toastType === 'info',
-      }"
-    >
-      <p class="text-white">{{ toastMessage }}</p>
-    </div>
+    <Toast :show="showToast" :message="toastMessage" :type="toastType" />
 
     <!-- Edit Modal -->
     <dialog v-if="showEditModal" open class="modal">
@@ -1012,7 +1011,7 @@ function closeSubmitModal() {
         </div>
         <div class="modal-action">
           <button class="btn-secondaryStyle" @click="showEditModal = false">Cancel</button>
-          <button class="btn-primaryStyle" @click="saveEditedPayroll">Save</button>
+          <button class="btn-primaryStyle" @click="showEditConfirmModal = true">Save</button>
         </div>
       </div>
     </dialog>
@@ -1130,18 +1129,26 @@ function closeSubmitModal() {
         <textarea
           v-model="submitRemarks"
           class="textarea w-full h-24 bg-white border-black border"
-          placeholder="Enter remarks (required)"
-          required
+          placeholder="Enter remarks (optional)"
         ></textarea>
         <div class="modal-action">
           <button class="btn-secondaryStyle" @click="closeSubmitModal">Cancel</button>
-          <button
-            class="btn-primaryStyle"
-            :disabled="!submitRemarks.trim()"
-            @click="submitToFinance(payrollToSubmit)"
-          >
-            Submit
-          </button>
+          <button class="btn-primaryStyle" @click="submitToFinance(payrollToSubmit)">Submit</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Edit Confirmation Modal -->
+    <dialog v-if="showEditConfirmModal" open class="modal">
+      <div class="modal-box bg-white text-black max-w-md">
+        <h3 class="font-bold text-md text-black mb-2">Confirm Edit</h3>
+        <div class="divider"></div>
+        <p class="text-center text-black text-sm">
+          Are you sure you want to save changes to this payroll?
+        </p>
+        <div class="modal-action justify-center gap-4">
+          <button class="btn-primaryStyle" @click="confirmEditPayroll">Yes, Save</button>
+          <button class="btn-secondaryStyle" @click="showEditConfirmModal = false">Cancel</button>
         </div>
       </div>
     </dialog>

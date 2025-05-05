@@ -3,9 +3,10 @@ import { ref, computed, onMounted } from 'vue'
 import BaseTable from '@/components/common/BaseTable.vue'
 import { useAttendanceStore } from '@/stores/HR Management/attendanceStore'
 import { PERMISSION_IDS } from '@/composables/Admin Composables/User & Role/role/permissionsId'
+import { useAuthStore } from '@/stores/Authentication/authStore'
 
 const attendanceStore = useAttendanceStore()
-
+const authStore = useAuthStore()
 // Calendar logic
 const today = new Date().toISOString().split('T')[0]
 const selectedDate = ref(today)
@@ -32,23 +33,28 @@ const columns = [
     },
   },
   {
-    title: 'Approval Status',
-    field: 'approvalStatus',
+    title: 'OT Approval Status',
+    field: 'ot_approval_status',
     formatter: (cell) => {
       const status = cell.getValue()
       if (status === 'Approved')
         return `<span class="badge badge-success badge-outline badge-sm">${status}</span>`
       if (status === 'Rejected')
         return `<span class="badge badge-error badge-outline badge-sm">${status}</span>`
-      return `<span class="badge badge-warning badge-outline badge-sm">${status}</span>`
+      return `<span class="badge badge-warning badge-outline badge-sm">${status || 'Pending'}</span>`
     },
+  },
+  {
+    title: 'OT Remarks',
+    field: 'ot_remarks',
+    formatter: (cell) => cell.getValue() || '-',
   },
   {
     title: 'Actions',
     field: 'actions',
     formatter: (cell) => {
       const record = cell.getRow().getData()
-      if (record.approvalStatus === 'Pending') {
+      if (record.ot_approval_status === 'Pending' || !record.ot_approval_status) {
         if (canManageOT.value) {
           return `
             <button class="btn-primaryStyle btn-xs approve-ot">Approve</button>
@@ -129,13 +135,19 @@ onMounted(() => {
 })
 
 const overtimeRecords = computed(() =>
-  attendanceStore.attendanceRecords.filter(
-    (record) =>
-      (record.overtimeProof || record.overtime_proof) &&
-      (selectedDate.value
-        ? new Date(record.date).toISOString().split('T')[0] === selectedDate.value
-        : true),
-  ),
+  attendanceStore.attendanceRecords
+    .filter(
+      (record) =>
+        (record.overtimeProof || record.overtime_proof) &&
+        (selectedDate.value
+          ? new Date(record.date).toISOString().split('T')[0] === selectedDate.value
+          : true),
+    )
+    .map((record) => ({
+      ...record,
+      ot_approval_status: record.ot_approval_status || record.otApprovalStatus || 'Pending',
+      // ...other fields...
+    })),
 )
 
 const confirmModal = ref(null)
@@ -162,7 +174,7 @@ async function confirmOvertimeAction() {
   isProcessing.value = true
   try {
     if (confirmActionType.value === 'approve') {
-      await attendanceStore.approveAttendance(selectedOvertimeId.value)
+      await attendanceStore.approveOvertime(selectedOvertimeId.value)
     } else if (confirmActionType.value === 'reject') {
       await attendanceStore.rejectOvertime(selectedOvertimeId.value, rejectRemarks.value)
     }

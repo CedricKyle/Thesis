@@ -4,6 +4,7 @@ const { verifyToken } = require('../../middleware/auth-middleware.js')
 
 const router = express.Router()
 
+router.get('/active', verifyToken, controller.getActiveEmployeeSchedules)
 router.get('/', verifyToken, controller.getEmployeeSchedules)
 router.post('/', verifyToken, controller.assignSchedule)
 router.put('/:id', verifyToken, controller.updateEmployeeSchedule)

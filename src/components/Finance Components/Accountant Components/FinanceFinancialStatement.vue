@@ -1,153 +1,116 @@
 <script setup>
-import ExpensesImage from '@/assets/Images/expenses.png'
-import BalanceImage from '@/assets/Images/balance.png'
-import BudgetImage from '@/assets/Images/money-bag.png'
-import ProfitImage from '@/assets/Images/profit (1).png'
-import { EllipsisVertical } from 'lucide-vue-next'
+import { ref } from 'vue'
+import { BarChart2, TrendingUp, TrendingDown, DollarSign, Layers } from 'lucide-vue-next'
+
+// Dummy data for demonstration
+const summary = ref([
+  {
+    label: 'Total Assets',
+    value: 1200000,
+    icon: Layers,
+    color: 'bg-blue-100',
+    text: 'text-blue-700',
+  },
+  {
+    label: 'Total Liabilities',
+    value: 500000,
+    icon: TrendingDown,
+    color: 'bg-red-100',
+    text: 'text-red-700',
+  },
+  {
+    label: 'Total Equity',
+    value: 700000,
+    icon: TrendingUp,
+    color: 'bg-green-100',
+    text: 'text-green-700',
+  },
+  {
+    label: 'Net Income',
+    value: 120000,
+    icon: DollarSign,
+    color: 'bg-yellow-100',
+    text: 'text-yellow-700',
+  },
+])
+
+const incomeStatement = ref([
+  { label: 'Revenue', value: 800000 },
+  { label: 'Cost of Goods Sold', value: 300000 },
+  { label: 'Gross Profit', value: 500000 },
+  { label: 'Operating Expenses', value: 350000 },
+  { label: 'Net Income', value: 120000 },
+])
+
+const balanceSheet = ref([
+  { label: 'Assets', value: 1200000 },
+  { label: 'Liabilities', value: 500000 },
+  { label: 'Equity', value: 700000 },
+])
 </script>
 
 <template>
-  <div class="grid grid-cols-4 grid-rows-[auto_auto_auto_auto] gap-4 text-black">
-    <!-- Stats Grid -->
-    <div class="col-span-4 flex gap-7 justify-between">
-      <div>
-        <div class="card bg-white w-60 shadow-md">
-          <div class="card-body">
-            <div class="card-header flex flex-row gap-2 justify-between">
-              <div><h1 class="text-xl font-bold text-gray-600">Balance</h1></div>
-              <div><EllipsisVertical class="w-4 h-4" /></div>
-            </div>
-            <div class="card-content mt-4 flex flex-row gap-2 justify-between">
-              <div>
-                <h1 class="text-primaryColor text-4xl font-bold">₱ 4,320</h1>
-              </div>
-              <div class="w-11">
-                <img :src="ExpensesImage" alt="Expenses" class="w-11 h-11" />
-              </div>
-            </div>
-            <div
-              class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
-            ></div>
-            <div class="text-sm text-gray-500 mt-2">April 2025</div>
-          </div>
+  <div class="w-full bg-white shadow-md rounded-md p-6">
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-4 gap-4 mb-8">
+      <div
+        v-for="card in summary"
+        :key="card.label"
+        class="flex flex-col justify-between p-4 rounded-lg shadow border"
+        :class="card.color"
+      >
+        <div class="flex items-center justify-between">
+          <span class="font-semibold text-gray-600">{{ card.label }}</span>
+          <component :is="card.icon" class="w-6 h-6" :class="card.text" />
         </div>
-      </div>
-      <div>
-        <div class="card bg-white w-60 shadow-md">
-          <div class="card-body">
-            <div class="card-header flex flex-row gap-2 justify-between">
-              <div><h1 class="text-xl font-bold text-gray-600">Expenses</h1></div>
-              <div><EllipsisVertical class="w-4 h-4" /></div>
-            </div>
-            <div class="card-content mt-4 flex flex-row gap-2 justify-between">
-              <div>
-                <h1 class="text-primaryColor text-4xl font-bold">₱ 3,320</h1>
-              </div>
-              <div class="w-11">
-                <img :src="BalanceImage" alt="Balance" />
-              </div>
-            </div>
-            <div
-              class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
-            ></div>
-            <div class="text-sm text-gray-500 mt-2">April 2025</div>
-          </div>
-        </div>
-      </div>
-      <div>
-        <div class="card bg-white w-60 shadow-md">
-          <div class="card-body">
-            <div class="card-header flex flex-row gap-2 justify-between">
-              <div><h1 class="text-xl font-bold text-gray-600">Budget</h1></div>
-              <div><EllipsisVertical class="w-4 h-4" /></div>
-            </div>
-            <div class="card-content mt-4 flex flex-row gap-2 justify-between">
-              <div>
-                <h1 class="text-primaryColor text-4xl font-bold">₱ 1,370</h1>
-              </div>
-              <div class="w-11">
-                <img :src="BudgetImage" alt="Budget" />
-              </div>
-            </div>
-            <div
-              class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
-            ></div>
-            <div class="text-sm text-gray-500 mt-2">April 2025</div>
-          </div>
-        </div>
-      </div>
-      <div>
-        <div class="card bg-white w-60 shadow-md">
-          <div class="card-body">
-            <div class="card-header flex flex-row gap-2 justify-between">
-              <div><h1 class="text-xl font-bold text-gray-600">Income</h1></div>
-              <div><EllipsisVertical class="w-4 h-4" /></div>
-            </div>
-            <div class="card-content mt-4 flex flex-row gap-2 justify-between">
-              <div>
-                <h1 class="text-primaryColor text-4xl font-bold">₱300</h1>
-              </div>
-              <div class="w-11">
-                <img :src="ProfitImage" alt="Profit" />
-              </div>
-            </div>
-            <div
-              class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
-            ></div>
-            <div class="text-sm text-gray-500 mt-2">April 2025</div>
-          </div>
+        <div class="mt-4 text-3xl font-bold" :class="card.text">
+          ₱{{ card.value.toLocaleString('en-PH') }}
         </div>
       </div>
     </div>
 
-    <!-- Financial Statement Table Below Cards -->
-    <div class="col-span-4 mt-8">
-      <h3 class="text-xl font-semibold mb-4">Financial Summary</h3>
-      <div class="overflow-x-auto">
-        <table class="table w-full text-sm rounded-md">
-          <thead>
-            <tr class="bg-gray-100">
-              <th>Period</th>
-              <th class="text-right">Income (₱)</th>
-              <th class="text-right">Expenses (₱)</th>
-              <th class="text-right">Budget (₱)</th>
-              <th class="text-right">Balance (₱)</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>April 2025</td>
-              <td class="text-right">300</td>
-              <td class="text-right">3,320</td>
-              <td class="text-right">1,370</td>
-              <td class="text-right">4,320</td>
-            </tr>
-            <tr>
-              <td>March 2025</td>
-              <td class="text-right">1,000</td>
-              <td class="text-right">2,800</td>
-              <td class="text-right">1,500</td>
-              <td class="text-right">2,700</td>
-            </tr>
-            <tr>
-              <td>February 2025</td>
-              <td class="text-right">2,500</td>
-              <td class="text-right">2,500</td>
-              <td class="text-right">1,000</td>
-              <td class="text-right">3,000</td>
-            </tr>
-          </tbody>
-          <tfoot class="font-bold bg-gray-50">
-            <tr>
-              <td>Total</td>
-              <td class="text-right">₱3,800</td>
-              <td class="text-right">₱8,620</td>
-              <td class="text-right">₱3,870</td>
-              <td class="text-right">₱10,020</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+    <!-- Income Statement Table -->
+    <div class="mb-8">
+      <h3 class="text-lg font-semibold mb-2 text-primaryColor">Income Statement</h3>
+      <table class="table w-full text-sm rounded-md border">
+        <thead class="text-xs text-black">
+          <tr class="bg-gray-100">
+            <th class="text-left">Account</th>
+            <th class="text-right">Amount (₱)</th>
+          </tr>
+        </thead>
+        <tbody class="text-xs text-black">
+          <tr v-for="row in incomeStatement" :key="row.label">
+            <td>{{ row.label }}</td>
+            <td class="text-right">{{ row.value.toLocaleString('en-PH') }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Balance Sheet Table -->
+    <div class="mb-8">
+      <h3 class="text-lg font-semibold mb-2 text-primaryColor">Balance Sheet</h3>
+      <table class="table w-full text-sm rounded-md border">
+        <thead class="text-xs text-black">
+          <tr class="bg-gray-100">
+            <th class="text-left">Account</th>
+            <th class="text-right">Amount (₱)</th>
+          </tr>
+        </thead>
+        <tbody class="text-xs text-black">
+          <tr v-for="row in balanceSheet" :key="row.label">
+            <td>{{ row.label }}</td>
+            <td class="text-right">{{ row.value.toLocaleString('en-PH') }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Chart Placeholder -->
+    <div class="bg-gray-50 rounded-md p-6 flex flex-col items-center justify-center min-h-[200px]">
+      <BarChart2 class="w-12 h-12 text-gray-400 mb-2" />
+      <span class="text-gray-400">Charts coming soon...</span>
     </div>
   </div>
 </template>

@@ -273,7 +273,7 @@ const attendanceController = {
     }
   },
 
-  // Approve attendance (and OT if present)
+  // Approve attendance (regular only)
   async approveAttendance(req, res) {
     const t = await sequelize.transaction()
     try {
@@ -281,77 +281,36 @@ const attendanceController = {
       const { approved_by } = req.body
 
       const attendance = await EmployeeAttendance.findOne({
-        where: {
-          id,
-          deleted_at: null,
-        },
+        where: { id, deleted_at: null },
         transaction: t,
       })
 
       if (!attendance) {
         await t.rollback()
-        return res.status(404).json({
-          success: false,
-          message: 'Attendance record not found',
-        })
+        return res.status(404).json({ success: false, message: 'Attendance record not found' })
       }
 
       if (attendance.approval_status === 'Approved') {
         await t.rollback()
-        return res.status(400).json({
-          success: false,
-          message: 'Attendance record is already approved',
-        })
+        return res.status(400).json({ success: false, message: 'Attendance already approved' })
       }
 
-      // If this record has overtime_proof, calculate overtime_hours
-      if (attendance.overtime_proof && attendance.end_time) {
-        // Get the employee's schedule for this attendance
-        const empSchedule = await EmployeeSchedule.findOne({
-          where: { id: attendance.schedule_id, deleted_at: null },
-          include: [{ model: AvailableSchedule, as: 'schedule' }],
-        })
-        const schedule = empSchedule?.schedule
-        const scheduledEnd = schedule?.time_out || '18:00:00'
-        const [schedEndH, schedEndM] = scheduledEnd.split(':').map(Number)
-        const scheduledEndMinutes = schedEndH * 60 + schedEndM
-
-        const [h, m] = attendance.end_time.split(':').map(Number)
-        const outMinutes = h * 60 + m
-        let overtimeMinutes = 0
-        if (outMinutes > scheduledEndMinutes) {
-          overtimeMinutes = outMinutes - scheduledEndMinutes
-        }
-        const overtimeHours = (overtimeMinutes / 60).toFixed(2)
-
-        await attendance.update(
-          {
-            overtime_hours: overtimeHours,
-          },
-          { transaction: t },
-        )
-      }
+      // ... (overtime_hours calculation if needed) ...
 
       await attendance.update(
         {
           approval_status: 'Approved',
-          approved_by: approved_by,
+          approved_by,
           approved_at: new Date(),
         },
         { transaction: t },
       )
 
       await t.commit()
-      res.json({
-        success: true,
-        data: attendance,
-      })
+      res.json({ success: true, data: attendance })
     } catch (error) {
       await t.rollback()
-      res.status(500).json({
-        success: false,
-        message: error.message,
-      })
+      res.status(500).json({ success: false, message: error.message })
     }
   },
 
@@ -393,11 +352,11 @@ const attendanceController = {
           .json({ success: false, message: 'Overtime can only be filed after 6:00 PM.' })
       }
       // Check if attendance is approved
-      if (regular.approval_status !== 'Approved') {
+      if (regular.ot_approval_status === 'Approved' || regular.ot_approval_status === 'Rejected') {
         await t.rollback()
         return res
           .status(400)
-          .json({ success: false, message: 'Attendance must be approved before filing overtime.' })
+          .json({ success: false, message: 'Cannot file OT. Already approved or rejected.' })
       }
       // Prevent duplicate OT filing
       if (regular.overtime_proof) {
@@ -412,7 +371,7 @@ const attendanceController = {
       await regular.update(
         {
           overtime_proof: filePath,
-          approval_status: 'Pending', // If you want a separate OT approval status, add a new field
+          ot_approval_status: 'Pending', // <-- ito lang ang gagalawin
         },
         { transaction: t },
       )
@@ -646,6 +605,9 @@ const attendanceController = {
             approval_status: record?.approval_status || 'Pending',
             overtime_hours: record?.overtime_hours || 0,
             overtime_proof: record?.overtime_proof || null,
+            ot_approval_status: record?.ot_approval_status || null,
+            ot_approved_by: record?.ot_approved_by || null,
+            ot_approved_at: record?.ot_approved_at || null,
           })
         }
       }
@@ -993,11 +955,13 @@ const attendanceController = {
     }
   },
 
-  // Add this method to attendanceController
+  // Reject Overtime
   async rejectOvertime(req, res) {
     const t = await sequelize.transaction()
     try {
       const { id } = req.params
+      const { remarks } = req.body
+
       const attendance = await EmployeeAttendance.findOne({
         where: { id, deleted_at: null },
         transaction: t,
@@ -1008,12 +972,15 @@ const attendanceController = {
         return res.status(404).json({ success: false, message: 'Attendance record not found' })
       }
 
-      // Mark as rejected and clear OT fields
+      // Mark as rejected and clear OT fields, but DO NOT touch approval_status
       await attendance.update(
         {
           overtime_proof: null,
           overtime_hours: 0,
-          approval_status: 'Rejected',
+          ot_approval_status: 'Rejected',
+          ot_approved_by: null,
+          ot_approved_at: null,
+          ot_remarks: remarks || null,
         },
         { transaction: t },
       )
@@ -1142,6 +1109,67 @@ const attendanceController = {
       return res.json({ success: true, message: `Marked ${marked} employees as absent for today.` })
     } catch (err) {
       return res.status(500).json({ success: false, message: err.message })
+    }
+  },
+
+  // Approve Overtime
+  async approveOvertime(req, res) {
+    const t = await sequelize.transaction()
+    try {
+      const { id } = req.params
+      const { ot_approved_by } = req.body
+
+      const attendance = await EmployeeAttendance.findOne({
+        where: { id, deleted_at: null },
+        transaction: t,
+      })
+
+      if (!attendance) {
+        await t.rollback()
+        return res.status(404).json({ success: false, message: 'Attendance record not found' })
+      }
+
+      if (attendance.ot_approval_status === 'Approved') {
+        await t.rollback()
+        return res.status(400).json({ success: false, message: 'OT already approved' })
+      }
+
+      // --- DYNAMIC OT CALCULATION ---
+      let overtimeHours = 0
+      if (attendance.end_time && attendance.schedule_id) {
+        // Get the schedule for this attendance
+        const empSchedule = await EmployeeSchedule.findOne({
+          where: { id: attendance.schedule_id, deleted_at: null },
+          include: [{ model: AvailableSchedule, as: 'schedule' }],
+          transaction: t,
+        })
+        const scheduledOut = empSchedule?.schedule?.time_out // e.g. "17:00" or "18:00"
+        if (scheduledOut) {
+          // Convert both times to minutes
+          const [schedH, schedM] = scheduledOut.split(':').map(Number)
+          const [endH, endM] = attendance.end_time.split(':').map(Number)
+          const schedMinutes = schedH * 60 + schedM
+          const endMinutes = endH * 60 + endM
+          overtimeHours =
+            endMinutes > schedMinutes ? ((endMinutes - schedMinutes) / 60).toFixed(2) : 0
+        }
+      }
+
+      await attendance.update(
+        {
+          ot_approval_status: 'Approved',
+          ot_approved_by,
+          ot_approved_at: new Date(),
+          overtime_hours: overtimeHours,
+        },
+        { transaction: t },
+      )
+
+      await t.commit()
+      res.json({ success: true, data: attendance })
+    } catch (error) {
+      await t.rollback()
+      res.status(500).json({ success: false, message: error.message })
     }
   },
 }

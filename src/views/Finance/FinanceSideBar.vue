@@ -1,7 +1,7 @@
 <script setup>
 import BaseDepartmentSidebar from '@/components/common/BaseDepartmentSidebar.vue'
 import { PERMISSION_IDS } from '@/composables/Admin Composables/User & Role/role/permissionsId'
-import { LayoutDashboard, Wallet, FileText } from 'lucide-vue-next'
+import { LayoutDashboard, HandCoins, Landmark, FileChartLine } from 'lucide-vue-next'
 
 const menuItems = [
   {
@@ -11,34 +11,22 @@ const menuItems = [
     permission: PERMISSION_IDS.FINANCE_VIEW_DASHBOARD,
   },
   {
-    name: 'Payroll',
-    route: '/finance/payroll',
-    icon: Wallet,
-    permission: PERMISSION_IDS.FINANCE_MANAGE_PAYROLL,
-  },
-  {
-    name: 'Reports',
-    route: '/finance/reports',
-    icon: FileText,
-    permission: PERMISSION_IDS.FINANCE_VIEW_REPORTS,
-  },
-  {
-    name: 'Tax',
-    route: '/finance/tax-management',
-    icon: FileText,
-    permission: PERMISSION_IDS.FINANCE_MANAGE_TAX_MANAGEMENT,
+    name: 'Accounting',
+    route: '/finance/accounting-management',
+    icon: Landmark,
+    permission: PERMISSION_IDS.FINANCE_MANAGE_ACCOUNTING_MANAGEMENT,
   },
   {
     name: 'Treasury',
     route: '/finance/treasury-management',
-    icon: FileText,
+    icon: HandCoins,
     permission: PERMISSION_IDS.FINANCE_MANAGE_TREASURY_MANAGEMENT,
   },
   {
-    name: 'Accounting',
-    route: '/finance/accounting-management',
-    icon: FileText,
-    permission: PERMISSION_IDS.FINANCE_MANAGE_ACCOUNTING_MANAGEMENT,
+    name: 'Reports',
+    route: '/finance/reports',
+    icon: FileChartLine,
+    permission: PERMISSION_IDS.FINANCE_VIEW_REPORTS,
   },
 ]
 </script>

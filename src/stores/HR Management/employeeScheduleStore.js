@@ -119,6 +119,33 @@ export const useEmployeeScheduleStore = defineStore('employeeSchedule', () => {
     }
   }
 
+  const fetchActiveEmployeeSchedules = async () => {
+    try {
+      loading.value = true
+      error.value = null
+
+      // Call the new backend endpoint
+      const response = await employeeScheduleAPI.getActiveSchedules()
+
+      if (!response.data) {
+        throw new Error('No data received from server')
+      }
+
+      // Store only active schedules
+      employeeSchedules.value = Array.isArray(response.data)
+        ? response.data.map(formatScheduleData)
+        : [formatScheduleData(response.data)]
+
+      return response.data
+    } catch (err) {
+      console.error('Error fetching active schedules:', err)
+      error.value = err.response?.data?.message || 'Failed to fetch active schedules'
+      throw error.value
+    } finally {
+      loading.value = false
+    }
+  }
+
   // Helper function to format schedule data
   const formatScheduleData = (schedule) => {
     // Helper function to format array or string
@@ -158,5 +185,6 @@ export const useEmployeeScheduleStore = defineStore('employeeSchedule', () => {
     deleteEmployeeSchedule,
     restoreEmployeeSchedule,
     fetchEmployeeSchedules,
+    fetchActiveEmployeeSchedules,
   }
 })

@@ -2,10 +2,6 @@ import { createRouter, createWebHistory } from 'vue-router'
 import AdminSidebar from '@/views/Admin/AdminSidebar.vue'
 import UserRolesManagement from '@/views/Human Resource/UserRolesManagement.vue'
 import CreateRoleForm from '@/components/Users & Role/Roles/CreateRoleForm.vue'
-import FinancialManagement from '@/views/Admin/FinancialManagement.vue'
-import SalesManagement from '@/views/Admin/SalesManagement.vue'
-import InventoryManagement from '@/views/Admin/InventoryManagement.vue'
-import CRMManagement from '@/views/Admin/CRMManagement.vue'
 import HRDashboard from '@/views/Human Resource/HRDashboard.vue'
 import Employees from '@/views/Human Resource/Employees.vue'
 import Attendance from '@/views/Human Resource/Attendance.vue'
@@ -13,11 +9,8 @@ import AttendanceReport from '@/views/Human Resource/AttendanceReport.vue'
 import EditRoleForm from '@/components/Users & Role/Roles/EditRoleForm.vue'
 import LoginPage from '@/views/LoginPage.vue'
 import FinanceDashboard from '@/views/Finance/FinanceDashboard.vue'
-import FinancePayroll from '@/views/Finance/FinancePayroll.vue'
 import FinanceReport from '@/views/Finance/FinanceReport.vue'
-import BaseProductTable from '@/views/Supply Chain Management/BaseProductTable.vue'
 import SCMDashboard from '@/views/Supply Chain Management/SCMDashboard.vue'
-import StockView from '@/views/Supply Chain Management/StockView.vue'
 import CRMDashboard from '@/views/CRM Department/CRMDashboard.vue'
 import SalesDashboard from '@/views/Sales Department/SalesDashboard.vue'
 import HRMSidebar from '@/views/Human Resource/HRMSidebar.vue'
@@ -33,7 +26,7 @@ import SCMSupplierManagement from '@/views/Supply Chain Management/SCMSupplierMa
 import SCMPurchaseManagement from '@/views/Supply Chain Management/SCMPurchaseManagement.vue'
 import FinanceAccountingManagement from '@/views/Finance/FinanceAccountingManagement.vue'
 import FinanceTreasuryManagement from '@/views/Finance/FinanceTreasuryManagement.vue'
-import FinanceTaxManagement from '@/views/Finance/FinanceTaxManagement.vue'
+
 import HRPayroll from '@/views/Human Resource/HRPayroll.vue'
 import {
   PERMISSION_IDS,
@@ -52,6 +45,7 @@ const routes = [
     path: '/admin',
     component: AdminSidebar,
     children: [
+      // Admin Human Resource Router
       {
         path: '',
         redirect: '/admin/hr/dashboard',
@@ -90,25 +84,16 @@ const routes = [
         name: 'AdminAttendanceReport',
         component: AttendanceReport,
       },
+      // Admin Finance Router
       {
         path: 'finance/dashboard',
         name: 'AdminFinanceDashboard',
         component: FinanceDashboard,
       },
       {
-        path: 'finance/payroll',
-        name: 'AdminFinancePayroll',
-        component: FinancePayroll,
-      },
-      {
         path: 'finance/report',
         name: 'AdminFinanceReport',
         component: FinanceReport,
-      },
-      {
-        path: 'finance/tax-management',
-        name: 'AdminFinanceTaxManagement',
-        component: FinanceTaxManagement,
       },
       {
         path: 'finance/treasury-management',
@@ -120,20 +105,17 @@ const routes = [
         name: 'AdminFinanceAccountingManagement',
         component: FinanceAccountingManagement,
       },
+      // Admin Sales Router
       {
         path: 'sales/dashboard',
         name: 'AdminSalesDashboard',
         component: SalesDashboard,
       },
+      // Admin Supply Chain Management Router
       {
         path: 'inventory/dashboard',
         name: 'AdminSCMDashboard',
         component: SCMDashboard,
-      },
-      {
-        path: 'inventory/stocks',
-        name: 'AdminStocks',
-        component: StockView,
       },
       {
         path: 'inventory/inventory-management',
@@ -155,6 +137,7 @@ const routes = [
         name: 'AdminBranchDistributionManagement',
         component: SCMBranchDistributionManagement,
       },
+      // ADMIN CRM Router
       {
         path: 'crm/dashboard',
         name: 'AdminCRMDashboard',
@@ -264,19 +247,9 @@ const routes = [
         component: FinanceDashboard,
       },
       {
-        path: 'payroll',
-        name: 'FinancePayroll',
-        component: FinancePayroll,
-      },
-      {
         path: 'reports',
         name: 'FinanceReport',
         component: FinanceReport,
-      },
-      {
-        path: 'tax-management',
-        name: 'FinanceTaxManagement',
-        component: FinanceTaxManagement,
       },
       {
         path: 'treasury-management',
@@ -337,14 +310,6 @@ const routes = [
         component: SCMDashboard,
         meta: {
           permissions: [PERMISSION_IDS.SCM_VIEW_DASHBOARD],
-        },
-      },
-      {
-        path: 'stocks',
-        name: 'SCMStocks',
-        component: StockView,
-        meta: {
-          permissions: [PERMISSION_IDS.SCM_VIEW_STOCKS],
         },
       },
       {

@@ -176,7 +176,11 @@ const payrollController = {
 
         const validAttendance = attendance.filter((a) => a.approval_status !== 'Rejected')
         const totalHours = validAttendance.reduce((sum, a) => sum + Number(a.hours_worked || 0), 0)
-        const overtimeHours = attendance.reduce((sum, a) => sum + Number(a.overtime_hours || 0), 0)
+        const approvedOT = attendance.filter(
+          (a) => a.overtime_hours > 0 && a.ot_approval_status === 'Approved',
+        )
+        const overtimeHours = approvedOT.reduce((sum, a) => sum + Number(a.overtime_hours || 0), 0)
+        const overtimePay = overtimeHours * (ratePerHour * 1.25)
         const tardinessHours = Number(
           attendance
             .reduce(
@@ -201,7 +205,6 @@ const payrollController = {
         )
 
         const regularPay = totalHours * ratePerHour
-        const overtimePay = overtimeHours * (ratePerHour * 1.25)
         const grossPay = regularPay + overtimePay + holidayPay + restDayPay
 
         // If semi-monthly, multiply grossPay by 2 to get monthly equivalent

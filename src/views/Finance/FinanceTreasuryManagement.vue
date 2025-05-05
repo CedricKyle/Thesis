@@ -1,8 +1,8 @@
 <script setup>
 import { ref } from 'vue'
-import FinancePayroll from '@/components/Finance Components/Treasury Components/FinanceTreasuryPayroll.vue'
+import FinanceTreasuryPayroll from '@/components/Finance Components/Treasury Components/FinanceTreasuryPayroll.vue'
 import FinanceSCMSupplyRequest from '@/components/Finance Components/Treasury Components/FinanceSCMSupplyRequest.vue'
-import FinanceLogs from '@/components/Finance Components/Treasury Components/FinanceLogs.vue'
+import FinanceTreasuryLogs from '@/components/Finance Components/Treasury Components/FinanceTreasuryLogs.vue'
 
 const selectedTab = ref('payroll')
 </script>
@@ -21,7 +21,7 @@ const selectedTab = ref('payroll')
         checked
       />
       <div class="tab-content bg-white p-2">
-        <FinancePayroll />
+        <FinanceTreasuryPayroll />
       </div>
 
       <!-- Supply Request Tab -->
@@ -47,7 +47,7 @@ const selectedTab = ref('payroll')
         value="logs"
       />
       <div class="tab-content bg-white p-5">
-        <FinanceLogs />
+        <FinanceTreasuryLogs />
       </div>
     </div>
   </div>

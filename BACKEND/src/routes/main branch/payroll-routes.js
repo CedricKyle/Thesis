@@ -2,7 +2,10 @@ const express = require('express')
 const router = express.Router()
 const payrollController = require('../../controller/main branch/payroll-controller.js')
 const { verifyToken } = require('../../middleware/auth-middleware.js')
-const { getAuditLogs } = require('../../controller/main branch/audit-log-controller.js')
+const {
+  getAuditLogs,
+  getAllAuditLogs,
+} = require('../../controller/main branch/audit-log-controller.js')
 
 // Generate payrolls for a period
 router.post('/generate', verifyToken, payrollController.generatePayrolls)
@@ -27,5 +30,8 @@ router.patch('/:id', verifyToken, payrollController.editPayroll)
 
 // Get audit logs for a payroll
 router.get('/audit-logs', verifyToken, getAuditLogs)
+
+// Get all audit logs
+router.get('/audit-logs/all', verifyToken, getAllAuditLogs)
 
 module.exports = router

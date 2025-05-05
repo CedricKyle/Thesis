@@ -55,6 +55,9 @@ router.put(
   attendanceController.updateAttendance,
 )
 
+// Approve OT route
+router.put('/attendance/:id/approve-ot', attendanceController.approveOvertime)
+
 // Reject OT route
 router.put('/attendance/:id/reject-ot', attendanceController.rejectOvertime)
 

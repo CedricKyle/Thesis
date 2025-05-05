@@ -76,11 +76,6 @@ const tabs = {
         loadingComponent: LoadingSpinner,
         delay: 1000,
       }),
-      Payroll: defineAsyncComponent({
-        loader: () => import('../Finance/FinancePayroll.vue'),
-        loadingComponent: LoadingSpinner,
-        delay: 1000,
-      }),
       'Finance Report': defineAsyncComponent({
         loader: () => import('../Finance/FinanceReport.vue'),
         loadingComponent: LoadingSpinner,
@@ -159,9 +154,6 @@ const setTab = (tabName, parentTab = null) => {
         router.push({ name: 'HRDashboard' })
       }
       break
-    case 'Payroll':
-      router.push({ name: 'FinancePayroll' })
-      break
     case 'Finance Report':
       router.push({ name: 'FinanceReport' })
       break
@@ -188,7 +180,6 @@ onMounted(() => {
     CreateRole: 'Roles',
     Finance: 'Finance',
     FinanceDashboard: 'Dashboard',
-    Payroll: 'Payroll',
     'Finance Report': 'Finance Report',
     Sales: 'Sales',
     Inventory: 'Inventory',
@@ -205,7 +196,7 @@ onMounted(() => {
     if (['HRDashboard', 'Employees', 'Attendance', 'AttendanceReport'].includes(route.name)) {
       openParentMenu.value = 'Human Resource'
     }
-    if (['FinanceDashboard', 'Payroll', 'Finance Report'].includes(route.name)) {
+    if (['FinanceDashboard', 'Finance Report'].includes(route.name)) {
       openParentMenu.value = 'Finance'
     }
   }
