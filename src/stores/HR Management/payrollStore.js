@@ -62,5 +62,16 @@ export const usePayrollStore = defineStore('payroll', {
     async generatePayroll({ start_date, end_date }) {
       await axios.post('/api/payrolls/generate', { start_date, end_date })
     },
+    async fetchGlobalAuditLogs(params = {}) {
+      this.loading = true
+      try {
+        const { data } = await axios.get('/api/payrolls/audit-logs/all', { params })
+        this.auditLogs = data.data
+      } catch (err) {
+        this.error = err
+      } finally {
+        this.loading = false
+      }
+    },
   },
 })

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { MoveRight, EyeIcon, CheckIcon, XIcon, BookCheck, FileText } from 'lucide-vue-next'
 import { usePayrollStore } from '@/stores/HR Management/payrollStore'
 import { useAttendanceStore } from '@/stores/HR Management/attendanceStore'
@@ -39,8 +39,7 @@ const forReviewPayrolls = computed(() =>
   payrollStore.payrolls.filter(
     (row) =>
       row.status === 1 &&
-      (!dateFrom.value || row.start_date >= dateFrom.value) &&
-      (!dateTo.value || row.end_date <= dateTo.value),
+      (!selectedMonth.value || Number(row.month) === Number(selectedMonth.value)),
   ),
 )
 
@@ -71,8 +70,39 @@ const payrollHistory = computed(() =>
 const showPayslipModal = ref(false)
 const selectedPayslip = ref(null)
 
+const selectedMonth = ref('')
+const selectedYear = ref(new Date().getFullYear())
+
+const rowsPerPage = ref(10)
+const currentPage = ref(1)
+const historyPage = ref(1)
+
+const paginatedForReviewPayrolls = computed(() => {
+  const start = (currentPage.value - 1) * rowsPerPage.value
+  return forReviewPayrolls.value.slice(start, start + rowsPerPage.value)
+})
+const totalPages = computed(() =>
+  Math.max(1, Math.ceil(forReviewPayrolls.value.length / rowsPerPage.value)),
+)
+
+const paginatedPayrollHistory = computed(() => {
+  const start = (historyPage.value - 1) * rowsPerPage.value
+  return payrollHistory.value.slice(start, start + rowsPerPage.value)
+})
+const historyTotalPages = computed(() =>
+  Math.max(1, Math.ceil(payrollHistory.value.length / rowsPerPage.value)),
+)
+
 onMounted(() => {
   payrollStore.fetchPayrolls()
+})
+
+watch(forReviewPayrolls, () => {
+  if (currentPage.value > totalPages.value) currentPage.value = 1
+})
+
+watch(payrollHistory, () => {
+  if (historyPage.value > historyTotalPages.value) historyPage.value = 1
 })
 
 async function openViewModal(row) {
@@ -109,6 +139,7 @@ async function rejectPayroll() {
   try {
     await payrollStore.rejectPayroll(payrollToReject.value.id, rejectRemarks.value)
     triggerToast('Payroll rejected!', 'success')
+    filterByMonth()
   } catch (err) {
     triggerToast('Failed to reject payroll.', 'error')
   } finally {
@@ -135,6 +166,12 @@ async function confirmApprovePayroll() {
   try {
     await payrollStore.approvePayroll(payrollToApprove.value.id, approveRemarks.value)
     triggerToast('Payroll approved!', 'success')
+    if (selectedMonth.value) {
+      const { start_date, end_date } = getMonthDateRange(selectedMonth.value, selectedYear.value)
+      await payrollStore.fetchPayrolls({ start_date, end_date })
+    } else {
+      await payrollStore.fetchPayrolls()
+    }
   } catch (err) {
     triggerToast('Failed to approve payroll.', 'error')
   } finally {
@@ -166,6 +203,25 @@ function getDeductionAmount(type) {
   )
   return found ? Number(found.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 }) : '0.00'
 }
+
+function getMonthDateRange(month, year) {
+  // month: 1-based (1=January)
+  const start = new Date(year, month - 1, 1)
+  const end = new Date(year, month, 0)
+  return {
+    start_date: start.toISOString().slice(0, 10),
+    end_date: end.toISOString().slice(0, 10),
+  }
+}
+
+function filterByMonth() {
+  if (!selectedMonth.value) {
+    payrollStore.fetchPayrolls()
+    return
+  }
+  const { start_date, end_date } = getMonthDateRange(selectedMonth.value, selectedYear.value)
+  payrollStore.fetchPayrolls({ start_date, end_date })
+}
 </script>
 
 <template>
@@ -186,33 +242,22 @@ function getDeductionAmount(type) {
         </select>
       </div>
       <div class="flex gap-2 items-center">
-        <div class="">
-          <button
-            class="btn-primaryStyle"
-            @click="payrollStore.fetchPayrolls({ start_date: dateFrom, end_date: dateTo })"
+        <div class="flex gap-2 items-center">
+          <select
+            v-model="selectedMonth"
+            class="select bg-white border border-black text-black select-sm cursor-pointer"
           >
-            Filter
-          </button>
-        </div>
-        <div class="flex items-center bg-white border border-black rounded-sm shadow-sm space-x-2">
-          <input
-            v-model="dateFrom"
-            type="date"
-            class="input input-sm focus:outline-none text-black bg-transparent"
-            :max="dateTo"
-          />
-          <MoveRight class="w-10 h-6 text-black" />
-          <input
-            v-model="dateTo"
-            type="date"
-            class="w-full input input-sm focus:outline-none text-black bg-transparent"
-            :min="dateFrom"
-          />
+            <option value="">All Months</option>
+            <option v-for="m in 12" :key="m" :value="m">
+              {{ new Date(0, m - 1).toLocaleString('default', { month: 'long' }) }}
+            </option>
+          </select>
+          <button class="btn-primaryStyle" @click="filterByMonth">Filter</button>
         </div>
       </div>
     </div>
     <div class="overflow-x-auto">
-      <table class="table text-black w-full text-xs border border-gray-300 rounded-md">
+      <table class="table text-black w-full text-xs rounded-md">
         <thead class="text-xs text-black">
           <tr>
             <th>No.</th>
@@ -245,8 +290,8 @@ function getDeductionAmount(type) {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(row, idx) in forReviewPayrolls" :key="row.id">
-            <td>{{ idx + 1 }}</td>
+          <tr v-for="(row, idx) in paginatedForReviewPayrolls" :key="row.id">
+            <td>{{ (currentPage - 1) * rowsPerPage + idx + 1 }}</td>
             <td>{{ row.employee?.full_name }}</td>
             <td>{{ row.month }}</td>
             <td>{{ row.quarter }}</td>
@@ -325,13 +370,27 @@ function getDeductionAmount(type) {
               </div>
             </td>
           </tr>
-          <tr v-if="!forReviewPayrolls.length">
+          <tr v-if="!paginatedForReviewPayrolls.length">
             <td colspan="27" class="text-center py-4 text-gray-500">
               No payrolls for review found
             </td>
           </tr>
         </tbody>
       </table>
+    </div>
+    <div class="flex items-center gap-2 mt-4">
+      <span class="text-black text-xs">Page</span>
+      <select
+        class="select !bg-white !border-black !text-black select-xs w-16"
+        v-model="currentPage"
+        :disabled="totalPages <= 1"
+        @change="() => $nextTick(() => window.scrollTo(0, 0))"
+      >
+        <option v-for="page in totalPages" :key="page" :value="page">
+          {{ page }}
+        </option>
+      </select>
+      <span class="text-black text-xs">of {{ totalPages }}</span>
     </div>
   </div>
 
@@ -388,8 +447,8 @@ function getDeductionAmount(type) {
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(row, idx) in payrollHistory" :key="row.id">
-            <td>{{ idx + 1 }}</td>
+          <tr v-for="(row, idx) in paginatedPayrollHistory" :key="row.id">
+            <td>{{ (historyPage - 1) * rowsPerPage + idx + 1 }}</td>
             <td>{{ row.employee?.full_name || row.employee_id }}</td>
             <td>{{ row.month }}</td>
             <td>{{ row.quarter }}</td>
@@ -438,7 +497,7 @@ function getDeductionAmount(type) {
               </div>
             </td>
           </tr>
-          <tr v-if="!Array.isArray(payrollHistory) || !payrollHistory.length">
+          <tr v-if="!paginatedPayrollHistory.length">
             <td colspan="27" class="text-center py-4 text-gray-500">No payroll history found</td>
           </tr>
         </tbody>
@@ -446,7 +505,20 @@ function getDeductionAmount(type) {
     </div>
   </div>
 
-  <FinancePayrollAuditLog :logs="payrollStore.auditLogs" />
+  <div class="flex items-center gap-2 mt-4">
+    <span class="text-black text-xs">Page</span>
+    <select
+      class="select !bg-white !border-black !text-black select-xs w-16"
+      v-model="historyPage"
+      :disabled="historyTotalPages <= 1"
+      @change="() => $nextTick(() => window.scrollTo(0, 0))"
+    >
+      <option v-for="page in historyTotalPages" :key="page" :value="page">
+        {{ page }}
+      </option>
+    </select>
+    <span class="text-black text-xs">of {{ historyTotalPages }}</span>
+  </div>
 
   <dialog v-if="showViewModal" open class="modal z-50">
     <div class="modal-box bg-white text-black max-w-2xl">
@@ -662,17 +734,10 @@ function getDeductionAmount(type) {
       <textarea
         v-model="approveRemarks"
         class="textarea w-full bg-white border border-black rounded-md"
-        placeholder="Enter remarks (required)"
-        required
+        placeholder="Enter remarks (optional)"
       ></textarea>
       <div class="modal-action">
-        <button
-          class="btn-primaryStyle"
-          :disabled="!approveRemarks.trim()"
-          @click="confirmApprovePayroll"
-        >
-          Yes, Approve
-        </button>
+        <button class="btn-primaryStyle" @click="confirmApprovePayroll">Yes, Approve</button>
         <button class="btn-secondaryStyle" @click="showApproveModal = false">Cancel</button>
       </div>
     </div>
@@ -720,7 +785,9 @@ function getDeductionAmount(type) {
       ></textarea>
       <div class="modal-action">
         <button class="btn-secondaryStyle" @click="showRejectModal = false">Cancel</button>
-        <button class="btn-errorStyle" @click="rejectPayroll">Reject</button>
+        <button class="btn-errorStyle" :disabled="!rejectRemarks.trim()" @click="rejectPayroll">
+          Reject
+        </button>
       </div>
     </div>
   </dialog>
