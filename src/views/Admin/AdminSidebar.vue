@@ -302,7 +302,7 @@ const cancelLogout = () => {
             </div>
             <!-- Name and Role -->
             <div class="name-container flex-1">
-              <h3 class="font-semibold text-sm text-white">{{ navbarDisplayData.name }}</h3>
+              <h3 class="font-thin text-sm text-white">{{ navbarDisplayData.name }}</h3>
               <p class="text-xs text-gray-300">{{ navbarDisplayData.role }}</p>
             </div>
           </label>

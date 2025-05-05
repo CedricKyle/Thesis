@@ -659,7 +659,7 @@ const formattedSchedule = computed(() => {
             </div>
             <!-- Name and Role -->
             <div class="name-container">
-              <h3 class="font-semibold text-sm text-gray-300">{{ navbarDisplayData.name }}</h3>
+              <h3 class="font-thin text-sm text-gray-300">{{ navbarDisplayData.name }}</h3>
               <p v-if="navbarDisplayData.jobTitle" class="text-gray-300 text-xs">
                 {{ navbarDisplayData.jobTitle }}
               </p>

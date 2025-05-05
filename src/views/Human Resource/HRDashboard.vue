@@ -73,7 +73,7 @@ function getDateRange() {
 // Filtered stats based on selected range
 const filteredStats = computed(() => {
   if (!attendanceRecords.value || !employees.value) {
-    return { present: 0, absent: 0, late: 0 }
+    return { present: 0, absent: 0, late: 0, onLeave: 0 }
   }
   const dateRange = getDateRange()
   const activeEmployees = employees.value.filter(
@@ -82,6 +82,7 @@ const filteredStats = computed(() => {
   let present = 0
   let absent = 0
   let late = 0
+  let onLeave = 0
 
   dateRange.forEach((date) => {
     const recordsForDate = attendanceRecords.value.filter((record) => record.date === date)
@@ -89,6 +90,7 @@ const filteredStats = computed(() => {
     let dayPresent = 0
     let dayAbsent = activeEmployees.length
     let dayLate = 0
+    let dayOnLeave = 0
     activeEmployees.forEach((employee) => {
       const record = attendanceMap.get(employee.employee_id)
       if (record && record.signIn !== '-') {
@@ -103,14 +105,19 @@ const filteredStats = computed(() => {
             dayLate++
             dayAbsent--
             break
+          case 'On Leave':
+            dayOnLeave++
+            dayAbsent--
+            break
         }
       }
     })
     present += dayPresent
     absent += dayAbsent
     late += dayLate
+    onLeave += dayOnLeave
   })
-  return { present, absent, late }
+  return { present, absent, late, onLeave }
 })
 
 // Pie chart data (still for the selected date only)
@@ -523,7 +530,7 @@ const noRecords = computed(() => {
 
     <div class="grid grid-cols-4 grid-rows-[auto_auto_auto_auto] gap-4 text-black">
       <!--Stats Grid-->
-      <div class="col-span-3 flex gap-4 justify-between">
+      <div class="col-span-4 flex gap-4 justify-between">
         <div>
           <div class="card bg-white w-65 shadow-md">
             <div class="card-body">
@@ -579,6 +586,27 @@ const noRecords = computed(() => {
                 </div>
                 <div>
                   <Timer class="w-9 h-9 text-white rounded-full p-2 bg-[#F87A14]" />
+                </div>
+              </div>
+              <div
+                class="divider m-0 before:bg-gray-300 after:bg-gray-300 before:h-[.5px] after:h-[.5px]"
+              ></div>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="card bg-white w-65 shadow-md">
+            <div class="card-body">
+              <div class="card-header flex flex-row gap-2 justify-between">
+                <div><h1 class="text-gray-600">On Leave</h1></div>
+                <div><EllipsisVertical class="w-4 h-4" /></div>
+              </div>
+              <div class="card-content mt-4 flex flex-row gap-2 justify-between">
+                <div>
+                  <h1 class="text-4xl font-bold">{{ filteredStats.onLeave }}</h1>
+                </div>
+                <div>
+                  <Footprints class="w-9 h-9 text-white rounded-full p-2 bg-blue-400" />
                 </div>
               </div>
               <div

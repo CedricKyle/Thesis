@@ -23,9 +23,9 @@ export const PERMISSION_IDS = {
   // Finance Department Permissions
   FINANCE_FULL_ACCESS: 8,
   FINANCE_VIEW_DASHBOARD: 9,
-  FINANCE_MANAGE_PAYROLL: 10,
+  // FINANCE_MANAGE_PAYROLL: 10,
   FINANCE_VIEW_REPORTS: 11,
-  FINANCE_MANAGE_TAX_MANAGEMENT: 23,
+  // FINANCE_MANAGE_TAX_MANAGEMENT: 23,
   FINANCE_MANAGE_TREASURY_MANAGEMENT: 24,
   FINANCE_MANAGE_ACCOUNTING_MANAGEMENT: 25,
 
@@ -35,7 +35,7 @@ export const PERMISSION_IDS = {
 
   // SCM Department Permissions
   SCM_FULL_ACCESS: 14,
-  SCM_VIEW_STOCKS: 15,
+  // SCM_VIEW_STOCKS: 15,
   SCM_VIEW_DASHBOARD: 16,
   SCM_MANAGE_INVENTORY_MANAGEMENT: 19,
   SCM_MANAGE_SUPPLIERS_MANAGEMENT: 20,
@@ -72,9 +72,7 @@ export const permissionGroups = [
     permissions: [
       { id: PERMISSION_IDS.FINANCE_FULL_ACCESS, name: 'Full Access' },
       { id: PERMISSION_IDS.FINANCE_VIEW_DASHBOARD, name: 'View Dashboard' },
-      { id: PERMISSION_IDS.FINANCE_MANAGE_PAYROLL, name: 'Manage Payroll' },
       { id: PERMISSION_IDS.FINANCE_VIEW_REPORTS, name: 'View Reports' },
-      { id: PERMISSION_IDS.FINANCE_MANAGE_TAX_MANAGEMENT, name: 'Manage Tax Management' },
       { id: PERMISSION_IDS.FINANCE_MANAGE_TREASURY_MANAGEMENT, name: 'Manage Treasury Management' },
       {
         id: PERMISSION_IDS.FINANCE_MANAGE_ACCOUNTING_MANAGEMENT,
@@ -96,7 +94,6 @@ export const permissionGroups = [
     permissions: [
       { id: PERMISSION_IDS.SCM_FULL_ACCESS, name: 'Full Access' },
       { id: PERMISSION_IDS.SCM_VIEW_DASHBOARD, name: 'View Dashboard' },
-      { id: PERMISSION_IDS.SCM_VIEW_STOCKS, name: 'View Stocks' },
       { id: PERMISSION_IDS.SCM_MANAGE_INVENTORY_MANAGEMENT, name: 'Manage Inventory Management' },
       { id: PERMISSION_IDS.SCM_MANAGE_SUPPLIERS_MANAGEMENT, name: 'Manage Suppliers Management' },
       { id: PERMISSION_IDS.SCM_MANAGE_PURCHASE_MANAGEMENT, name: 'Manage Purchase Management' },

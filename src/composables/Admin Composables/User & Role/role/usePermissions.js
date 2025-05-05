@@ -129,22 +129,10 @@ export function usePermissions(employeeRole) {
         permission: PERMISSION_IDS.FINANCE_VIEW_DASHBOARD,
       },
       {
-        name: 'Payroll',
-        route: '/finance/payroll',
-        icon: Wallet,
-        permission: PERMISSION_IDS.FINANCE_MANAGE_PAYROLL,
-      },
-      {
-        name: 'Reports',
-        route: '/finance/report',
+        name: 'Accounting',
+        route: '/finance/accounting-management',
         icon: FileText,
-        permission: PERMISSION_IDS.FINANCE_VIEW_REPORTS,
-      },
-      {
-        name: 'Tax',
-        route: '/finance/tax-management',
-        icon: FileText,
-        permission: PERMISSION_IDS.FINANCE_MANAGE_TAX_MANAGEMENT,
+        permission: PERMISSION_IDS.FINANCE_MANAGE_ACCOUNTING_MANAGEMENT,
       },
       {
         name: 'Treasury',
@@ -153,10 +141,10 @@ export function usePermissions(employeeRole) {
         permission: PERMISSION_IDS.FINANCE_MANAGE_TREASURY_MANAGEMENT,
       },
       {
-        name: 'Accounting',
-        route: '/finance/accounting-management',
+        name: 'Reports',
+        route: '/finance/report',
         icon: FileText,
-        permission: PERMISSION_IDS.FINANCE_MANAGE_ACCOUNTING_MANAGEMENT,
+        permission: PERMISSION_IDS.FINANCE_VIEW_REPORTS,
       },
     ],
     [DEPARTMENTS.SALES]: [
@@ -175,10 +163,28 @@ export function usePermissions(employeeRole) {
         permission: PERMISSION_IDS.SCM_VIEW_DASHBOARD,
       },
       {
-        name: 'Stocks',
-        route: '/scm/stocks',
+        name: 'Inventory Management',
+        route: '/scm/inventory-management',
         icon: Package,
-        permission: PERMISSION_IDS.SCM_VIEW_STOCKS,
+        permission: PERMISSION_IDS.SCM_MANAGE_INVENTORY_MANAGEMENT,
+      },
+      {
+        name: 'Supplier Management',
+        route: '/scm/supplier-management',
+        icon: Users,
+        permission: PERMISSION_IDS.SCM_MANAGE_SUPPLIERS_MANAGEMENT,
+      },
+      {
+        name: 'Purchase Management',
+        route: '/scm/purchase-management',
+        icon: ShoppingCart,
+        permission: PERMISSION_IDS.SCM_MANAGE_PURCHASE_MANAGEMENT,
+      },
+      {
+        name: 'Branch Distribution Management',
+        route: '/scm/branch-distribution-management',
+        icon: Truck,
+        permission: PERMISSION_IDS.SCM_MANAGE_BRANCH_DISTRIBUTION_MANAGEMENT,
       },
     ],
     [DEPARTMENTS.CRM]: [
@@ -228,14 +234,8 @@ export function usePermissions(employeeRole) {
           Dashboard: {
             route: '/admin/finance/dashboard',
           },
-          Payroll: {
-            route: '/admin/finance/payroll',
-          },
           'Finance Report': {
             route: '/admin/finance/report',
-          },
-          Tax: {
-            route: '/admin/finance/tax-management',
           },
           Treasury: {
             route: '/admin/finance/treasury-management',
@@ -258,9 +258,6 @@ export function usePermissions(employeeRole) {
         submenu: {
           Dashboard: {
             route: '/admin/inventory/dashboard',
-          },
-          Stocks: {
-            route: '/admin/inventory/stocks',
           },
           'Inventory ': {
             route: '/admin/inventory/inventory-management',
