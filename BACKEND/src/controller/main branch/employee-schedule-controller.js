@@ -166,7 +166,7 @@ const restoreEmployeeSchedule = async (req, res) => {
   }
 }
 
-async function getEmployeeSchedule(req, res) {
+const getEmployeeSchedule = async (req, res) => {
   const { employee_id } = req.params
   try {
     const schedule = await EmployeeSchedule.findOne({
@@ -191,6 +191,28 @@ async function getEmployeeSchedule(req, res) {
   }
 }
 
+const getActiveEmployeeSchedules = async (req, res) => {
+  try {
+    const schedules = await EmployeeSchedule.findAll({
+      where: { deleted_at: null }, // Only active
+      include: [
+        {
+          model: Employee,
+          as: 'employee',
+          attributes: ['employee_id', 'full_name', 'department'],
+        },
+        {
+          model: AvailableSchedule,
+          as: 'schedule',
+        },
+      ],
+    })
+    res.json(schedules)
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching active schedules', error: error.message })
+  }
+}
+
 module.exports = {
   assignSchedule,
   getEmployeeSchedules,
@@ -198,4 +220,5 @@ module.exports = {
   deleteEmployeeSchedule,
   restoreEmployeeSchedule,
   getEmployeeSchedule,
+  getActiveEmployeeSchedules,
 }

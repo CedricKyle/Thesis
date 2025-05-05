@@ -1218,11 +1218,11 @@ export const useAttendanceStore = defineStore('attendance', () => {
     }
   }
 
-  const rejectOvertime = async (attendanceId) => {
+  const rejectOvertime = async (attendanceId, remarks = '') => {
     try {
       const response = await axios.put(
         `/api/attendance/attendance/${attendanceId}/reject-ot`,
-        {},
+        { remarks },
         { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } },
       )
       if (response.data.success) {
@@ -1233,6 +1233,34 @@ export const useAttendanceStore = defineStore('attendance', () => {
       }
     } catch (error) {
       console.error('Error rejecting overtime:', error)
+      throw error
+    }
+  }
+
+  const approveOvertime = async (attendanceId) => {
+    try {
+      const authStore = useAuthStore()
+      const currentUser = authStore.currentUser
+
+      if (!currentUser) {
+        throw new Error('No authenticated user found')
+      }
+
+      const response = await axios.put(
+        `/api/attendance/attendance/${attendanceId}/approve-ot`,
+        {
+          ot_approved_by: currentUser.full_name,
+        },
+        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } },
+      )
+      if (response.data.success) {
+        await loadRecords()
+        return response.data.data
+      } else {
+        throw new Error(response.data.message || 'Failed to approve overtime')
+      }
+    } catch (error) {
+      console.error('Error approving overtime:', error)
       throw error
     }
   }
@@ -1334,5 +1362,8 @@ export const useAttendanceStore = defineStore('attendance', () => {
 
     // Add this new action
     rejectOvertime,
+
+    // Add this new action
+    approveOvertime,
   }
 })

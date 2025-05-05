@@ -348,15 +348,9 @@ const confirmAction = async () => {
 
       const updatedSchedule = {
         id: editSchedule.value.id,
-        employeeName: editSchedule.value.employeeName,
-        department: editSchedule.value.department,
-        type: editSchedule.value.type,
-        timeIn: editSchedule.value.timeIn,
-        timeOut: editSchedule.value.timeOut,
-        day: editSchedule.value.day,
-        dayOff: editSchedule.value.dayOff,
-        remarks: editSchedule.value.remarks,
         employee_id: editSchedule.value.employee?.employee_id,
+        schedule_id: selectedAvailableSchedule.value?.id,
+        remarks: editSchedule.value.remarks,
       }
 
       await employeeScheduleStore.updateEmployeeSchedule(updatedSchedule.id, updatedSchedule)
@@ -430,7 +424,7 @@ onMounted(async () => {
   try {
     await Promise.all([
       scheduleStore.fetchSchedules(),
-      employeeScheduleStore.fetchEmployeeSchedules(),
+      employeeScheduleStore.fetchActiveEmployeeSchedules(),
       employeeStore.loadEmployees(),
     ])
   } catch (error) {

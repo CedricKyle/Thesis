@@ -119,6 +119,7 @@ const columns = [
       const status = cell.getValue()
       const statusClasses = {
         Present: 'bg-green-100 text-green-800',
+        'Present (Day Off)': 'bg-purple-100 text-purple-800',
         'Present + OT': 'bg-green-100 text-green-800',
         Absent: 'bg-red-100 text-red-800',
         Late: 'bg-yellow-100 text-yellow-800',

@@ -82,12 +82,29 @@ module.exports = (sequelize) => {
         type: DataTypes.ENUM('Pending', 'Approved', 'Rejected'),
         defaultValue: 'Pending',
       },
+      ot_approval_status: {
+        type: DataTypes.ENUM('Pending', 'Approved', 'Rejected'),
+        allowNull: true,
+        defaultValue: null,
+      },
+      ot_approved_by: {
+        type: DataTypes.STRING(150),
+        allowNull: true,
+      },
+      ot_approved_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
       approved_by: {
         type: DataTypes.STRING(150),
         allowNull: true,
       },
       approved_at: {
         type: DataTypes.DATE,
+        allowNull: true,
+      },
+      ot_remarks: {
+        type: DataTypes.TEXT,
         allowNull: true,
       },
       created_at: {

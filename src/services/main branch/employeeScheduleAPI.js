@@ -20,4 +20,6 @@ export const employeeScheduleAPI = {
   restoreSchedule(id) {
     return axios.post(`/api/employee-schedules/${id}/restore`)
   },
+
+  getActiveSchedules: () => axios.get('/api/employee-schedules/active'),
 }

@@ -158,18 +158,31 @@ const chartData = computed(() => ({
 }))
 
 const employeeChartData = computed(() => {
-  if (!reportSummary.value) return { labels: [], datasets: [] }
+  const records = getAttendanceReport.value || []
+  if (!records.length) return { labels: [], datasets: [] }
+
+  // Get the employee's schedule
+  const schedule = employeeScheduleStore.employeeSchedules.find(
+    (s) => s.employee_id === reportFilters.value.employeeId,
+  )
+  const dayOffString = schedule?.dayOff || ''
+
+  // Count using getDisplayStatus
+  const present = records.filter(
+    (r) =>
+      getDisplayStatus(r, dayOffString) === 'Present' ||
+      getDisplayStatus(r, dayOffString) === 'Present (Day Off)',
+  ).length
+  const late = records.filter((r) => getDisplayStatus(r, dayOffString) === 'Late').length
+  const absent = records.filter((r) => getDisplayStatus(r, dayOffString) === 'Absent').length
+  const onLeave = records.filter((r) => getDisplayStatus(r, dayOffString) === 'On Leave').length
+
   return {
     labels: ['Present', 'Late', 'Absent', 'On Leave'],
     datasets: [
       {
         label: 'Days',
-        data: [
-          reportSummary.value['Present Days'] || 0,
-          reportSummary.value['Late Days'] || 0,
-          reportSummary.value['Absent Days'] || 0,
-          reportSummary.value['On Leave Days'] || 0,
-        ],
+        data: [present, late, absent, onLeave],
         backgroundColor: ['#4ade80', '#facc15', '#f87171', '#60a5fa'],
       },
     ],
@@ -177,31 +190,68 @@ const employeeChartData = computed(() => {
 })
 
 // Chart for department report (uses full employee summaries)
-const departmentChartData = computed(() => ({
-  labels: departmentFullEmployeeSummaries.value.map((emp) => emp.name),
-  datasets: [
-    {
-      label: 'Present',
-      data: departmentFullEmployeeSummaries.value.map((emp) => emp.present),
-      backgroundColor: '#466114',
-    },
-    {
-      label: 'Late',
-      data: departmentFullEmployeeSummaries.value.map((emp) => emp.late),
-      backgroundColor: '#f87a14',
-    },
-    {
-      label: 'Absent',
-      data: departmentFullEmployeeSummaries.value.map((emp) => emp.absent),
-      backgroundColor: '#f87171',
-    },
-    {
-      label: 'On Leave',
-      data: departmentFullEmployeeSummaries.value.map((emp) => emp.onLeave),
-      backgroundColor: '#60a5fa',
-    },
-  ],
-}))
+const departmentChartData = computed(() => {
+  // Group records by employee
+  const records = mappedDepartmentAttendance.value || []
+  const employeeMap = {}
+  records.forEach((rec) => {
+    if (!employeeMap[rec.employee_id]) employeeMap[rec.employee_id] = []
+    employeeMap[rec.employee_id].push(rec)
+  })
+
+  const employeeNames = []
+  const presentArr = []
+  const lateArr = []
+  const absentArr = []
+  const onLeaveArr = []
+
+  Object.entries(employeeMap).forEach(([employee_id, recs]) => {
+    // Get schedule for this employee
+    const schedule = employeeScheduleStore.employeeSchedules.find(
+      (s) => s.employee_id === employee_id,
+    )
+    const dayOffString = schedule?.dayOff || ''
+    const name = recs[0]?.full_name || 'Unknown'
+
+    employeeNames.push(name)
+    presentArr.push(
+      recs.filter(
+        (r) =>
+          getDisplayStatus(r, dayOffString) === 'Present' ||
+          getDisplayStatus(r, dayOffString) === 'Present (Day Off)',
+      ).length,
+    )
+    lateArr.push(recs.filter((r) => getDisplayStatus(r, dayOffString) === 'Late').length)
+    absentArr.push(recs.filter((r) => getDisplayStatus(r, dayOffString) === 'Absent').length)
+    onLeaveArr.push(recs.filter((r) => getDisplayStatus(r, dayOffString) === 'On Leave').length)
+  })
+
+  return {
+    labels: employeeNames,
+    datasets: [
+      {
+        label: 'Present',
+        data: presentArr,
+        backgroundColor: '#466114',
+      },
+      {
+        label: 'Late',
+        data: lateArr,
+        backgroundColor: '#f87a14',
+      },
+      {
+        label: 'Absent',
+        data: absentArr,
+        backgroundColor: '#f87171',
+      },
+      {
+        label: 'On Leave',
+        data: onLeaveArr,
+        backgroundColor: '#60a5fa',
+      },
+    ],
+  }
+})
 
 const departmentMostStats = computed(() => {
   if (!isDepartmentReport.value || !departmentFullEmployeeSummaries.value.length) return {}
@@ -259,41 +309,50 @@ const correctedReportSummary = computed(() => {
   const records = getAttendanceReport.value || []
   if (!records.length) return {}
 
-  // Get the employee's schedule (assuming only one schedule per employee)
+  // Get the employee's schedule
   const schedule = employeeScheduleStore.employeeSchedules.find(
     (s) => s.employee_id === reportFilters.value.employeeId,
   )
   const dayOffString = schedule?.dayOff || ''
 
-  // Only count scheduled workdays (exclude day offs)
-  const workdayRecords = records.filter((r) => !isDayOff(r.date, dayOffString))
-
-  const presentDays = workdayRecords.filter((r) => r.status === 'Present').length
-  const lateDays = workdayRecords.filter((r) => r.status === 'Late').length
-  const totalPresentDays = presentDays + lateDays
-  const absentDays = workdayRecords.filter((r) => r.status === 'Absent').length
-  const onLeaveDays = workdayRecords.filter((r) => r.status === 'On Leave').length
-  const totalRegularHours = workdayRecords
-    .filter((r) => r.status !== 'Absent' && r.status !== 'On Leave')
-    .reduce((sum, r) => sum + Number(r.regular_hours || 0), 0)
-  const totalHours = workdayRecords
-    .filter((r) => r.status !== 'Absent' && r.status !== 'On Leave')
-    .reduce((sum, r) => sum + Number(r.workingHours ?? r.hours_worked ?? 0), 0)
-  const totalOvertime = workdayRecords
-    .filter((r) => r.status !== 'Absent' && r.status !== 'On Leave')
-    .reduce((sum, r) => sum + Number(r.overtime_hours || 0), 0)
-
+  // Use display status for all calculations
   return {
-    'Total Days': workdayRecords.length,
-    'Present Days': presentDays,
-    'Late Days': lateDays,
-    'Total Present Days': totalPresentDays,
-    'Absent Days': absentDays,
-    'On Leave Days': onLeaveDays,
-    'Regular Hours': totalRegularHours,
-    'Total Hours': totalHours,
-    'Total Overtime': totalOvertime,
-    // ...other stats
+    'Total Days': records.length,
+    'Present Days': records.filter(
+      (r) =>
+        getDisplayStatus(r, dayOffString) === 'Present' ||
+        getDisplayStatus(r, dayOffString) === 'Present (Day Off)',
+    ).length,
+    'Late Days': records.filter((r) => getDisplayStatus(r, dayOffString) === 'Late').length,
+    'Total Present Days': records.filter(
+      (r) =>
+        getDisplayStatus(r, dayOffString) === 'Present' ||
+        getDisplayStatus(r, dayOffString) === 'Late' ||
+        getDisplayStatus(r, dayOffString) === 'Present (Day Off)',
+    ).length,
+    'Absent Days': records.filter((r) => getDisplayStatus(r, dayOffString) === 'Absent').length,
+    'On Leave Days': records.filter((r) => getDisplayStatus(r, dayOffString) === 'On Leave').length,
+    'Regular Hours': records
+      .filter(
+        (r) =>
+          getDisplayStatus(r, dayOffString) !== 'Absent' &&
+          getDisplayStatus(r, dayOffString) !== 'On Leave',
+      )
+      .reduce((sum, r) => sum + Number(r.regular_hours || 0), 0),
+    'Total Hours': records
+      .filter(
+        (r) =>
+          getDisplayStatus(r, dayOffString) !== 'Absent' &&
+          getDisplayStatus(r, dayOffString) !== 'On Leave',
+      )
+      .reduce((sum, r) => sum + Number(r.workingHours ?? r.hours_worked ?? 0), 0),
+    'Total Overtime': records
+      .filter(
+        (r) =>
+          getDisplayStatus(r, dayOffString) !== 'Absent' &&
+          getDisplayStatus(r, dayOffString) !== 'On Leave',
+      )
+      .reduce((sum, r) => sum + Number(r.overtime_hours || 0), 0),
   }
 })
 
@@ -328,7 +387,13 @@ const correctedDepartmentEmployeeSummaries = computed(() => {
     const dayOffString = schedule?.dayOff || ''
 
     // Filter out day offs
-    const filteredRecords = records.filter((r) => !isDayOff(r.date, dayOffString))
+    const filteredRecords = records.filter((r) => {
+      if (isDayOff(r.date, dayOffString)) {
+        // Include if worked on day off
+        return r.signIn && r.signIn !== '-' && r.signOut && r.signOut !== '-'
+      }
+      return true
+    })
 
     const present = filteredRecords.filter((r) => r.status === 'Present').length
     const late = filteredRecords.filter((r) => r.status === 'Late').length
@@ -359,7 +424,13 @@ const allRecords = computed(() => {
       (s) => s.employee_id === emp.employee_id,
     )
     const dayOffString = schedule?.dayOff || ''
-    return (emp.records || []).filter((r) => !isDayOff(r.date, dayOffString))
+    return (emp.records || []).filter((r) => {
+      if (isDayOff(r.date, dayOffString)) {
+        // Include if worked on day off
+        return r.signIn && r.signIn !== '-' && r.signOut && r.signOut !== '-'
+      }
+      return true
+    })
   })
 })
 
@@ -367,16 +438,30 @@ const companyWideSummary = computed(() => {
   const records = allRecords.value
   if (!records.length) return {}
 
-  const presentDays = records.filter((r) => r.status === 'Present' || r.status === 'Late').length
-  const lateDays = records.filter((r) => r.status === 'Late').length
-  const absentDays = records.filter((r) => r.status === 'Absent').length
-  const onLeaveDays = records.filter((r) => r.status === 'On Leave').length
-  const totalHours = records
-    .filter((r) => r.status !== 'Absent' && r.status !== 'On Leave')
-    .reduce((sum, r) => sum + Number(r.workingHours ?? r.hours_worked ?? 0), 0)
-  const totalOvertime = records
-    .filter((r) => r.status !== 'Absent' && r.status !== 'On Leave')
-    .reduce((sum, r) => sum + Number(r.overtime_hours || 0), 0)
+  let presentDays = 0,
+    lateDays = 0,
+    absentDays = 0,
+    onLeaveDays = 0,
+    totalHours = 0,
+    totalOvertime = 0
+
+  records.forEach((r) => {
+    // Get schedule for this employee
+    const schedule = employeeScheduleStore.employeeSchedules.find(
+      (s) => s.employee_id === r.employee_id,
+    )
+    const dayOffString = schedule?.dayOff || ''
+    const displayStatus = getDisplayStatus(r, dayOffString)
+
+    if (displayStatus === 'Present' || displayStatus === 'Present (Day Off)') presentDays++
+    if (displayStatus === 'Late') lateDays++
+    if (displayStatus === 'Absent') absentDays++
+    if (displayStatus === 'On Leave') onLeaveDays++
+    if (displayStatus !== 'Absent' && displayStatus !== 'On Leave') {
+      totalHours += Number(r.workingHours ?? r.hours_worked ?? 0)
+      totalOvertime += Number(r.overtime_hours || 0)
+    }
+  })
 
   return {
     'Total Days': records.length,
@@ -390,52 +475,137 @@ const companyWideSummary = computed(() => {
   }
 })
 
-function getStatusWithDayOff(record, dayOffString) {
-  if (isDayOff(record.date, dayOffString)) {
-    return 'Day Off'
-  }
-  return record.status
+function getDisplayStatus(r, dayOffString) {
+  const isDayOffToday = isDayOff(r.date, dayOffString)
+  const hasWorked =
+    r.signIn && r.signIn !== '-' && r.signOut && r.signOut !== '-' && Number(r.workingHours) > 0
+  if (isDayOffToday && hasWorked) return 'Present (Day Off)'
+  if (isDayOffToday) return 'Day Off'
+  return r.status
 }
 
 const tableRecords = computed(() => {
-  // Example: for individual report
   const records = getAttendanceReport.value || []
   const schedule = employeeScheduleStore.employeeSchedules.find(
     (s) => s.employee_id === reportFilters.value.employeeId,
   )
   const dayOffString = schedule?.dayOff || ''
-  return records.map((r) => ({
-    ...r,
-    status: isDayOff(r.date, dayOffString) ? 'Day Off' : r.status,
-  }))
+  return records.map((r) => {
+    const isDayOffToday = isDayOff(r.date, dayOffString)
+    const hasWorked =
+      r.signIn && r.signIn !== '-' && r.signOut && r.signOut !== '-' && Number(r.workingHours) > 0
+    return {
+      ...r,
+      status:
+        isDayOffToday && hasWorked ? 'Present (Day Off)' : isDayOffToday ? 'Day Off' : r.status,
+    }
+  })
 })
 
 const departmentTableRecords = computed(() => {
   return mappedDepartmentAttendance.value.map((rec) => {
-    // Hanapin ang schedule ng employee
     const schedule = employeeScheduleStore.employeeSchedules.find(
       (s) => s.employee_id === rec.employee_id,
     )
     const dayOffString = schedule?.dayOff || ''
+    const isDayOffToday = isDayOff(rec.date, dayOffString)
+    const hasWorked =
+      rec.signIn &&
+      rec.signIn !== '-' &&
+      rec.signOut &&
+      rec.signOut !== '-' &&
+      Number(rec.workingHours) > 0
     return {
       ...rec,
-      status: isDayOff(rec.date, dayOffString) ? 'Day Off' : rec.status,
+      status:
+        isDayOffToday && hasWorked ? 'Present (Day Off)' : isDayOffToday ? 'Day Off' : rec.status,
     }
   })
 })
 
 const companyTableRecords = computed(() => {
-  // Combine all records from all employees
   return mappedDepartmentAttendance.value.map((rec) => {
     const schedule = employeeScheduleStore.employeeSchedules.find(
       (s) => s.employee_id === rec.employee_id,
     )
     const dayOffString = schedule?.dayOff || ''
+    const isDayOffToday = isDayOff(rec.date, dayOffString)
+    const hasWorked =
+      rec.signIn &&
+      rec.signIn !== '-' &&
+      rec.signOut &&
+      rec.signOut !== '-' &&
+      Number(rec.workingHours) > 0
     return {
       ...rec,
-      status: isDayOff(rec.date, dayOffString) ? 'Day Off' : rec.status,
+      status:
+        isDayOffToday && hasWorked ? 'Present (Day Off)' : isDayOffToday ? 'Day Off' : rec.status,
     }
   })
+})
+
+const companyChartData = computed(() => {
+  const records = allRecords.value || []
+  if (!records.length) return { labels: [], datasets: [] }
+
+  // Group by employee
+  const employeeMap = {}
+  records.forEach((rec) => {
+    if (!employeeMap[rec.employee_id]) employeeMap[rec.employee_id] = []
+    employeeMap[rec.employee_id].push(rec)
+  })
+
+  const employeeNames = []
+  const presentArr = []
+  const lateArr = []
+  const absentArr = []
+  const onLeaveArr = []
+
+  Object.entries(employeeMap).forEach(([employee_id, recs]) => {
+    const schedule = employeeScheduleStore.employeeSchedules.find(
+      (s) => s.employee_id === employee_id,
+    )
+    const dayOffString = schedule?.dayOff || ''
+    const name = recs[0]?.full_name || 'Unknown'
+
+    employeeNames.push(name)
+    presentArr.push(
+      recs.filter(
+        (r) =>
+          getDisplayStatus(r, dayOffString) === 'Present' ||
+          getDisplayStatus(r, dayOffString) === 'Present (Day Off)',
+      ).length,
+    )
+    lateArr.push(recs.filter((r) => getDisplayStatus(r, dayOffString) === 'Late').length)
+    absentArr.push(recs.filter((r) => getDisplayStatus(r, dayOffString) === 'Absent').length)
+    onLeaveArr.push(recs.filter((r) => getDisplayStatus(r, dayOffString) === 'On Leave').length)
+  })
+
+  return {
+    labels: employeeNames,
+    datasets: [
+      {
+        label: 'Present',
+        data: presentArr,
+        backgroundColor: '#466114',
+      },
+      {
+        label: 'Late',
+        data: lateArr,
+        backgroundColor: '#f87a14',
+      },
+      {
+        label: 'Absent',
+        data: absentArr,
+        backgroundColor: '#f87171',
+      },
+      {
+        label: 'On Leave',
+        data: onLeaveArr,
+        backgroundColor: '#60a5fa',
+      },
+    ],
+  }
 })
 </script>
 
