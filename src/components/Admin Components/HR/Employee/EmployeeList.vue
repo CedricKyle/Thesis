@@ -8,6 +8,7 @@ import { useToast } from '@/composables/Admin Composables/Human Resource/useToas
 import Toast from '@/components/Admin Components/HR/Toast.vue'
 import { useAuthStore } from '@/stores/Authentication/authStore'
 import { UndoDot } from 'lucide-vue-next'
+import { DEPARTMENTS } from '@/composables/Admin Composables/User & Role/role/permissionsId'
 
 const router = useRouter()
 const store = useEmployeeStore()
@@ -24,6 +25,12 @@ const employeeToRestore = ref(null)
 const searchQuery = ref('')
 const showArchived = ref(false)
 
+const selectedDepartment = ref('All')
+const selectedBranch = ref('All')
+
+// For now, static branch list; you can update this later to be dynamic
+const branchOptions = ['All', 'Main Branch', 'Branch 1', 'Branch 2']
+
 // Add this computed property to check if current user is Super Admin
 const isSuperAdmin = computed(() => {
   return authStore.currentUser?.role === 'Super Admin'
@@ -33,12 +40,22 @@ const isSuperAdmin = computed(() => {
 const filteredEmployees = computed(() => {
   if (!store.employees) return []
 
-  let employees = [...store.employees] // Create a copy of the array
+  let employees = [...store.employees]
 
   // Always filter out Super Admin users
   employees = employees.filter((emp) => emp.roleInfo?.role_name !== 'Super Admin')
 
-  // Apply search filter if there's a search query
+  // Department filter
+  if (selectedDepartment.value !== 'All') {
+    employees = employees.filter((emp) => emp.department === selectedDepartment.value)
+  }
+
+  // Branch filter (future-proof, assuming employee.branch exists)
+  if (selectedBranch.value !== 'All') {
+    employees = employees.filter((emp) => emp.branch === selectedBranch.value)
+  }
+
+  // Search filter
   if (searchQuery.value) {
     const query = searchQuery.value.toLowerCase()
     employees = employees.filter(
@@ -52,7 +69,7 @@ const filteredEmployees = computed(() => {
     )
   }
 
-  // Filter based on archived status
+  // Archived filter
   if (!showArchived.value) {
     employees = employees.filter((emp) => !emp.deleted_at)
   }
@@ -276,7 +293,41 @@ watch(
 <template>
   <div class="flex flex-col mt-4">
     <!-- Add archive toggle and search bar container -->
-    <div class="flex justify-between items-center mb-4">
+    <div class="flex flex-wrap gap-4 justify-between items-center mb-4">
+      <!-- Filters -->
+      <div class="flex gap-4">
+        <!-- Department Filter -->
+        <label class="flex items-center gap-2">
+          <span class="text-sm text-black">Department:</span>
+          <select
+            v-model="selectedDepartment"
+            class="select select-sm border border-black bg-white text-black"
+          >
+            <option value="All">All</option>
+            <option
+              v-for="(dept, key) in Object.values(DEPARTMENTS).filter(
+                (d) => d !== 'Admin Department',
+              )"
+              :key="key"
+              :value="dept"
+            >
+              {{ dept }}
+            </option>
+          </select>
+        </label>
+        <!-- Branch Filter -->
+        <label class="flex items-center gap-2">
+          <span class="text-sm text-black">Branch:</span>
+          <select
+            v-model="selectedBranch"
+            class="select select-sm border border-black bg-white text-black"
+          >
+            <option v-for="branch in branchOptions" :key="branch" :value="branch">
+              {{ branch }}
+            </option>
+          </select>
+        </label>
+      </div>
       <!-- Search input -->
       <label class="input-search input-sm">
         <svg class="h-[1em] opacity-50" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
