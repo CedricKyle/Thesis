@@ -316,11 +316,8 @@ export function usePermissions(employeeRole) {
           'Inventory ': {
             route: '/admin/inventory/inventory-management',
           },
-          'Supplier ': {
-            route: '/admin/inventory/supplier-management',
-          },
-          'Purchase ': {
-            route: '/admin/inventory/purchase-management',
+          'Request Management': {
+            route: '/admin/inventory/request-management',
           },
           'Branch Distribution': {
             route: '/admin/inventory/branch-distribution-management',

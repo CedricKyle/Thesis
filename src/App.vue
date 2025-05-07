@@ -59,5 +59,20 @@ import NotificationModal from '/src/components/common/NotificationModal.vue'
   .btn-secondaryStyle {
     display: none !important;
   }
+
+  .scm-print-area,
+  .scm-print-area * {
+    visibility: visible !important;
+  }
+  .scm-print-area {
+    position: absolute !important;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    background: white !important;
+    color: black !important;
+    z-index: 9999 !important;
+    box-shadow: none !important;
+  }
 }
 </style>

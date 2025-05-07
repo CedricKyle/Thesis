@@ -34,6 +34,10 @@ module.exports = (sequelize) => {
         type: DataTypes.STRING(50),
         allowNull: false,
       },
+      branch_id: {
+        type: DataTypes.INTEGER(11),
+        allowNull: true,
+      },
       position_id: {
         type: DataTypes.INTEGER(11),
         allowNull: true,

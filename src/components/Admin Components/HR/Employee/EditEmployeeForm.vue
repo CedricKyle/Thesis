@@ -49,6 +49,7 @@ const employeeData = ref({
     relationship: '',
     contact_number: '',
   },
+  branch_id: '',
 })
 
 const isLoading = ref(true)
@@ -57,6 +58,12 @@ const formDataToUpdate = ref(null)
 const employeeToUpdate = ref(null)
 const originalData = ref(null)
 const changedFields = ref(new Set())
+
+const branches = [
+  { id: 1, name: 'Dasmariñas Branch' },
+  { id: 2, name: 'Silang Branch' },
+  { id: 3, name: 'Imus Branch' },
+]
 
 // Add departments data
 const departmentJobs = {
@@ -289,6 +296,10 @@ const handleUpdate = async () => {
         relationship: employeeData.value.emergency_contact?.relationship || '',
         contactNumber: employeeData.value.emergency_contact?.contact_number || '',
       },
+      branch_id:
+        employeeData.value.department === DEPARTMENTS.BRANCH_OPERATION
+          ? Number(employeeData.value.branch_id)
+          : null,
     }
 
     // Log the data being prepared for update
@@ -363,6 +374,14 @@ const handleUpdate = async () => {
     formDataToUpdate.value = formData
     employeeToUpdate.value = updateData
     confirmModal.value?.showModal()
+
+    if (
+      employeeData.value.department === DEPARTMENTS.BRANCH_OPERATION &&
+      !employeeData.value.branch_id
+    ) {
+      showToastMessage('Branch is required for Branch Operation employees', 'error')
+      return
+    }
   } catch (error) {
     console.error('Error preparing update:', error)
     showToastMessage(error.message || 'Error preparing update', 'error')
@@ -432,10 +451,11 @@ watch(
     if (newDepartment === DEPARTMENTS.ADMIN) {
       employeeData.value.position_id = 'Administrator'
       employeeData.value.role = 'Admin'
+      employeeData.value.branch_id = ''
     } else {
-      // Reset role and job title when department changes
       employeeData.value.role = ''
       employeeData.value.position_id = ''
+      employeeData.value.branch_id = ''
     }
   },
 )
@@ -605,6 +625,22 @@ watch(
                 class="border-b-1 w-full outline-none border-gray-300 p-0 pt-3 text-black"
                 @change="handleFieldChange('date_of_hire', employeeData.date_of_hire)"
               />
+            </div>
+
+            <!-- Branch Selection (only for Branch Operation) -->
+            <div v-if="employeeData.department === DEPARTMENTS.BRANCH_OPERATION">
+              <legend class="fieldset-legend text-black text-xs justify-start">
+                Branch <span class="text-red-500">*</span>
+              </legend>
+              <select
+                v-model="employeeData.branch_id"
+                class="select focus:outline-none bg-white border-black text-black"
+              >
+                <option disabled value="">Select Branch</option>
+                <option v-for="branch in branches" :key="branch.id" :value="branch.id">
+                  {{ branch.name }}
+                </option>
+              </select>
             </div>
           </div>
         </div>

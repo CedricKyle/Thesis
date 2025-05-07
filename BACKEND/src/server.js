@@ -17,6 +17,7 @@ const employeeScheduleRoutes = require('./routes/main branch/employee-schedule-r
 const path = require('path')
 const leaveRoutes = require('./routes/main branch/leave-routes.js')
 const payrollRoutes = require('./routes/main branch/payroll-routes.js')
+const requestRoutes = require('./routes/main branch/request-routes.js')
 dotenv.config()
 
 const app = express()
@@ -73,6 +74,7 @@ app.use('/api/available-schedules', availableScheduleRoutes)
 app.use('/api/employee-schedules', employeeScheduleRoutes)
 app.use('/api/leaves', leaveRoutes)
 app.use('/api/payrolls', payrollRoutes)
+app.use('/api/requests', requestRoutes)
 
 // Error handling middleware
 app.use((err, req, res, next) => {

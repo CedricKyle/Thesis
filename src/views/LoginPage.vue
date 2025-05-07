@@ -93,7 +93,7 @@ const handleSubmit = async (e) => {
       }
 
       // ADD THIS LINE:
-      console.log('CURRENT USER:', authStore.currentUser)
+      console.log('Current User:', authStore.currentUser)
 
       // Determine redirect path
       const department = response.data.user.department

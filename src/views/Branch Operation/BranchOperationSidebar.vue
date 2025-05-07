@@ -10,7 +10,7 @@ const menuItems = [
     permission: PERMISSION_IDS.BRANCH_OPERATION_VIEW_DASHBOARD,
   },
   {
-    name: 'Request Module',
+    name: 'Request Management',
     route: '/branch-operation/request-module',
     icon: FileText,
     permission: PERMISSION_IDS.BRANCH_OPERATION_MANAGE_REQUESTS_MODULE,

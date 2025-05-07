@@ -65,7 +65,15 @@ const newEmployee = ref({
     relationship: '',
     contactNumber: '',
   },
+  branch_id: '',
 })
+
+// Example static branches (replace with your actual data or fetch from API/store)
+const branches = [
+  { id: 1, name: 'Dasmariñas Branch' },
+  { id: 2, name: 'Silang Branch' },
+  { id: 3, name: 'Imus Branch' },
+]
 
 // Define department-specific roles based on permissions
 const getDepartmentRoles = (department) => {
@@ -103,10 +111,11 @@ watch(
     if (newDepartment === DEPARTMENTS.ADMIN) {
       newEmployee.value.position_id = 'Admin'
       newEmployee.value.role_id = 'Admin'
+      newEmployee.value.branch_id = ''
     } else {
-      // Reset role and job title when department changes
       newEmployee.value.role_id = ''
       newEmployee.value.position_id = ''
+      newEmployee.value.branch_id = ''
     }
   },
 )
@@ -278,6 +287,13 @@ const handleFormSubmit = async () => {
       return
     }
 
+    if (
+      newEmployee.value.department === DEPARTMENTS.BRANCH_OPERATION &&
+      !newEmployee.value.branch_id
+    ) {
+      formErrors.value.professional.branch_id = 'Branch is required'
+    }
+
     employeeToAdd.value = { ...newEmployee.value }
     confirmModal.value?.showModal()
   } catch (error) {
@@ -367,6 +383,8 @@ const createEmployeeData = (employee) => {
         relationship: employee.emergencyContact.relationship.trim(),
         contactNumber: employee.emergencyContact.contactNumber.trim(),
       },
+      branch_id:
+        employee.department === DEPARTMENTS.BRANCH_OPERATION ? Number(employee.branch_id) : null,
     }
 
     // Create FormData
@@ -430,6 +448,7 @@ const resetForm = () => {
       relationship: '',
       contactNumber: '',
     },
+    branch_id: '',
   }
   removeProfile()
   removeResume()
@@ -574,6 +593,26 @@ const filteredRoles = computed(() => {
             </select>
             <span v-if="formErrors.professional.position_id" class="text-red-500 text-xs mt-1">
               {{ formErrors.professional.position_id }}
+            </span>
+          </div>
+
+          <!-- Branch Selection (only for Branch Operation) -->
+          <div v-if="newEmployee.department === DEPARTMENTS.BRANCH_OPERATION">
+            <legend class="fieldset-legend text-black text-xs justify-start">
+              Branch <span class="text-red-500">*</span>
+            </legend>
+            <select
+              v-model="newEmployee.branch_id"
+              class="select focus:outline-none bg-white border-black text-black"
+              :class="{ 'border-red-500': formErrors.professional.branch_id }"
+            >
+              <option disabled value="">Select Branch</option>
+              <option v-for="branch in branches" :key="branch.id" :value="branch.id">
+                {{ branch.name }}
+              </option>
+            </select>
+            <span v-if="formErrors.professional.branch_id" class="text-red-500 text-xs mt-1">
+              {{ formErrors.professional.branch_id }}
             </span>
           </div>
 

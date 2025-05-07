@@ -8,18 +8,20 @@ import {
 } from '@/composables/Admin Composables/User & Role/role/permissionsId'
 import { useRouter } from 'vue-router'
 
-// Add this helper function at the top of the file, after the imports
+// Update the helper function to be dynamic
 function getDepartmentPath(department) {
   if (!department) return ''
 
-  const deptMap = {
-    'Admin Department': 'admin',
-    'HR Department': 'hr',
-    'Finance Department': 'finance',
-    'Sales Department': 'sales',
-    'Supply Chain Management': 'scm',
-    'Customer Relationship Management': 'crm',
-  }
+  // Create dynamic mapping based on DEPARTMENTS constant
+  const deptMap = Object.entries(DEPARTMENTS).reduce((acc, [key, value]) => {
+    // Convert department name to path format
+    const path = value
+      .toLowerCase()
+      .replace(' department', '') // Remove "department" if present
+      .replace(/\s+/g, '-') // Replace spaces with hyphens
+    acc[value] = path
+    return acc
+  }, {})
 
   return deptMap[department] || department.toLowerCase().split(' ')[0]
 }
@@ -47,6 +49,7 @@ export const useAuthStore = defineStore('auth', {
         if (response.data.message === 'Login successful' && response.data.user) {
           // Store user data
           this.currentUser = response.data.user
+          console.log('Current User:', this.currentUser)
           this.isAuthenticated = true
 
           // Handle permissions
@@ -70,6 +73,7 @@ export const useAuthStore = defineStore('auth', {
             router.push(`/${departmentPath}/dashboard`)
           }
 
+          console.log(this.currentUser)
           return true
         }
 
@@ -166,11 +170,13 @@ export const useAuthStore = defineStore('auth', {
           this.isAuthenticated = true
 
           console.log('Auth check permissions:', response.data.user.permissions)
+          console.log('Auth check user:', response.data.user)
           this.userPermissions =
             typeof response.data.user.permissions === 'string'
               ? JSON.parse(response.data.user.permissions)
               : response.data.user.permissions
 
+          console.log(this.currentUser)
           return true
         }
         return false

@@ -35,6 +35,7 @@ import ProcurementDashboard from '@/views/Procurement/ProcurementDashboard.vue'
 import ProcurementPurchaseOrderManagement from '@/views/Procurement/ProcurementPurchaseOrderManagement.vue'
 import ProcurementSupplierManagement from '@/views/Procurement/ProcurementSupplierManagement.vue'
 import ProcurementSidebar from '@/views/Procurement/ProcurementSidebar.vue'
+import SCMRequestManagement from '@/views/Supply Chain Management/SCMRequestManagement.vue'
 import {
   PERMISSION_IDS,
   DEPARTMENTS,
@@ -129,14 +130,9 @@ const routes = [
         component: SCMInventoryManagement,
       },
       {
-        path: 'inventory/supplier-management',
-        name: 'AdminSuppliersManagement',
-        component: SCMSupplierManagement,
-      },
-      {
-        path: 'inventory/purchase-management',
-        name: 'AdminPurchaseManagement',
-        component: SCMPurchaseManagement,
+        path: 'inventory/request-management',
+        name: 'AdminRequestManagement',
+        component: SCMRequestManagement,
       },
       {
         path: 'inventory/branch-distribution-management',
@@ -359,19 +355,11 @@ const routes = [
         },
       },
       {
-        path: 'supplier-management',
-        name: 'SCMSupplierManagement',
-        component: SCMSupplierManagement,
+        path: 'request-management',
+        name: 'SCMRequestManagement',
+        component: SCMRequestManagement,
         meta: {
-          permissions: [PERMISSION_IDS.SCM_MANAGE_SUPPLIERS_MANAGEMENT],
-        },
-      },
-      {
-        path: 'purchase-management',
-        name: 'SCMPurchaseManagement',
-        component: SCMPurchaseManagement,
-        meta: {
-          permissions: [PERMISSION_IDS.SCM_MANAGE_PURCHASE_MANAGEMENT],
+          permissions: [PERMISSION_IDS.SCM_MANAGE_REQUEST_MANAGEMENT],
         },
       },
       {
