@@ -60,24 +60,22 @@ const changedFields = ref(new Set())
 
 // Add departments data
 const departmentJobs = {
-  'HR Department': ['HR Manager'],
-  'Finance Department': ['Accountant'],
-  'Sales Department': ['Sales Manager'],
-  'Customer Relationship Management': ['Customer Service Representative'],
-  'Supply Chain Management': ['Supply Chain Manager'],
+  [DEPARTMENTS.HR]: ['HR Manager'],
+  [DEPARTMENTS.FINANCE]: ['Accountant'],
+  [DEPARTMENTS.SALES]: ['Sales Manager'],
+  [DEPARTMENTS.CRM]: ['Customer Service Representative'],
+  [DEPARTMENTS.SCM]: ['Supply Chain Manager'],
+  [DEPARTMENTS.BRANCH_OPERATION]: ['Branch Operation Manager'],
+  [DEPARTMENTS.PROCUREMENT]: ['Procurement Manager'],
 }
 
 // Add departments computed property
 const departments = computed(() => {
   const isAdminRoute = route.path.startsWith('/admin')
-  const baseDepartments = [
-    'HR Department',
-    'Finance Department',
-    'Sales Department',
-    'Customer Relationship Management',
-    'Supply Chain Management',
-  ]
-  return isAdminRoute ? ['Admin Department', ...baseDepartments] : baseDepartments
+  if (isAdminRoute) {
+    return Object.values(DEPARTMENTS)
+  }
+  return Object.values(DEPARTMENTS).filter((dept) => dept !== DEPARTMENTS.ADMIN)
 })
 
 // Define department-specific roles based on permissions
@@ -95,28 +93,6 @@ const getDepartmentRoles = (department) => {
   roles.push(`${departmentGroup.name.replace(' Department', '')} Staff`)
 
   return roles
-}
-
-// Define job titles based on roles
-const getJobTitles = (department, role) => {
-  if (department === DEPARTMENTS.ADMIN) return ['Administrator']
-
-  const departmentName = department.replace(' Department', '')
-
-  if (role?.includes('Manager')) {
-    return [`${departmentName} Manager`]
-  }
-
-  // Staff-level job titles
-  const staffTitles = {
-    [DEPARTMENTS.HR]: ['HR Assistant'],
-    [DEPARTMENTS.FINANCE]: ['Accountant', 'Accounting Assistant'],
-    [DEPARTMENTS.SALES]: ['Sales Representative', 'Sales Assistant'],
-    [DEPARTMENTS.CRM]: ['Customer Service Representative', 'Customer Service Assistant'],
-    [DEPARTMENTS.SCM]: ['SCM Manager', 'Inventory Specialist'],
-  }
-
-  return staffTitles[department] || []
 }
 
 // Update computed properties
@@ -579,6 +555,9 @@ watch(
                 <option disabled value="">Select Job Title</option>
                 <option v-for="position in availableJobs" :key="position.id" :value="position.id">
                   {{ position.position_title }}
+                </option>
+                <option v-if="availableJobs.length === 0" disabled>
+                  No available job titles for this department
                 </option>
               </select>
             </div>

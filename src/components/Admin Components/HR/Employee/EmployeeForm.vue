@@ -84,28 +84,6 @@ const getDepartmentRoles = (department) => {
   return roles
 }
 
-// Define job titles based on roles
-const getJobTitles = (department, role) => {
-  if (department === DEPARTMENTS.ADMIN) return ['Administrator']
-
-  const departmentName = department.replace(' Department', '')
-
-  if (role?.includes('Manager')) {
-    return [`${departmentName} Manager`]
-  }
-
-  // Staff-level job titles
-  const staffTitles = {
-    [DEPARTMENTS.HR]: ['HR Assistant'],
-    [DEPARTMENTS.FINANCE]: ['Accountant', 'Accounting Assistant'],
-    [DEPARTMENTS.SALES]: ['Sales Representative', 'Sales Assistant'],
-    [DEPARTMENTS.CRM]: ['Customer Service Representative', 'Customer Service Assistant'],
-    [DEPARTMENTS.SCM]: ['Inventory Specialist'],
-  }
-
-  return staffTitles[department] || []
-}
-
 // Add computed properties for available roles and jobs
 const availableRoles = computed(() => {
   if (!newEmployee.value.department) return []
@@ -115,7 +93,6 @@ const availableRoles = computed(() => {
 // Update the availableJobs computed property
 const availableJobs = computed(() => {
   if (!newEmployee.value.department) return []
-  // Filter positions by department
   return positionStore.positions.filter((pos) => pos.department === newEmployee.value.department)
 })
 
@@ -147,20 +124,11 @@ watch(
 
 // Add this computed property in the script setup
 const departments = computed(() => {
-  // Check if we're on the admin route
   const isAdminRoute = route.path.startsWith('/admin')
-
-  // Base departments
-  const baseDepartments = [
-    'HR Department',
-    'Finance Department',
-    'Sales Department',
-    'Customer Service Department',
-    'Supply Chain Department',
-  ]
-
-  // If we're on the admin route, include Admin Department
-  return isAdminRoute ? ['Admin Department', ...baseDepartments] : baseDepartments
+  if (isAdminRoute) {
+    return Object.values(DEPARTMENTS)
+  }
+  return Object.values(DEPARTMENTS).filter((dept) => dept !== DEPARTMENTS.ADMIN)
 })
 
 // Watchers
@@ -599,6 +567,9 @@ const filteredRoles = computed(() => {
               <option disabled value="">Select Job Title</option>
               <option v-for="position in availableJobs" :key="position.id" :value="position.id">
                 {{ position.position_title }}
+              </option>
+              <option v-if="availableJobs.length === 0" disabled>
+                No available job titles for this department
               </option>
             </select>
             <span v-if="formErrors.professional.position_id" class="text-red-500 text-xs mt-1">

@@ -21,7 +21,180 @@ import {
   Landmark,
   ChartNoAxesColumnIncreasing,
   Archive,
+  Store,
 } from 'lucide-vue-next'
+
+export const menuConfig = {
+  [DEPARTMENTS.HR]: [
+    {
+      name: 'Dashboard',
+      route: '/hr/dashboard',
+      icon: LayoutDashboard,
+      permission: PERMISSION_IDS.HR_VIEW_DASHBOARD,
+    },
+    {
+      name: 'Employees',
+      route: '/hr/employees',
+      icon: Users,
+      permission: PERMISSION_IDS.HR_MANAGE_EMPLOYEES,
+    },
+    {
+      name: 'Attendance',
+      route: '/hr/attendance',
+      icon: CalendarCheck,
+      permission: PERMISSION_IDS.HR_MANAGE_ATTENDANCE,
+    },
+    {
+      name: 'Attendance Report',
+      route: '/hr/attendance-report',
+      icon: FileText,
+      permission: PERMISSION_IDS.HR_VIEW_ATTENDANCE_REPORT,
+    },
+    {
+      name: 'Payroll',
+      route: '/hr/payroll',
+      icon: Wallet,
+      permission: PERMISSION_IDS.HR_MANAGE_PAYROLL,
+    },
+    {
+      name: 'Roles',
+      route: '/hr/roles',
+      icon: Shield,
+      permission: PERMISSION_IDS.HR_MANAGE_ROLES,
+    },
+  ],
+  [DEPARTMENTS.FINANCE]: [
+    {
+      name: 'Dashboard',
+      route: '/finance/dashboard',
+      icon: LayoutDashboard,
+      permission: PERMISSION_IDS.FINANCE_VIEW_DASHBOARD,
+    },
+    {
+      name: 'Accounting',
+      route: '/finance/accounting-management',
+      icon: FileText,
+      permission: PERMISSION_IDS.FINANCE_MANAGE_ACCOUNTING_MANAGEMENT,
+    },
+    {
+      name: 'Treasury',
+      route: '/finance/treasury-management',
+      icon: FileText,
+      permission: PERMISSION_IDS.FINANCE_MANAGE_TREASURY_MANAGEMENT,
+    },
+    {
+      name: 'Reports',
+      route: '/finance/report',
+      icon: FileText,
+      permission: PERMISSION_IDS.FINANCE_VIEW_REPORTS,
+    },
+    {
+      name: 'Sales Management',
+      route: '/finance/sales-management',
+      icon: ChartNoAxesColumnIncreasing,
+      permission: PERMISSION_IDS.FINANCE_MANAGE_SALES_MANAGEMENT,
+    },
+  ],
+  [DEPARTMENTS.SCM]: [
+    {
+      name: 'Dashboard',
+      route: '/scm/dashboard',
+      icon: LayoutDashboard,
+      permission: PERMISSION_IDS.SCM_VIEW_DASHBOARD,
+    },
+    {
+      name: 'Inventory Management',
+      route: '/scm/inventory-management',
+      icon: Package,
+      permission: PERMISSION_IDS.SCM_MANAGE_INVENTORY_MANAGEMENT,
+    },
+    {
+      name: 'Supplier Management',
+      route: '/scm/supplier-management',
+      icon: Users,
+      permission: PERMISSION_IDS.SCM_MANAGE_SUPPLIERS_MANAGEMENT,
+    },
+    {
+      name: 'Purchase Management',
+      route: '/scm/purchase-management',
+      icon: ShoppingCart,
+      permission: PERMISSION_IDS.SCM_MANAGE_PURCHASE_MANAGEMENT,
+    },
+    {
+      name: 'Branch Distribution Management',
+      route: '/scm/branch-distribution-management',
+      icon: Truck,
+      permission: PERMISSION_IDS.SCM_MANAGE_BRANCH_DISTRIBUTION_MANAGEMENT,
+    },
+  ],
+  [DEPARTMENTS.CRM]: [
+    {
+      name: 'Dashboard',
+      route: '/crm/dashboard',
+      icon: LayoutDashboard,
+      permission: PERMISSION_IDS.CRM_VIEW_DASHBOARD,
+    },
+  ],
+  [DEPARTMENTS.BRANCH_OPERATION]: [
+    {
+      name: 'Request Module',
+      route: '/branch-operation/request-module',
+      icon: Store,
+      permission: PERMISSION_IDS.BRANCH_OPERATION_MANAGE_REQUESTS_MODULE,
+    },
+    {
+      name: 'Dashboard',
+      route: '/branch-operation/dashboard',
+      icon: LayoutDashboard,
+      permission: PERMISSION_IDS.BRANCH_OPERATION_VIEW_DASHBOARD,
+    },
+  ],
+  [DEPARTMENTS.PROCUREMENT]: [
+    {
+      name: 'Dashboard',
+      route: '/procurement/dashboard',
+      icon: LayoutDashboard,
+      permission: PERMISSION_IDS.PROCUREMENT_VIEW_DASHBOARD,
+    },
+    {
+      name: 'Purchase Order Management',
+      route: '/procurement/purchase-order-management',
+      icon: ShoppingCart,
+      permission: PERMISSION_IDS.PROCUREMENT_MANAGE_PURCHASE_ORDER_MANAGEMENT,
+    },
+    {
+      name: 'Supplier Management',
+      route: '/procurement/supplier-management',
+      icon: Users,
+      permission: PERMISSION_IDS.PROCUREMENT_MANAGE_SUPPLIERS_MANAGEMENT,
+    },
+  ],
+  [DEPARTMENTS.ADMIN]: [
+    {
+      name: 'HR Dashboard',
+      route: '/admin/hr/dashboard',
+      permission: PERMISSION_IDS.ADMIN_FULL_ACCESS,
+    },
+  ],
+}
+
+export function getFirstAccessibleRoute(department, userPermissions) {
+  // Super Admin shortcut
+  if (
+    department === DEPARTMENTS.ADMIN ||
+    userPermissions.includes(PERMISSION_IDS.ADMIN_FULL_ACCESS)
+  ) {
+    return '/admin/hr/dashboard'
+  }
+  const menu = menuConfig[department] || []
+  for (const item of menu) {
+    if (userPermissions.includes(item.permission)) {
+      return item.route
+    }
+  }
+  // fallback: login
+  return '/login'
+}
 
 export function usePermissions(employeeRole) {
   const rolesStore = useRolesStore()
@@ -47,6 +220,8 @@ export function usePermissions(employeeRole) {
       [DEPARTMENTS.SALES]: PERMISSION_IDS.SALES_FULL_ACCESS,
       [DEPARTMENTS.SCM]: PERMISSION_IDS.SCM_FULL_ACCESS,
       [DEPARTMENTS.CRM]: PERMISSION_IDS.CRM_FULL_ACCESS,
+      [DEPARTMENTS.PROCUREMENT]: PERMISSION_IDS.PROCUREMENT_FULL_ACCESS,
+      [DEPARTMENTS.BRANCH_OPERATION]: PERMISSION_IDS.BRANCH_OPERATION_FULL_ACCESS,
     }
 
     return employeeRole.value.permissions.includes(
@@ -79,122 +254,6 @@ export function usePermissions(employeeRole) {
     if (!employeeRole.value?.permissions || !employeeRole.value?.department) return false
     if (isSuperAdmin.value) return true
     return employeeRole.value.department === department
-  }
-
-  // Complete menu configuration for all departments
-  const menuConfig = {
-    [DEPARTMENTS.HR]: [
-      {
-        name: 'Dashboard',
-        route: '/hr/dashboard',
-        icon: LayoutDashboard,
-        permission: PERMISSION_IDS.HR_VIEW_DASHBOARD,
-      },
-      {
-        name: 'Employees',
-        route: '/hr/employees',
-        icon: Users,
-        permission: PERMISSION_IDS.HR_MANAGE_EMPLOYEES,
-      },
-      {
-        name: 'Attendance',
-        route: '/hr/attendance',
-        icon: CalendarCheck,
-        permission: PERMISSION_IDS.HR_MANAGE_ATTENDANCE,
-      },
-      {
-        name: 'Attendance Report',
-        route: '/hr/attendance-report',
-        icon: FileText,
-        permission: PERMISSION_IDS.HR_VIEW_ATTENDANCE_REPORT,
-      },
-      {
-        name: 'Payroll',
-        route: '/hr/payroll',
-        icon: Wallet,
-        permission: PERMISSION_IDS.HR_MANAGE_PAYROLL,
-      },
-      {
-        name: 'Roles',
-        route: '/hr/roles',
-        icon: Shield,
-        permission: PERMISSION_IDS.HR_MANAGE_ROLES,
-      },
-    ],
-    [DEPARTMENTS.FINANCE]: [
-      {
-        name: 'Dashboard',
-        route: '/finance/dashboard',
-        icon: LayoutDashboard,
-        permission: PERMISSION_IDS.FINANCE_VIEW_DASHBOARD,
-      },
-      {
-        name: 'Accounting',
-        route: '/finance/accounting-management',
-        icon: FileText,
-        permission: PERMISSION_IDS.FINANCE_MANAGE_ACCOUNTING_MANAGEMENT,
-      },
-      {
-        name: 'Treasury',
-        route: '/finance/treasury-management',
-        icon: FileText,
-        permission: PERMISSION_IDS.FINANCE_MANAGE_TREASURY_MANAGEMENT,
-      },
-      {
-        name: 'Reports',
-        route: '/finance/report',
-        icon: FileText,
-        permission: PERMISSION_IDS.FINANCE_VIEW_REPORTS,
-      },
-    ],
-    [DEPARTMENTS.SALES]: [
-      {
-        name: 'Dashboard',
-        route: '/sales/dashboard',
-        icon: LayoutDashboard,
-        permission: PERMISSION_IDS.SALES_VIEW_DASHBOARD,
-      },
-    ],
-    [DEPARTMENTS.SCM]: [
-      {
-        name: 'Dashboard',
-        route: '/scm/dashboard',
-        icon: LayoutDashboard,
-        permission: PERMISSION_IDS.SCM_VIEW_DASHBOARD,
-      },
-      {
-        name: 'Inventory Management',
-        route: '/scm/inventory-management',
-        icon: Package,
-        permission: PERMISSION_IDS.SCM_MANAGE_INVENTORY_MANAGEMENT,
-      },
-      {
-        name: 'Supplier Management',
-        route: '/scm/supplier-management',
-        icon: Users,
-        permission: PERMISSION_IDS.SCM_MANAGE_SUPPLIERS_MANAGEMENT,
-      },
-      {
-        name: 'Purchase Management',
-        route: '/scm/purchase-management',
-        icon: ShoppingCart,
-        permission: PERMISSION_IDS.SCM_MANAGE_PURCHASE_MANAGEMENT,
-      },
-      {
-        name: 'Branch Distribution Management',
-        route: '/scm/branch-distribution-management',
-        icon: Truck,
-        permission: PERMISSION_IDS.SCM_MANAGE_BRANCH_DISTRIBUTION_MANAGEMENT,
-      },
-    ],
-    [DEPARTMENTS.CRM]: [
-      {
-        name: 'Dashboard',
-        route: '/crm/dashboard',
-        icon: LayoutDashboard,
-        permission: PERMISSION_IDS.CRM_VIEW_DASHBOARD,
-      },
-    ],
   }
 
   const getVisibleMenuItems = (department) => {
@@ -243,13 +302,8 @@ export function usePermissions(employeeRole) {
           Accounting: {
             route: '/admin/finance/accounting-management',
           },
-        },
-      },
-      'Sales Management': {
-        icon: ChartNoAxesColumnIncreasing,
-        submenu: {
-          Dashboard: {
-            route: '/admin/sales/dashboard',
+          'Sales Management': {
+            route: '/admin/finance/sales-management',
           },
         },
       },
@@ -278,6 +332,31 @@ export function usePermissions(employeeRole) {
         submenu: {
           Dashboard: {
             route: '/admin/crm/dashboard',
+          },
+        },
+      },
+      Procurement: {
+        icon: ShoppingCart,
+        submenu: {
+          Dashboard: {
+            route: '/admin/procurement/dashboard',
+          },
+          'Purchase Order': {
+            route: '/admin/procurement/purchase-order-management',
+          },
+          Supplier: {
+            route: '/admin/procurement/supplier-management',
+          },
+        },
+      },
+      'Branch Operation': {
+        icon: Store,
+        submenu: {
+          Dashboard: {
+            route: '/admin/branch-operation/dashboard',
+          },
+          'Request Module': {
+            route: '/admin/branch-operation/request-module',
           },
         },
       },

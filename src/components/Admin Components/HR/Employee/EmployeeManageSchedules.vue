@@ -21,13 +21,11 @@ const { employees } = storeToRefs(employeeStore)
 const availableSchedules = computed(() => scheduleStore.schedules)
 
 // Add this computed property for departments
-const departments = computed(() => [
-  DEPARTMENTS.HR,
-  DEPARTMENTS.FINANCE,
-  DEPARTMENTS.SALES,
-  DEPARTMENTS.CRM,
-  DEPARTMENTS.SCM,
-])
+const departments = computed(() => {
+  // Kung gusto mo i-exclude ang Admin, gawin:
+  return Object.values(DEPARTMENTS).filter((dept) => dept !== DEPARTMENTS.ADMIN)
+  // Kung gusto mo isama lahat, pwede lang: return Object.values(DEPARTMENTS)
+})
 
 // Update the schedules ref to use store data
 const employeeSchedules = computed(() => employeeScheduleStore.employeeSchedules)
