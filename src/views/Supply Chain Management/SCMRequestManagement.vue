@@ -19,6 +19,22 @@ const selectedRequests = ref([])
 const selectAll = ref(false)
 const showPrintPreview = ref(false)
 const printData = ref([])
+const showEditModal = ref(false)
+const editRequest = ref({})
+const showBulkModal = ref(false)
+const bulkAction = ref('')
+const bulkRemarks = ref('')
+
+const resubmittableStatuses = [
+  'Rejected by SCM',
+  'Rejected by Finance',
+  'Returned to Requestor',
+  'Returned to SCM',
+  'On Hold (No Supplier)',
+  'On Hold (No Stock)',
+  'On Hold (Finance)',
+  'On Hold (SCM)',
+]
 
 // Get unique branch IDs from requests
 const branchOptions = computed(() => {
@@ -195,6 +211,33 @@ const columns = [
           </button>
         `
       }
+      if (data.status === 'On Hold (Finance)') {
+        actions += `
+          <button class="btn btn-sm btn-circle hover:bg-green-400 border-none btn-ghost resubmit-button" title="Resubmit">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M12 19V6M5 12l7-7 7 7"/>
+            </svg>
+          </button>
+        `
+      }
+      if (canResume(data)) {
+        actions += `
+          <button class="btn btn-sm btn-circle hover:bg-green-400 border-none btn-ghost resume-button" title="Resume">
+            <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path d="M12 19V6M5 12l7-7 7 7"/>
+            </svg>
+          </button>
+        `
+      }
+      const isResubmittable = resubmittableStatuses.includes(data.status)
+      actions += `
+        <button class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost edit-button" title="Edit" ${isResubmittable ? '' : 'disabled'}>
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </button>
+      `
       return `<div class="flex gap-2">${actions}</div>`
     },
     cellClick: (e, cell) => {
@@ -207,6 +250,15 @@ const columns = [
         openConfirmModal('reject', record, 'Reject this request?')
       } else if (e.target.closest('.forward-button')) {
         openConfirmModal('forward', record, 'Forward this request to Finance?')
+      } else if (e.target.closest('.resubmit-button')) {
+        openConfirmModal('resubmit', record, 'Resubmit this request to Finance?')
+      } else if (e.target.closest('.edit-button')) {
+        const isResubmittable = resubmittableStatuses.includes(record.status)
+        if (isResubmittable) {
+          openEditModal(record)
+        }
+      } else if (e.target.closest('.resume-button') && canResume(record)) {
+        openConfirmModal('resume', record, 'Resume and forward this request to Finance?')
       }
     },
     headerSort: false,
@@ -259,40 +311,55 @@ async function handleConfirm() {
     await rejectRequest(actionRequest.value)
   } else if (confirmAction.value === 'forward') {
     await forwardRequest(actionRequest.value)
+  } else if (confirmAction.value === 'resubmit') {
+    await requestStore.resubmitRequest(actionRequest.value.id, actionRequest.value.remarks || '')
+    showToastMessage('Request resubmitted to Finance!', 'success')
+  } else if (confirmAction.value === 'resume') {
+    await requestStore.updateRequest(actionRequest.value.id, {
+      ...actionRequest.value,
+      status: 'Forwarded to Finance',
+    })
+    showToastMessage('Request forwarded to Finance!', 'success')
   }
   showConfirmModal.value = false
   confirmAction.value = null
   actionRequest.value = null
 }
 
-const bulkApprove = async () => {
-  if (!selectedRequests.value.length) return
-  try {
-    await requestStore.batchUpdateStatus({
-      requestIds: selectedRequests.value,
-      newStatus: 'Approved by SCM',
-      remarks: 'Batch approved by SCM',
-    })
-    showToastMessage('Selected requests approved!', 'success')
-    selectedRequests.value = []
-  } catch (err) {
-    showToastMessage('Some requests failed to approve.', 'error')
-  }
+function openBulkModal(action) {
+  bulkAction.value = action
+  bulkRemarks.value = ''
+  showBulkModal.value = true
 }
 
-const bulkForward = async () => {
+async function handleBulkConfirm() {
   if (!selectedRequests.value.length) return
+  if (!bulkRemarks.value) {
+    showToastMessage('Remarks required!', 'error')
+    return
+  }
   try {
-    await requestStore.batchUpdateStatus({
-      requestIds: selectedRequests.value,
-      newStatus: 'Forwarded to Finance',
-      remarks: 'Batch forwarded to Finance',
-    })
-    showToastMessage('Selected requests forwarded to Finance!', 'info')
+    if (bulkAction.value === 'approve') {
+      await requestStore.batchUpdateStatus({
+        requestIds: selectedRequests.value,
+        newStatus: 'Approved by SCM',
+        remarks: bulkRemarks.value,
+      })
+      showToastMessage('Selected requests approved!', 'success')
+    } else if (bulkAction.value === 'forward') {
+      await requestStore.batchUpdateStatus({
+        requestIds: selectedRequests.value,
+        newStatus: 'Forwarded to Finance',
+        remarks: bulkRemarks.value,
+      })
+      showToastMessage('Selected requests forwarded to Finance!', 'info')
+    }
+    await requestStore.loadRequests()
     selectedRequests.value = []
   } catch (err) {
-    showToastMessage('Some requests failed to forward.', 'error')
+    showToastMessage('Some requests failed.', 'error')
   }
+  showBulkModal.value = false
 }
 
 function openPrintPreview() {
@@ -340,6 +407,29 @@ const paginatedStatusHistory = computed(() => {
 const statusHistoryTotalPages = computed(() =>
   Math.max(1, Math.ceil(statusHistory.value.length / statusHistoryRowsPerPage)),
 )
+
+function openEditModal(request) {
+  editRequest.value = { ...request }
+  showEditModal.value = true
+}
+
+function closeEditModal() {
+  showEditModal.value = false
+  editRequest.value = {}
+}
+
+async function saveEditRequest() {
+  try {
+    await requestStore.updateRequest(editRequest.value.id, editRequest.value)
+    closeEditModal()
+    showToastMessage('Request updated!', 'success')
+  } catch (error) {
+    showToastMessage(error.message, 'error')
+  }
+}
+
+const canResume = (request) =>
+  request.status === 'Returned to SCM' || request.status === 'On Hold (SCM)'
 </script>
 
 <template>
@@ -369,14 +459,14 @@ const statusHistoryTotalPages = computed(() =>
       <button
         class="btn-primaryStyle"
         :disabled="selectedRequests.length === 0"
-        @click="bulkApprove"
+        @click="openBulkModal('approve')"
       >
         Bulk Approve
       </button>
       <button
         class="btn-primaryStyle"
         :disabled="selectedRequests.length === 0"
-        @click="bulkForward"
+        @click="openBulkModal('forward')"
       >
         Bulk Forward to Finance
       </button>
@@ -579,5 +669,68 @@ const statusHistoryTotalPages = computed(() =>
         </div>
       </div>
     </dialog>
+
+    <!-- Edit Request Modal -->
+    <dialog v-if="showEditModal" class="modal" open>
+      <div class="modal-box bg-white w-96">
+        <h3 class="font-bold text-lg text-black">Edit Request</h3>
+        <form @submit.prevent="saveEditRequest">
+          <div class="form-control mb-2">
+            <label class="text-black text-sm">Item</label>
+            <input v-model="editRequest.item" class="input-search" required />
+          </div>
+          <div class="form-control mb-2">
+            <label class="text-black text-sm">Quantity</label>
+            <input
+              v-model.number="editRequest.quantity"
+              type="number"
+              min="1"
+              class="input-search"
+              required
+            />
+          </div>
+          <div class="form-control mb-4">
+            <label class="text-black text-sm">Remarks</label>
+            <textarea
+              v-model="editRequest.remarks"
+              class="textarea bg-white border border-black"
+              rows="3"
+            ></textarea>
+          </div>
+          <div class="modal-action justify-center gap-4">
+            <button type="submit" class="btn-primaryStyle bg-primaryColor text-white">Save</button>
+            <button type="button" class="btn-secondaryStyle" @click="closeEditModal">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </dialog>
+
+    <!-- Bulk Action Modal -->
+    <div
+      v-if="showBulkModal"
+      class="fixed inset-0 flex items-center justify-center bg-gray-500/20 z-50"
+    >
+      <div class="bg-white rounded-lg p-6 w-full max-w-sm shadow-lg">
+        <h2 class="text-lg font-bold mb-4">
+          Bulk {{ bulkAction === 'approve' ? 'Approve' : 'Forward to Finance' }}
+        </h2>
+        <div class="mb-4">
+          <label class="text-sm text-gray-500">Remarks:</label>
+          <textarea
+            v-model="bulkRemarks"
+            class="textarea bg-white border border-black w-full"
+            placeholder="Remarks (required)"
+            rows="3"
+            required
+          ></textarea>
+        </div>
+        <div class="flex justify-end gap-2">
+          <button class="btn-secondaryStyle" @click="showBulkModal = false">Cancel</button>
+          <button class="btn-primaryStyle" :disabled="!bulkRemarks" @click="handleBulkConfirm">
+            Confirm
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>

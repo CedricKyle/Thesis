@@ -10,6 +10,10 @@ router.get('/:id', verifyToken, requestController.getRequestById)
 router.put('/:id', verifyToken, requestController.updateRequest)
 router.delete('/:id', verifyToken, requestController.deleteRequest)
 router.patch('/restore/:id', verifyToken, requestController.restoreRequest)
-router.post('/requests/batch-update-status', requestController.batchUpdateStatus)
+router.post('/batch-update-status', verifyToken, requestController.batchUpdateStatus)
+
+// NEW: On Hold workflow
+router.put('/:id/resubmit', verifyToken, requestController.resubmitRequest)
+router.put('/:id/resume', verifyToken, requestController.resumeRequest)
 
 module.exports = router

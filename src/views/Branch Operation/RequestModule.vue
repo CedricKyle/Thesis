@@ -99,10 +99,11 @@ const columns = [
         'Returned to Requestor',
         'On Hold (No Supplier)',
         'On Hold (No Stock)',
+        'On Hold (Requestor)',
       ]
       const isLocked = lockedStatuses.includes(data.status)
       const isResubmittable = resubmittableStatuses.includes(data.status)
-      return `
+      let actions = `
         <div class="flex gap-2">
           <button class="btn btn-sm btn-circle hover:bg-primaryColor/80 border-none btn-ghost view-button" title="View">
             <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -134,16 +135,35 @@ const columns = [
           }
         </div>
       `
+      if (canResume(data)) {
+        actions += `
+          <button class="btn btn-sm btn-circle hover:bg-green-400 border-none btn-ghost resume-button" title="Resume">
+            <svg class="h-4 w-4" ...>...</svg>
+          </button>
+        `
+      }
+      return actions
     },
     cellClick: (e, cell) => {
       const record = cell.getRow().getData()
+      const resubmittableStatuses = [
+        'Rejected by SCM',
+        'Rejected by Finance',
+        'Returned to Requestor',
+        'On Hold (No Supplier)',
+        'On Hold (No Stock)',
+        'On Hold (Requestor)',
+      ]
+      const isResubmittable = resubmittableStatuses.includes(record.status)
       if (e.target.closest('.view-button')) {
         openViewModal(record)
-      } else if (e.target.closest('.edit-button') && record.status !== 'Approved') {
+      } else if (e.target.closest('.edit-button') && isResubmittable) {
         openEditModal(record)
       } else if (e.target.closest('.delete-button') && record.status !== 'Approved') {
         openDeleteModal(record)
-      } else if (e.target.closest('.resubmit-button') && record.status === 'Rejected') {
+      } else if (e.target.closest('.resubmit-button') && isResubmittable) {
+        openResubmitModal(record)
+      } else if (e.target.closest('.resume-button') && canResume(record)) {
         openResubmitModal(record)
       }
     },
@@ -263,10 +283,10 @@ const confirmResubmitRequest = async () => {
   try {
     await requestStore.updateRequest(requestToResubmit.value.id, {
       ...requestToResubmit.value,
-      status: 'Pending',
+      status: 'Forwarded to Finance',
     })
     showResubmitModal.value = false
-    showToastMessage('Request resubmitted for approval!', 'success')
+    showToastMessage('Request resubmitted to Finance!', 'success')
   } catch (error) {
     handleError(error.message)
   }
@@ -326,6 +346,9 @@ const paginatedStatusHistory = computed(() => {
 const statusHistoryTotalPages = computed(() =>
   Math.max(1, Math.ceil(statusHistory.value.length / statusHistoryRowsPerPage)),
 )
+
+const canResume = (request) =>
+  request.status === 'Returned to Requestor' || request.status === 'On Hold (Requestor)'
 </script>
 
 <template>
@@ -412,6 +435,12 @@ const statusHistoryTotalPages = computed(() =>
         <div class="flex justify-between" v-if="selectedRequest.status === 'Rejected'">
           <p class="text-sm text-gray-500">Rejection Remarks:</p>
           <span class="text-sm">{{ selectedRequest.requestor_rejection_remarks || '—' }}</span>
+        </div>
+        <div class="flex justify-between" v-if="selectedRequest.status === 'Rejected by Finance'">
+          <p class="text-sm text-gray-500">Finance Rejection Remarks:</p>
+          <span class="text-sm">{{
+            selectedRequest.finance_rejected_remarks || selectedRequest.finance_remarks || '—'
+          }}</span>
         </div>
         <div v-if="statusHistory.length" class="mt-4">
           <h4 class="font-semibold text-sm mb-2">Status History</h4>

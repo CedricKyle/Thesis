@@ -9,6 +9,8 @@ module.exports = (sequelize) => {
       quantity: { type: DataTypes.INTEGER, allowNull: false },
       remarks: { type: DataTypes.TEXT, allowNull: true },
       finance_remarks: { type: DataTypes.TEXT, allowNull: true },
+      finance_rejected_remarks: { type: DataTypes.TEXT, allowNull: true },
+      finance_on_hold_remarks: { type: DataTypes.TEXT, allowNull: true },
       status: { type: DataTypes.STRING, allowNull: false, defaultValue: 'Pending' },
       date_requested: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
       requested_by: { type: DataTypes.STRING, allowNull: false }, // employee_id

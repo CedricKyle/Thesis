@@ -156,10 +156,37 @@ const updateRequest = async (req, res) => {
         updateData.procurement_remarks = req.body.procurement_remarks || null
         break
       case 'Released to Requestor':
-      case 'Completed':
-        updateData.scm_released_by = req.body.action_by
-        updateData.scm_released_at = now
-        updateData.release_remarks = req.body.release_remarks || null
+        updateData.returned_to_requestor_by = req.body.action_by
+        updateData.returned_to_requestor_at = now
+        updateData.returned_to_requestor_remarks = req.body.remarks || null
+        break
+      case 'Returned to Requestor':
+        updateData.returned_to_requestor_by = req.body.action_by
+        updateData.returned_to_requestor_at = now
+        updateData.returned_to_requestor_remarks = req.body.remarks || null
+        break
+      case 'Returned to SCM':
+        updateData.returned_to_scm_by = req.body.action_by
+        updateData.returned_to_scm_at = now
+        updateData.returned_to_scm_remarks = req.body.remarks || null
+        break
+      case 'On Hold (Requestor)':
+        updateData.on_hold_requestor_by = req.body.action_by
+        updateData.on_hold_requestor_at = now
+        updateData.on_hold_requestor_remarks = req.body.remarks || null
+        break
+      case 'On Hold (SCM)':
+        updateData.on_hold_scm_by = req.body.action_by
+        updateData.on_hold_scm_at = now
+        updateData.on_hold_scm_remarks = req.body.remarks || null
+        break
+      case 'Rejected by Finance':
+        updateData.finance_rejected_remarks =
+          req.body.finance_remarks || req.body.finance_rejected_remarks || null
+        break
+      case 'On Hold (Finance)':
+        updateData.finance_on_hold_remarks =
+          req.body.finance_remarks || req.body.finance_on_hold_remarks || null
         break
       // Add more cases as needed
     }
@@ -172,6 +199,19 @@ const updateRequest = async (req, res) => {
     ) {
       return res.status(400).json({
         message: 'Rejection remarks are required when rejecting a request',
+      })
+    }
+
+    if (
+      req.body.status &&
+      (req.body.status === 'Returned to Requestor' ||
+        req.body.status === 'Returned to SCM' ||
+        req.body.status === 'On Hold (Requestor)' ||
+        req.body.status === 'On Hold (SCM)') &&
+      !req.body.remarks
+    ) {
+      return res.status(400).json({
+        message: 'Remarks are required for this action',
       })
     }
 
@@ -217,7 +257,7 @@ const allowedTransitions = {
   'Forwarded to Finance': [
     'Approved by Finance',
     'Rejected by Finance',
-    'Returned to SCM',
+    'On Hold (Finance)',
     'Cancelled',
   ],
   'Rejected by Finance': ['Forwarded to Finance', 'Cancelled'],
@@ -231,6 +271,7 @@ const allowedTransitions = {
   ],
   'On Hold (No Supplier)': ['Forwarded to Procurement', 'Cancelled'],
   'On Hold (No Stock)': ['Forwarded to Procurement', 'Cancelled'],
+  'On Hold (Finance)': ['Forwarded to Finance', 'Cancelled'],
   'Procurement Processing': [
     'Received by Procurement',
     'On Hold (No Supplier)',
@@ -251,6 +292,7 @@ const statusesRequiringRemarks = [
   'Rejected by Procurement',
   'On Hold (No Supplier)',
   'On Hold (No Stock)',
+  'On Hold (Finance)',
   'Cancelled',
   'Returned to SCM',
   'Returned to Requestor',
@@ -333,7 +375,7 @@ const batchUpdateStatus = async (req, res) => {
           updateData.finance_remarks = remarks || null
           break
         case 'Rejected by Finance':
-          updateData.finance_remarks = remarks || null
+          updateData.finance_rejected_remarks = remarks || null
           break
         case 'Received by Procurement':
           updateData.procurement_received_by = action_by
@@ -351,6 +393,29 @@ const batchUpdateStatus = async (req, res) => {
           updateData.scm_released_at = now
           updateData.release_remarks = remarks || null
           break
+        case 'On Hold (Finance)':
+          updateData.finance_on_hold_remarks = remarks || null
+          break
+        case 'On Hold (SCM)':
+          updateData.on_hold_scm_by = action_by
+          updateData.on_hold_scm_at = now
+          updateData.on_hold_scm_remarks = remarks || null
+          break
+        case 'On Hold (Requestor)':
+          updateData.on_hold_requestor_by = action_by
+          updateData.on_hold_requestor_at = now
+          updateData.on_hold_requestor_remarks = remarks || null
+          break
+        case 'Returned to SCM':
+          updateData.returned_to_scm_by = action_by
+          updateData.returned_to_scm_at = now
+          updateData.returned_to_scm_remarks = remarks || null
+          break
+        case 'Returned to Requestor':
+          updateData.returned_to_requestor_by = action_by
+          updateData.returned_to_requestor_at = now
+          updateData.returned_to_requestor_remarks = remarks || null
+          break
         // ...add more as needed
       }
 
@@ -367,6 +432,84 @@ const batchUpdateStatus = async (req, res) => {
   }
 }
 
+// Resume Request (Finance resumes a request from On Hold)
+const resumeRequest = async (req, res) => {
+  try {
+    const { id } = req.params
+    const { action_by, remarks } = req.body
+    const now = dayjs().tz('Asia/Manila').format('YYYY-MM-DD HH:mm:ss')
+    const request = await Request.findByPk(id)
+    if (!request) return res.status(404).json({ message: 'Request not found' })
+
+    // Only allow if current status is On Hold (Finance)
+    if (request.status !== 'On Hold (Finance)') {
+      return res.status(400).json({ message: 'Request is not On Hold (Finance)' })
+    }
+
+    // Update status and history
+    let statusHistory = request.status_history ? JSON.parse(request.status_history) : []
+    statusHistory.push({
+      status: 'Forwarded to Finance',
+      by: action_by || 'SYSTEM',
+      at: now,
+      remarks: remarks || null,
+    })
+
+    await Request.update(
+      {
+        status: 'Forwarded to Finance',
+        updated_at: now,
+        status_history: JSON.stringify(statusHistory),
+        finance_on_hold_remarks: remarks || null,
+      },
+      { where: { id } },
+    )
+
+    res.json({ message: 'Request resumed and forwarded to Finance.' })
+  } catch (error) {
+    res.status(500).json({ message: 'Error resuming request', error: error.message })
+  }
+}
+
+// Resubmit Request (SCM/Requestor resubmits from On Hold)
+const resubmitRequest = async (req, res) => {
+  try {
+    const { id } = req.params
+    const { action_by, remarks } = req.body
+    const now = dayjs().tz('Asia/Manila').format('YYYY-MM-DD HH:mm:ss')
+    const request = await Request.findByPk(id)
+    if (!request) return res.status(404).json({ message: 'Request not found' })
+
+    // Only allow if current status is On Hold (Finance)
+    if (request.status !== 'On Hold (Finance)') {
+      return res.status(400).json({ message: 'Request is not On Hold (Finance)' })
+    }
+
+    // Update status and history
+    let statusHistory = request.status_history ? JSON.parse(request.status_history) : []
+    statusHistory.push({
+      status: 'Forwarded to Finance',
+      by: action_by || 'SYSTEM',
+      at: now,
+      remarks: remarks || null,
+    })
+
+    await Request.update(
+      {
+        status: 'Forwarded to Finance',
+        updated_at: now,
+        status_history: JSON.stringify(statusHistory),
+        finance_on_hold_remarks: remarks || null,
+      },
+      { where: { id } },
+    )
+
+    res.json({ message: 'Request resubmitted and forwarded to Finance.' })
+  } catch (error) {
+    res.status(500).json({ message: 'Error resubmitting request', error: error.message })
+  }
+}
+
 module.exports = {
   createRequest,
   getAllRequests,
@@ -375,4 +518,6 @@ module.exports = {
   deleteRequest,
   restoreRequest,
   batchUpdateStatus,
+  resumeRequest,
+  resubmitRequest,
 }

@@ -181,7 +181,7 @@ export const useRequestStore = defineStore('request', () => {
     sortDesc.value = false
   }
 
-  // Batch update status for multiple requests
+  // Dynamic bulk action for any status
   async function batchUpdateStatus({ requestIds, newStatus, remarks }) {
     try {
       const authStore = useAuthStore()
@@ -206,6 +206,147 @@ export const useRequestStore = defineStore('request', () => {
       'On Hold (No Supplier)',
       'On Hold (No Stock)',
     ].includes(status)
+  }
+
+  // Single Approve
+  async function financeApproveRequest(id, remarks = '') {
+    await updateRequest(id, {
+      status: 'Approved by Finance',
+      finance_remarks: remarks,
+    })
+  }
+
+  // Single Reject
+  async function financeRejectRequest(id, remarks) {
+    await updateRequest(id, {
+      status: 'Rejected by Finance',
+      finance_remarks: remarks,
+      finance_rejected_remarks: remarks,
+      requestor_rejection_remarks: remarks,
+    })
+  }
+
+  // Single Hold
+  async function financeHoldRequest(id, remarks) {
+    await updateRequest(id, {
+      status: 'On Hold (Finance)',
+      finance_remarks: remarks,
+      finance_on_hold_remarks: remarks,
+    })
+  }
+
+  // Forward to Treasury
+  async function financeForwardToTreasury(id, remarks = '') {
+    await updateRequest(id, {
+      status: 'Forwarded to Treasury',
+      finance_remarks: remarks,
+    })
+  }
+
+  // Batch Approve
+  async function batchFinanceApprove(ids, remarks = '') {
+    await batchUpdateStatus({
+      requestIds: ids,
+      newStatus: 'Approved by Finance',
+      remarks,
+    })
+  }
+
+  // Batch Reject
+  async function batchFinanceReject(ids, remarks, target = 'SCM') {
+    let newStatus = target === 'Requestor' ? 'Returned to Requestor' : 'Returned to SCM'
+    await batchUpdateStatus({
+      requestIds: ids,
+      newStatus,
+      remarks,
+    })
+  }
+
+  // Batch Hold
+  async function batchFinanceHold(ids, remarks, target = 'Finance') {
+    let newStatus = 'On Hold (Finance)'
+    if (target === 'SCM') newStatus = 'On Hold (SCM)'
+    else if (target === 'Requestor') newStatus = 'On Hold (Requestor)'
+    await batchUpdateStatus({
+      requestIds: ids,
+      newStatus,
+      remarks,
+    })
+  }
+
+  // Resubmit Request (for SCM/Requestor)
+  async function resubmitRequest(id, remarks = '') {
+    const authStore = useAuthStore()
+    const action_by =
+      authStore.currentUser?.full_name || authStore.currentUser?.employee_id || 'SYSTEM'
+    await requestAPI.resubmitRequest(id, { action_by, remarks })
+    await loadRequests()
+  }
+
+  // Resume Request (for Finance)
+  async function resumeRequest(id, remarks = '') {
+    const authStore = useAuthStore()
+    const action_by =
+      authStore.currentUser?.full_name || authStore.currentUser?.employee_id || 'SYSTEM'
+    await requestAPI.resumeRequest(id, { action_by, remarks })
+    await loadRequests()
+  }
+
+  async function returnToRequestor(id, remarks, action_by) {
+    return await requestAPI.updateRequest(id, {
+      status: 'Returned to Requestor',
+      remarks,
+      action_by,
+    })
+  }
+
+  async function returnToSCM(id, remarks, action_by) {
+    return await requestAPI.updateRequest(id, {
+      status: 'Returned to SCM',
+      remarks,
+      action_by,
+    })
+  }
+
+  async function holdForRequestor(id, remarks, action_by) {
+    return await requestAPI.updateRequest(id, {
+      status: 'On Hold (Requestor)',
+      remarks,
+      action_by,
+    })
+  }
+
+  async function holdForSCM(id, remarks, action_by) {
+    return await requestAPI.updateRequest(id, {
+      status: 'On Hold (SCM)',
+      remarks,
+      action_by,
+    })
+  }
+
+  async function batchSCMApprove(ids, remarks = '') {
+    await batchUpdateStatus({
+      requestIds: ids,
+      newStatus: 'Approved by SCM',
+      remarks,
+    })
+  }
+
+  async function batchSCMForwardToFinance(ids, remarks = '') {
+    await batchUpdateStatus({
+      requestIds: ids,
+      newStatus: 'Forwarded to Finance',
+      remarks,
+    })
+  }
+
+  // Batch Forward to Treasury
+  async function batchFinanceForwardToTreasury(ids, remarks = '') {
+    await batchUpdateStatus({
+      requestIds: ids,
+      newStatus: 'Forwarded to Treasury',
+      remarks,
+    })
   }
 
   return {
@@ -241,5 +382,21 @@ export const useRequestStore = defineStore('request', () => {
     resetFilters,
     batchUpdateStatus,
     isResubmittable,
+    financeApproveRequest,
+    financeRejectRequest,
+    financeHoldRequest,
+    financeForwardToTreasury,
+    batchFinanceApprove,
+    batchFinanceReject,
+    batchFinanceHold,
+    resubmitRequest,
+    resumeRequest,
+    returnToRequestor,
+    returnToSCM,
+    holdForRequestor,
+    holdForSCM,
+    batchSCMApprove,
+    batchSCMForwardToFinance,
+    batchFinanceForwardToTreasury,
   }
 })
