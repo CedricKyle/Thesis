@@ -59,7 +59,7 @@ const commonButtonClasses = 'btn btn-sm btn-circle border-none btn-ghost'
 
 // Simplify getDefaultAttendanceData to only filter out soft-deleted employees
 const getDefaultAttendanceData = (employees) => {
-  // Filter out soft-deleted employees and Super Admin
+  // Exclude soft-deleted and Super Admin employees
   const filteredEmployees = employees.filter(
     (emp) => !emp.deleted_at && emp.roleInfo?.role_name !== 'Super Admin',
   )
@@ -96,6 +96,7 @@ function isDayOff(date, workDays) {
 }
 
 const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
+  // Exclude soft-deleted and Super Admin employees
   const filteredEmployees = employees.filter(
     (emp) => !emp.deleted_at && emp.roleInfo?.role_name !== 'Super Admin',
   )
@@ -169,16 +170,66 @@ const mergeAttendanceWithEmployees = (attendanceRecords, employees) => {
 
 // Update the permission check to use HR_MANAGE_ATTENDANCE
 const canManageAttendance = computed(() => {
-  const userPermissions = authStore.currentUser?.permissions || []
-  // Only allow users with HR_FULL_ACCESS
-  return userPermissions.includes(PERMISSION_IDS.HR_FULL_ACCESS)
+  const user = authStore.currentUser
+  return (
+    user?.permissions?.includes(PERMISSION_IDS.HR_FULL_ACCESS) ||
+    user?.permissions?.includes(PERMISSION_IDS.HR_MANAGE_ATTENDANCE) ||
+    user?.roleInfo?.role_name === 'Super Admin'
+  )
 })
 
 const attendanceEmployees = computed(() =>
-  employeeStore.employees.filter((emp) => emp.roleInfo?.role_name !== 'Super Admin'),
+  employeeStore.employees.filter(
+    (emp) => !emp.deleted_at && emp.roleInfo?.role_name !== 'Super Admin',
+  ),
 )
 
+const selectedRows = ref([])
+
+const allRowsSelected = computed(() => {
+  if (!table) return false
+  const data = table.getData()
+  return data.length > 0 && data.every((row) => selectedRows.value.includes(row.id))
+})
+
+function toggleSelectAll() {
+  if (!table) return
+  const data = table.getData()
+  if (allRowsSelected.value) {
+    selectedRows.value = []
+  } else {
+    selectedRows.value = data.filter((row) => row.approvalStatus === 'Pending').map((row) => row.id)
+  }
+}
+
+function toggleSelectRow(rowId) {
+  if (selectedRows.value.includes(rowId)) {
+    selectedRows.value = selectedRows.value.filter((id) => id !== rowId)
+  } else {
+    selectedRows.value.push(rowId)
+  }
+}
+
+// NOW define columns array!
 const columns = [
+  {
+    title: '',
+    field: 'select',
+    headerSort: false,
+    width: 40,
+    formatter: (cell) => {
+      const rowId = cell.getRow().getData().id
+      const isChecked = selectedRows.value.includes(rowId) ? 'checked' : ''
+      const isDisabled = cell.getRow().getData().approvalStatus !== 'Pending' ? 'disabled' : ''
+      return `<input type="checkbox" class="bulk-checkbox checkbox checkbox-neutral checkbox-xs" data-row-id="${rowId}" ${isChecked} ${isDisabled}/>`
+    },
+    cellClick: (e, cell) => {
+      const rowId = cell.getRow().getData().id
+      if (cell.getRow().getData().approvalStatus !== 'Pending') return
+      toggleSelectRow(rowId)
+      e.target.checked = selectedRows.value.includes(rowId)
+    },
+  },
   {
     title: 'Full Name',
     field: 'full_name',
@@ -706,6 +757,37 @@ const handleMarkAllAbsent = async () => {
     isMarkingAbsent.value = false
   }
 }
+
+const isHR = computed(() => {
+  const user = authStore.currentUser
+  return (
+    user?.permissions?.includes(PERMISSION_IDS.HR_FULL_ACCESS) ||
+    user?.permissions?.includes(PERMISSION_IDS.HR_MANAGE_ATTENDANCE) ||
+    user?.roleInfo?.role_name === 'Super Admin'
+  )
+})
+
+const handleBulkApprove = async () => {
+  if (!selectedRows.value.length) return
+  try {
+    await attendanceStore.bulkApproveAttendance(selectedRows.value)
+    showToast('Bulk approve successful!', 'success')
+    selectedRows.value = []
+    await refreshTableData()
+  } catch (err) {
+    showToast(err.message, 'error')
+  }
+}
+
+watch(selectedRows, () => {
+  if (!table) return
+  table.getRows().forEach((row) => {
+    const checkbox = row.getCell('select').getElement().querySelector('input[type="checkbox"]')
+    if (checkbox) {
+      checkbox.checked = selectedRows.value.includes(row.getData().id)
+    }
+  })
+})
 </script>
 
 <template>
@@ -719,6 +801,23 @@ const handleMarkAllAbsent = async () => {
           Mark All Absent for Today
         </button>
       </div>
+    </div>
+    <div class="flex items-center gap-2 mb-2" v-if="canManageAttendance">
+      <input
+        type="checkbox"
+        class="checkbox checkbox-neutral checkbox-xs"
+        :checked="allRowsSelected"
+        @change="toggleSelectAll"
+        id="selectAllCheckbox"
+      />
+      <label for="selectAllCheckbox" class="text-xs text-gray-600">Select All</label>
+      <button
+        class="btn-primaryStyle"
+        :disabled="selectedRows.length === 0"
+        @click="handleBulkApprove"
+      >
+        Approve Selected
+      </button>
     </div>
     <div ref="tableRef"></div>
   </div>
@@ -856,4 +955,8 @@ const handleMarkAllAbsent = async () => {
       </div>
     </div>
   </dialog>
+
+  <div v-if="isHR" class="tabs tabs-border bg-primaryColor ...">
+    <!-- Attendance List Tab, Overtime, Add Attendance -->
+  </div>
 </template>

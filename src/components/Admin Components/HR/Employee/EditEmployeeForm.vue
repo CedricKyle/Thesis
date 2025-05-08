@@ -49,6 +49,7 @@ const employeeData = ref({
     relationship: '',
     contact_number: '',
   },
+  branch_id: '',
 })
 
 const isLoading = ref(true)
@@ -58,26 +59,30 @@ const employeeToUpdate = ref(null)
 const originalData = ref(null)
 const changedFields = ref(new Set())
 
+const branches = [
+  { id: 1, name: 'Dasmariñas Branch' },
+  { id: 2, name: 'Silang Branch' },
+  { id: 3, name: 'Imus Branch' },
+]
+
 // Add departments data
 const departmentJobs = {
-  'HR Department': ['HR Manager'],
-  'Finance Department': ['Accountant'],
-  'Sales Department': ['Sales Manager'],
-  'Customer Relationship Management': ['Customer Service Representative'],
-  'Supply Chain Management': ['Supply Chain Manager'],
+  [DEPARTMENTS.HR]: ['HR Manager'],
+  [DEPARTMENTS.FINANCE]: ['Accountant'],
+  [DEPARTMENTS.SALES]: ['Sales Manager'],
+  [DEPARTMENTS.CRM]: ['Customer Service Representative'],
+  [DEPARTMENTS.SCM]: ['Supply Chain Manager'],
+  [DEPARTMENTS.BRANCH_OPERATION]: ['Branch Operation Manager'],
+  [DEPARTMENTS.PROCUREMENT]: ['Procurement Manager'],
 }
 
 // Add departments computed property
 const departments = computed(() => {
   const isAdminRoute = route.path.startsWith('/admin')
-  const baseDepartments = [
-    'HR Department',
-    'Finance Department',
-    'Sales Department',
-    'Customer Relationship Management',
-    'Supply Chain Management',
-  ]
-  return isAdminRoute ? ['Admin Department', ...baseDepartments] : baseDepartments
+  if (isAdminRoute) {
+    return Object.values(DEPARTMENTS)
+  }
+  return Object.values(DEPARTMENTS).filter((dept) => dept !== DEPARTMENTS.ADMIN)
 })
 
 // Define department-specific roles based on permissions
@@ -95,28 +100,6 @@ const getDepartmentRoles = (department) => {
   roles.push(`${departmentGroup.name.replace(' Department', '')} Staff`)
 
   return roles
-}
-
-// Define job titles based on roles
-const getJobTitles = (department, role) => {
-  if (department === DEPARTMENTS.ADMIN) return ['Administrator']
-
-  const departmentName = department.replace(' Department', '')
-
-  if (role?.includes('Manager')) {
-    return [`${departmentName} Manager`]
-  }
-
-  // Staff-level job titles
-  const staffTitles = {
-    [DEPARTMENTS.HR]: ['HR Assistant'],
-    [DEPARTMENTS.FINANCE]: ['Accountant', 'Accounting Assistant'],
-    [DEPARTMENTS.SALES]: ['Sales Representative', 'Sales Assistant'],
-    [DEPARTMENTS.CRM]: ['Customer Service Representative', 'Customer Service Assistant'],
-    [DEPARTMENTS.SCM]: ['SCM Manager', 'Inventory Specialist'],
-  }
-
-  return staffTitles[department] || []
 }
 
 // Update computed properties
@@ -313,6 +296,10 @@ const handleUpdate = async () => {
         relationship: employeeData.value.emergency_contact?.relationship || '',
         contactNumber: employeeData.value.emergency_contact?.contact_number || '',
       },
+      branch_id:
+        employeeData.value.department === DEPARTMENTS.BRANCH_OPERATION
+          ? Number(employeeData.value.branch_id)
+          : null,
     }
 
     // Log the data being prepared for update
@@ -387,6 +374,14 @@ const handleUpdate = async () => {
     formDataToUpdate.value = formData
     employeeToUpdate.value = updateData
     confirmModal.value?.showModal()
+
+    if (
+      employeeData.value.department === DEPARTMENTS.BRANCH_OPERATION &&
+      !employeeData.value.branch_id
+    ) {
+      showToastMessage('Branch is required for Branch Operation employees', 'error')
+      return
+    }
   } catch (error) {
     console.error('Error preparing update:', error)
     showToastMessage(error.message || 'Error preparing update', 'error')
@@ -456,10 +451,11 @@ watch(
     if (newDepartment === DEPARTMENTS.ADMIN) {
       employeeData.value.position_id = 'Administrator'
       employeeData.value.role = 'Admin'
+      employeeData.value.branch_id = ''
     } else {
-      // Reset role and job title when department changes
       employeeData.value.role = ''
       employeeData.value.position_id = ''
+      employeeData.value.branch_id = ''
     }
   },
 )
@@ -580,6 +576,9 @@ watch(
                 <option v-for="position in availableJobs" :key="position.id" :value="position.id">
                   {{ position.position_title }}
                 </option>
+                <option v-if="availableJobs.length === 0" disabled>
+                  No available job titles for this department
+                </option>
               </select>
             </div>
 
@@ -626,6 +625,22 @@ watch(
                 class="border-b-1 w-full outline-none border-gray-300 p-0 pt-3 text-black"
                 @change="handleFieldChange('date_of_hire', employeeData.date_of_hire)"
               />
+            </div>
+
+            <!-- Branch Selection (only for Branch Operation) -->
+            <div v-if="employeeData.department === DEPARTMENTS.BRANCH_OPERATION">
+              <legend class="fieldset-legend text-black text-xs justify-start">
+                Branch <span class="text-red-500">*</span>
+              </legend>
+              <select
+                v-model="employeeData.branch_id"
+                class="select focus:outline-none bg-white border-black text-black"
+              >
+                <option disabled value="">Select Branch</option>
+                <option v-for="branch in branches" :key="branch.id" :value="branch.id">
+                  {{ branch.name }}
+                </option>
+              </select>
             </div>
           </div>
         </div>

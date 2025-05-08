@@ -34,4 +34,9 @@ router.get('/audit-logs', verifyToken, getAuditLogs)
 // Get all audit logs
 router.get('/audit-logs/all', verifyToken, getAllAuditLogs)
 
+// Add these routes
+router.post('/bulk-submit', verifyToken, payrollController.bulkSubmitPayrolls)
+router.post('/bulk-approve', verifyToken, payrollController.bulkApprovePayrolls)
+router.post('/bulk-process', verifyToken, payrollController.bulkMarkAsPaid)
+
 module.exports = router

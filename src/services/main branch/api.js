@@ -57,3 +57,19 @@ export const employeeAPI = {
   // Add emergency contact endpoint
   getEmployeeEmergencyContact: (id) => axios.get(`/api/employees/${id}/emergency-contact`),
 }
+
+// Request API
+export const requestAPI = {
+  getAllRequests: () => axios.get('/api/requests'),
+  getRequest: (id) => axios.get(`/api/requests/${id}`),
+  createRequest: (data) => {
+    console.log('Sending request data:', data)
+    return axios.post('/api/requests', data)
+  },
+  updateRequest: (id, data) => axios.put(`/api/requests/${id}`, data),
+  deleteRequest: (id) => axios.delete(`/api/requests/${id}`),
+  restoreRequest: (id) => axios.patch(`/api/requests/restore/${id}`),
+
+  // --- NEW: Batch update status ---
+  batchUpdateStatus: (payload) => axios.post('/api/requests/batch-update-status', payload),
+}

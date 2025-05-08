@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/Authentication/authStore'
 import { useRouter } from 'vue-router'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import axios from 'axios'
+import { getFirstAccessibleRoute } from '@/composables/Admin Composables/User & Role/role/usePermissions'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -33,6 +34,26 @@ function getDepartmentPath(department) {
   }
 
   return deptMap[department] || department.toLowerCase().split(' ')[0]
+}
+
+function getDepartmentDefaultRoute(department) {
+  if (!department) return '/login'
+
+  const deptRouteMap = {
+    'Super Admin': '/admin/hr/dashboard',
+    'Admin Department': '/admin/hr/dashboard',
+    'Human Resource': '/hr/dashboard',
+    'HR Department': '/hr/dashboard',
+    Finance: '/finance/dashboard',
+    'Finance Department': '/finance/dashboard',
+    Sales: '/sales/dashboard',
+    'Sales Department': '/sales/dashboard',
+    'Supply Chain Management': '/scm/dashboard',
+    'Customer Relationship Management': '/crm/dashboard',
+    'Branch Operation': '/branch-operation/dashboard',
+  }
+
+  return deptRouteMap[department] || `/${department.toLowerCase().replace(/\s+/g, '-')}/dashboard`
 }
 
 const handleSubmit = async (e) => {
@@ -72,17 +93,14 @@ const handleSubmit = async (e) => {
       }
 
       // ADD THIS LINE:
-      console.log('CURRENT USER:', authStore.currentUser)
+      console.log('Current User:', authStore.currentUser)
 
       // Determine redirect path
       const department = response.data.user.department
       const role = response.data.user.role
       console.log('User info:', { department, role })
 
-      const redirectPath =
-        role === 'Super Admin'
-          ? '/admin/hr/dashboard'
-          : `/${getDepartmentPath(department)}/dashboard`
+      const redirectPath = getFirstAccessibleRoute(department, authStore.userPermissions)
 
       console.log('Redirecting to:', redirectPath)
 

@@ -1278,6 +1278,31 @@ export const useAttendanceStore = defineStore('attendance', () => {
       .filter((n) => !isNaN(n))
   }
 
+  const bulkApproveAttendance = async (ids) => {
+    const authStore = useAuthStore()
+    const currentUser = authStore.currentUser
+    try {
+      const response = await axios.post(
+        '/api/attendance/bulk-approve',
+        {
+          ids,
+          approved_by: currentUser.full_name,
+        },
+        {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+        },
+      )
+      if (response.data.success) {
+        await loadRecords()
+        return response.data
+      } else {
+        throw new Error(response.data.message || 'Bulk approve failed')
+      }
+    } catch (error) {
+      throw new Error(error.response?.data?.message || 'Bulk approve failed')
+    }
+  }
+
   return {
     // State
     attendanceRecords,
@@ -1365,5 +1390,8 @@ export const useAttendanceStore = defineStore('attendance', () => {
 
     // Add this new action
     approveOvertime,
+
+    // Add this new action
+    bulkApproveAttendance,
   }
 })

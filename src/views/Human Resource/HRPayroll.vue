@@ -347,6 +347,74 @@ function confirmEditPayroll() {
   saveEditedPayroll()
   showEditModal.value = false
 }
+
+const selectedPayrollRows = ref([])
+
+const allPayrollsSelected = computed(
+  () =>
+    paginatedPayrolls.value.length > 0 &&
+    paginatedPayrolls.value.every((row) => selectedPayrollRows.value.includes(row.id)),
+)
+
+function toggleSelectAllPayrolls() {
+  if (allPayrollsSelected.value) {
+    selectedPayrollRows.value = []
+  } else {
+    selectedPayrollRows.value = paginatedPayrolls.value.map((row) => row.id)
+  }
+}
+
+function toggleSelectPayrollRow(id) {
+  if (selectedPayrollRows.value.includes(id)) {
+    selectedPayrollRows.value = selectedPayrollRows.value.filter((rowId) => rowId !== id)
+  } else {
+    selectedPayrollRows.value.push(id)
+  }
+}
+
+async function bulkSubmitPayrolls() {
+  await payrollStore.bulkSubmitPayrolls(selectedPayrollRows.value)
+  selectedPayrollRows.value = []
+}
+
+const showBulkSubmitModal = ref(false)
+const bulkSubmitRemarks = ref('')
+
+async function confirmBulkSubmit() {
+  await payrollStore.bulkSubmitPayrolls(selectedPayrollRows.value, bulkSubmitRemarks.value)
+  selectedPayrollRows.value = []
+  bulkSubmitRemarks.value = ''
+  showBulkSubmitModal.value = false
+  showToastMsg('Payrolls submitted for review!', 'success')
+}
+
+const canBulkMarkAsPaid = computed(
+  () =>
+    selectedPayrollRows.value.length > 0 &&
+    selectedPayrollRows.value.every((id) => {
+      const row = payrollStore.payrolls.find((p) => p.id === id)
+      return row && row.status === 2
+    }),
+)
+
+const showBulkMarkAsPaidModal = ref(false)
+
+async function confirmBulkMarkAsPaid() {
+  await payrollStore.bulkMarkAsPaid(selectedPayrollRows.value)
+  selectedPayrollRows.value = []
+  showBulkMarkAsPaidModal.value = false
+  showToastMsg('Payrolls marked as paid!', 'success')
+}
+
+// Only allow bulk submit if all selected are Draft (0) or Rejected (3)
+const canBulkSubmit = computed(
+  () =>
+    selectedPayrollRows.value.length > 0 &&
+    selectedPayrollRows.value.every((id) => {
+      const row = payrollStore.payrolls.find((p) => p.id === id)
+      return row && (row.status === 0 || row.status === 3)
+    }),
+)
 </script>
 
 <template>
@@ -395,10 +463,49 @@ function confirmEditPayroll() {
         </div>
       </div>
     </div>
+    <div class="flex gap-2 mb-2">
+      <input
+        type="checkbox"
+        :checked="allPayrollsSelected"
+        @change="toggleSelectAllPayrolls"
+        class="checkbox checkbox-neutral checkbox-xs"
+      />
+      <span class="text-xs text-gray-500">Select All</span>
+      <button
+        class="btn-primaryStyle"
+        :disabled="!canBulkSubmit"
+        v-if="canBulkSubmit"
+        @click="showBulkSubmitModal = true"
+      >
+        Bulk Submit
+      </button>
+      <button
+        class="btn-primaryStyle"
+        :disabled="!canBulkMarkAsPaid"
+        v-if="canBulkMarkAsPaid"
+        @click="showBulkMarkAsPaidModal = true"
+      >
+        Bulk Mark as Paid
+      </button>
+      <div
+        v-if="selectedPayrollRows.length > 0 && !canBulkSubmit && !canBulkMarkAsPaid"
+        class="text-xs text-red-500"
+      >
+        Please select payrolls with the same valid status for bulk actions.
+      </div>
+    </div>
     <div class="overflow-x-auto">
       <table class="table text-black w-full text-xs border border-gray-300 rounded-md">
         <thead class="text-black text-xs">
           <tr class="border border-gray-300 rounded-md text-xs">
+            <th>
+              <input
+                type="checkbox"
+                :checked="allPayrollsSelected"
+                @change="toggleSelectAllPayrolls"
+                class="checkbox checkbox-neutral checkbox-xs"
+              />
+            </th>
             <th>No.</th>
             <th>Employee Name</th>
             <th>Month</th>
@@ -435,6 +542,14 @@ function confirmEditPayroll() {
             :key="row.employee_id"
             class="border border-gray-300 rounded-md"
           >
+            <td>
+              <input
+                type="checkbox"
+                :checked="selectedPayrollRows.includes(row.id)"
+                @change="toggleSelectPayrollRow(row.id)"
+                class="checkbox checkbox-xs checkbox-neutral"
+              />
+            </td>
             <td>{{ (currentPage - 1) * rowsPerPage + idx + 1 }}</td>
             <td>{{ row.employee?.full_name || row.employee_id }}</td>
             <td>{{ row.month }}</td>
@@ -496,24 +611,15 @@ function confirmEditPayroll() {
                 </button>
                 <button
                   v-if="
-                    authStore.hasPermission(PERMISSION_IDS.HR_MANAGE_PAYROLL) && row.status === 0
+                    (authStore.hasPermission(PERMISSION_IDS.HR_MANAGE_PAYROLL) ||
+                      authStore.hasPermission(PERMISSION_IDS.ADMIN_FULL_ACCESS)) &&
+                    row.status === 0
                   "
                   class="text-black hover:text-white hover:bg-primaryColor/80 rounded-full p-1 cursor-pointer"
                   title="Submit to Finance"
                   @click="openSubmitModal(row)"
                 >
                   <SendIcon class="w-4 h-4" />
-                </button>
-                <button
-                  v-if="
-                    authStore.hasPermission(PERMISSION_IDS.FINANCE_MANAGE_PAYROLL) &&
-                    row.status === 1
-                  "
-                  class="text-black hover:text-white hover:bg-primaryColor/80 rounded-full p-1 cursor-pointer"
-                  title="Approve Payroll"
-                  @click="approvePayroll(row)"
-                >
-                  <CheckIcon class="w-4 h-4" />
                 </button>
                 <button
                   v-if="
@@ -529,7 +635,8 @@ function confirmEditPayroll() {
                 <button
                   v-if="
                     (authStore.hasPermission(PERMISSION_IDS.HR_MANAGE_PAYROLL) ||
-                      authStore.hasPermission(PERMISSION_IDS.FINANCE_MANAGE_PAYROLL)) &&
+                      authStore.hasPermission(PERMISSION_IDS.FINANCE_MANAGE_PAYROLL) ||
+                      authStore.hasPermission(PERMISSION_IDS.ADMIN_FULL_ACCESS)) &&
                     row.status === 2
                   "
                   class="text-black hover:text-white hover:bg-primaryColor/80 rounded-full p-1 cursor-pointer"
@@ -856,7 +963,7 @@ function confirmEditPayroll() {
               <tr>
                 <th>Date</th>
                 <th>Action</th>
-                <th>By User</th>
+                <th>By</th>
                 <th>Employee</th>
                 <th>Payroll Period</th>
                 <th>Remarks</th>
@@ -1149,6 +1256,44 @@ function confirmEditPayroll() {
         <div class="modal-action justify-center gap-4">
           <button class="btn-primaryStyle" @click="confirmEditPayroll">Yes, Save</button>
           <button class="btn-secondaryStyle" @click="showEditConfirmModal = false">Cancel</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Bulk Submit Confirmation Modal -->
+    <dialog v-if="showBulkSubmitModal" open class="modal">
+      <div class="modal-box bg-white w-96 text-black">
+        <h3 class="font-bold text-md text-black">Confirm Bulk Submit</h3>
+        <div class="divider"></div>
+        <p class="text-sm mb-2">
+          Are you sure you want to submit <b>{{ selectedPayrollRows.length }}</b> payroll(s) for
+          review?
+        </p>
+        <textarea
+          v-model="bulkSubmitRemarks"
+          class="textarea w-full h-24 bg-white border-black border"
+          placeholder="Enter remarks (optional)"
+        ></textarea>
+        <div class="modal-action">
+          <button class="btn-secondaryStyle" @click="showBulkSubmitModal = false">Cancel</button>
+          <button class="btn-primaryStyle" @click="confirmBulkSubmit">Submit</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Bulk Mark as Paid Confirmation Modal -->
+    <dialog v-if="showBulkMarkAsPaidModal" open class="modal">
+      <div class="modal-box bg-white w-96 text-black">
+        <h3 class="font-bold text-md text-black">Confirm Bulk Mark as Paid</h3>
+        <div class="divider"></div>
+        <p class="text-sm mb-2">
+          Are you sure you want to mark <b>{{ selectedPayrollRows.length }}</b> payroll(s) as paid?
+        </p>
+        <div class="modal-action">
+          <button class="btn-secondaryStyle" @click="showBulkMarkAsPaidModal = false">
+            Cancel
+          </button>
+          <button class="btn-primaryStyle" @click="confirmBulkMarkAsPaid">Mark as Paid</button>
         </div>
       </div>
     </dialog>

@@ -1,7 +1,13 @@
 <script setup>
 import BaseDepartmentSidebar from '@/components/common/BaseDepartmentSidebar.vue'
 import { PERMISSION_IDS } from '@/composables/Admin Composables/User & Role/role/permissionsId'
-import { LayoutDashboard, HandCoins, Landmark, FileChartLine } from 'lucide-vue-next'
+import {
+  LayoutDashboard,
+  HandCoins,
+  Landmark,
+  FileChartLine,
+  ChartNoAxesColumnIncreasing,
+} from 'lucide-vue-next'
 
 const menuItems = [
   {
@@ -27,6 +33,12 @@ const menuItems = [
     route: '/finance/reports',
     icon: FileChartLine,
     permission: PERMISSION_IDS.FINANCE_VIEW_REPORTS,
+  },
+  {
+    name: 'Sales Management',
+    route: '/finance/sales-management',
+    icon: ChartNoAxesColumnIncreasing,
+    permission: PERMISSION_IDS.FINANCE_MANAGE_SALES_MANAGEMENT,
   },
 ]
 </script>

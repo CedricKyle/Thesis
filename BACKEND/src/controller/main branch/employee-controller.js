@@ -145,6 +145,12 @@ const createEmployee = async (req, res) => {
       })
     }
 
+    if (employeeData.department === 'Branch Operation' && !employeeData.branch_id) {
+      return res.status(400).json({
+        message: 'Branch ID is required for Branch Operation employees',
+      })
+    }
+
     // Create employee with verified role_id
     const employee = await Employee.create(
       {
@@ -164,6 +170,7 @@ const createEmployee = async (req, res) => {
         address: employeeData.address,
         profile_image_path: profileImagePath,
         resume_path: resumePath,
+        branch_id: employeeData.department === 'Branch Operation' ? employeeData.branch_id : null,
       },
       { transaction: t },
     )
@@ -397,6 +404,13 @@ const updateEmployee = async (req, res) => {
       resumePath = await saveFile(resumeFile, 'resume')
     }
 
+    if (employeeData.department === 'Branch Operation' && !employeeData.branch_id) {
+      await t.rollback()
+      return res.status(400).json({
+        message: 'Branch ID is required for Branch Operation employees',
+      })
+    }
+
     // Update employee
     const [updatedCount] = await Employee.update(
       {
@@ -413,8 +427,9 @@ const updateEmployee = async (req, res) => {
         contact_number: employeeData.contactNumber,
         email: employeeData.email,
         address: employeeData.address,
-        ...(profileImagePath && { profile_image_path: profileImagePath }),
-        ...(resumePath && { resume_path: resumePath }),
+        profile_image_path: profileImagePath,
+        resume_path: resumePath,
+        branch_id: employeeData.department === 'Branch Operation' ? employeeData.branch_id : null,
       },
       {
         where: { employee_id: id },
@@ -889,8 +904,9 @@ const login = async (req, res) => {
       message: 'Login successful',
       user: {
         ...employee.toJSON(),
+        branch_id: employee.branch_id,
         permissions: permissions,
-        user: undefined, // Remove sensitive data
+        user: undefined,
       },
     })
   } catch (error) {
@@ -910,16 +926,25 @@ const logout = async (req, res) => {
 const verifyToken = async (req, res) => {
   const connection = await pool.getConnection()
   try {
+    // Get employee_id from token
+    const employeeId = req.user.employee_id
+
+    // Fetch full employee info from DB
+    const employee = await Employee.findOne({
+      where: { employee_id: employeeId },
+      include: [
+        { model: Role, as: 'roleInfo', attributes: ['permissions', 'role_name', 'department'] },
+      ],
+    })
+
+    if (!employee) {
+      return res.status(404).json({ message: 'Employee not found' })
+    }
+
     // Get fresh permissions from the database
     const [roles] = await connection.query('SELECT permissions FROM roles WHERE role_name = ?', [
       req.user.role,
     ])
-
-    if (roles.length === 0) {
-      throw new Error('Role not found')
-    }
-
-    // Parse permissions if they're stored as a string
     const permissions =
       typeof roles[0].permissions === 'string'
         ? JSON.parse(roles[0].permissions)
@@ -928,8 +953,8 @@ const verifyToken = async (req, res) => {
     res.json({
       message: 'Token is valid',
       user: {
-        ...req.user,
-        permissions: permissions, // Include fresh permissions in the response
+        ...employee.toJSON(),
+        permissions: permissions,
       },
     })
   } catch (error) {

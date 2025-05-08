@@ -65,7 +65,15 @@ const newEmployee = ref({
     relationship: '',
     contactNumber: '',
   },
+  branch_id: '',
 })
+
+// Example static branches (replace with your actual data or fetch from API/store)
+const branches = [
+  { id: 1, name: 'Dasmariñas Branch' },
+  { id: 2, name: 'Silang Branch' },
+  { id: 3, name: 'Imus Branch' },
+]
 
 // Define department-specific roles based on permissions
 const getDepartmentRoles = (department) => {
@@ -84,28 +92,6 @@ const getDepartmentRoles = (department) => {
   return roles
 }
 
-// Define job titles based on roles
-const getJobTitles = (department, role) => {
-  if (department === DEPARTMENTS.ADMIN) return ['Administrator']
-
-  const departmentName = department.replace(' Department', '')
-
-  if (role?.includes('Manager')) {
-    return [`${departmentName} Manager`]
-  }
-
-  // Staff-level job titles
-  const staffTitles = {
-    [DEPARTMENTS.HR]: ['HR Assistant'],
-    [DEPARTMENTS.FINANCE]: ['Accountant', 'Accounting Assistant'],
-    [DEPARTMENTS.SALES]: ['Sales Representative', 'Sales Assistant'],
-    [DEPARTMENTS.CRM]: ['Customer Service Representative', 'Customer Service Assistant'],
-    [DEPARTMENTS.SCM]: ['Inventory Specialist'],
-  }
-
-  return staffTitles[department] || []
-}
-
 // Add computed properties for available roles and jobs
 const availableRoles = computed(() => {
   if (!newEmployee.value.department) return []
@@ -115,7 +101,6 @@ const availableRoles = computed(() => {
 // Update the availableJobs computed property
 const availableJobs = computed(() => {
   if (!newEmployee.value.department) return []
-  // Filter positions by department
   return positionStore.positions.filter((pos) => pos.department === newEmployee.value.department)
 })
 
@@ -126,10 +111,11 @@ watch(
     if (newDepartment === DEPARTMENTS.ADMIN) {
       newEmployee.value.position_id = 'Admin'
       newEmployee.value.role_id = 'Admin'
+      newEmployee.value.branch_id = ''
     } else {
-      // Reset role and job title when department changes
       newEmployee.value.role_id = ''
       newEmployee.value.position_id = ''
+      newEmployee.value.branch_id = ''
     }
   },
 )
@@ -147,20 +133,11 @@ watch(
 
 // Add this computed property in the script setup
 const departments = computed(() => {
-  // Check if we're on the admin route
   const isAdminRoute = route.path.startsWith('/admin')
-
-  // Base departments
-  const baseDepartments = [
-    'HR Department',
-    'Finance Department',
-    'Sales Department',
-    'Customer Service Department',
-    'Supply Chain Department',
-  ]
-
-  // If we're on the admin route, include Admin Department
-  return isAdminRoute ? ['Admin Department', ...baseDepartments] : baseDepartments
+  if (isAdminRoute) {
+    return Object.values(DEPARTMENTS)
+  }
+  return Object.values(DEPARTMENTS).filter((dept) => dept !== DEPARTMENTS.ADMIN)
 })
 
 // Watchers
@@ -310,6 +287,13 @@ const handleFormSubmit = async () => {
       return
     }
 
+    if (
+      newEmployee.value.department === DEPARTMENTS.BRANCH_OPERATION &&
+      !newEmployee.value.branch_id
+    ) {
+      formErrors.value.professional.branch_id = 'Branch is required'
+    }
+
     employeeToAdd.value = { ...newEmployee.value }
     confirmModal.value?.showModal()
   } catch (error) {
@@ -399,6 +383,8 @@ const createEmployeeData = (employee) => {
         relationship: employee.emergencyContact.relationship.trim(),
         contactNumber: employee.emergencyContact.contactNumber.trim(),
       },
+      branch_id:
+        employee.department === DEPARTMENTS.BRANCH_OPERATION ? Number(employee.branch_id) : null,
     }
 
     // Create FormData
@@ -462,6 +448,7 @@ const resetForm = () => {
       relationship: '',
       contactNumber: '',
     },
+    branch_id: '',
   }
   removeProfile()
   removeResume()
@@ -600,9 +587,32 @@ const filteredRoles = computed(() => {
               <option v-for="position in availableJobs" :key="position.id" :value="position.id">
                 {{ position.position_title }}
               </option>
+              <option v-if="availableJobs.length === 0" disabled>
+                No available job titles for this department
+              </option>
             </select>
             <span v-if="formErrors.professional.position_id" class="text-red-500 text-xs mt-1">
               {{ formErrors.professional.position_id }}
+            </span>
+          </div>
+
+          <!-- Branch Selection (only for Branch Operation) -->
+          <div v-if="newEmployee.department === DEPARTMENTS.BRANCH_OPERATION">
+            <legend class="fieldset-legend text-black text-xs justify-start">
+              Branch <span class="text-red-500">*</span>
+            </legend>
+            <select
+              v-model="newEmployee.branch_id"
+              class="select focus:outline-none bg-white border-black text-black"
+              :class="{ 'border-red-500': formErrors.professional.branch_id }"
+            >
+              <option disabled value="">Select Branch</option>
+              <option v-for="branch in branches" :key="branch.id" :value="branch.id">
+                {{ branch.name }}
+              </option>
+            </select>
+            <span v-if="formErrors.professional.branch_id" class="text-red-500 text-xs mt-1">
+              {{ formErrors.professional.branch_id }}
             </span>
           </div>
 

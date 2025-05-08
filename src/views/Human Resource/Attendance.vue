@@ -10,6 +10,7 @@ import Toast from '@/components/Admin Components/HR/Toast.vue'
 import AttendanceForm from '@/components/Admin Components/HR/AttendanceForm.vue'
 import { useAuthStore } from '@/stores/Authentication/authStore'
 import { Clock } from 'lucide-vue-next'
+import { PERMISSION_IDS } from '@/composables/Admin Composables/User & Role/role/permissionsId'
 
 import EmpployeeOvertime from '@/components/Admin Components/HR/Employee/EmpployeeOvertime.vue'
 
@@ -199,6 +200,11 @@ const handleSort = (column) => {
 const filteredRecords = computed(() => {
   if (!attendanceRecords.value || !employees.value) return []
 
+  // Exclude Super Admin from the employee list
+  const filteredEmployees = employees.value.filter(
+    (emp) => !emp.deleted_at && emp.roleInfo?.role_name !== 'Super Admin',
+  )
+
   const dateRecords = new Map(
     attendanceRecords.value
       .filter((record) => {
@@ -208,7 +214,7 @@ const filteredRecords = computed(() => {
       .map((record) => [record.employee_id, record]),
   )
 
-  let records = employees.value.map(
+  let records = filteredEmployees.map(
     (employee) =>
       dateRecords.get(employee.employee_id) || {
         id: `absent-${employee.employee_id}`,
@@ -349,9 +355,11 @@ const calculateWorkingHours = (record) => {
 const tableRef = ref(null)
 
 const isHR = computed(() => {
+  const user = authStore.currentUser
   return (
-    authStore.currentUser?.department === 'HR Department' ||
-    authStore.currentUser?.role === 'Super Admin'
+    user?.permissions?.includes(PERMISSION_IDS.HR_FULL_ACCESS) ||
+    user?.permissions?.includes(PERMISSION_IDS.HR_MANAGE_ATTENDANCE) ||
+    user?.roleInfo?.role_name === 'Super Admin'
   )
 })
 
@@ -531,7 +539,6 @@ watch(
         />
       </div>
     </div>
-
 
     <!-- View Modal -->
     <dialog :open="modalState.view" class="modal">

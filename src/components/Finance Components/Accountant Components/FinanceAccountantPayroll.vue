@@ -93,6 +93,45 @@ const historyTotalPages = computed(() =>
   Math.max(1, Math.ceil(payrollHistory.value.length / rowsPerPage.value)),
 )
 
+const selectedPayrollRows = ref([])
+
+const allPayrollsSelected = computed(
+  () =>
+    paginatedForReviewPayrolls.value.length > 0 &&
+    paginatedForReviewPayrolls.value.every((row) => selectedPayrollRows.value.includes(row.id)),
+)
+
+const showBulkApproveModal = ref(false)
+const bulkApproveRemarks = ref('')
+
+function toggleSelectAllPayrolls() {
+  if (allPayrollsSelected.value) {
+    selectedPayrollRows.value = []
+  } else {
+    selectedPayrollRows.value = paginatedForReviewPayrolls.value.map((row) => row.id)
+  }
+}
+
+function toggleSelectPayrollRow(id) {
+  if (selectedPayrollRows.value.includes(id)) {
+    selectedPayrollRows.value = selectedPayrollRows.value.filter((rowId) => rowId !== id)
+  } else {
+    selectedPayrollRows.value.push(id)
+  }
+}
+
+async function bulkApprovePayrolls() {
+  if (!selectedPayrollRows.value.length) return
+  try {
+    await payrollStore.bulkApprovePayrolls(selectedPayrollRows.value)
+    triggerToast('Bulk approve successful!', 'success')
+    selectedPayrollRows.value = []
+    await payrollStore.fetchPayrolls()
+  } catch (err) {
+    triggerToast('Bulk approve failed: ' + (err?.response?.data?.message || err.message), 'error')
+  }
+}
+
 onMounted(() => {
   payrollStore.fetchPayrolls()
 })
@@ -103,6 +142,10 @@ watch(forReviewPayrolls, () => {
 
 watch(payrollHistory, () => {
   if (historyPage.value > historyTotalPages.value) historyPage.value = 1
+})
+
+watch(currentPage, () => {
+  selectedPayrollRows.value = []
 })
 
 async function openViewModal(row) {
@@ -222,6 +265,14 @@ function filterByMonth() {
   const { start_date, end_date } = getMonthDateRange(selectedMonth.value, selectedYear.value)
   payrollStore.fetchPayrolls({ start_date, end_date })
 }
+
+async function confirmBulkApprove() {
+  await payrollStore.bulkApprovePayrolls(selectedPayrollRows.value, bulkApproveRemarks.value)
+  selectedPayrollRows.value = []
+  bulkApproveRemarks.value = ''
+  showBulkApproveModal.value = false
+  triggerToast('Payrolls approved!', 'success')
+}
 </script>
 
 <template>
@@ -256,10 +307,28 @@ function filterByMonth() {
         </div>
       </div>
     </div>
+    <div class="flex gap-2 mb-2 items-center">
+      <input
+        type="checkbox"
+        :checked="allPayrollsSelected"
+        @change="toggleSelectAllPayrolls"
+        class="checkbox checkbox-neutral checkbox-xs"
+        id="selectAllPayrolls"
+      />
+      <label for="selectAllPayrolls" class="text-black text-sm">Select All</label>
+      <button
+        class="btn-primaryStyle"
+        :disabled="selectedPayrollRows.length === 0"
+        @click="showBulkApproveModal = true"
+      >
+        Bulk Approve
+      </button>
+    </div>
     <div class="overflow-x-auto">
       <table class="table text-black w-full text-xs rounded-md">
         <thead class="text-xs text-black">
           <tr>
+            <th>Select</th>
             <th>No.</th>
             <th>Employee Name</th>
             <th>Month</th>
@@ -291,6 +360,14 @@ function filterByMonth() {
         </thead>
         <tbody>
           <tr v-for="(row, idx) in paginatedForReviewPayrolls" :key="row.id">
+            <td>
+              <input
+                type="checkbox"
+                :checked="selectedPayrollRows.includes(row.id)"
+                @change="toggleSelectPayrollRow(row.id)"
+                class="checkbox checkbox-xs checkbox-neutral"
+              />
+            </td>
             <td>{{ (currentPage - 1) * rowsPerPage + idx + 1 }}</td>
             <td>{{ row.employee?.full_name }}</td>
             <td>{{ row.month }}</td>
@@ -800,4 +877,23 @@ function filterByMonth() {
   />
 
   <Toast :show="showToast" :message="toastMessage" :type="toastType" />
+
+  <dialog v-if="showBulkApproveModal" open class="modal">
+    <div class="modal-box bg-white w-96 text-black">
+      <h3 class="font-bold text-md text-black">Confirm Bulk Approve</h3>
+      <div class="divider"></div>
+      <p class="text-sm mb-2">
+        Are you sure you want to approve <b>{{ selectedPayrollRows.length }}</b> payroll(s)?
+      </p>
+      <textarea
+        v-model="bulkApproveRemarks"
+        class="textarea w-full h-24 bg-white border-black border"
+        placeholder="Enter remarks (optional)"
+      ></textarea>
+      <div class="modal-action">
+        <button class="btn-secondaryStyle" @click="showBulkApproveModal = false">Cancel</button>
+        <button class="btn-primaryStyle" @click="confirmBulkApprove">Approve</button>
+      </div>
+    </div>
+  </dialog>
 </template>

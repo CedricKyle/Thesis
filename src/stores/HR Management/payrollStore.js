@@ -73,5 +73,17 @@ export const usePayrollStore = defineStore('payroll', {
         this.loading = false
       }
     },
+    async bulkSubmitPayrolls(ids, remarks = '') {
+      await axios.post('/api/payrolls/bulk-submit', { ids, remarks })
+      await this.fetchPayrolls()
+    },
+    async bulkApprovePayrolls(ids, remarks = '') {
+      await axios.post('/api/payrolls/bulk-approve', { ids, remarks })
+      await this.fetchPayrolls()
+    },
+    async bulkMarkAsPaid(ids) {
+      await axios.post('/api/payrolls/bulk-process', { ids })
+      await this.fetchPayrolls()
+    },
   },
 })
