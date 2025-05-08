@@ -64,4 +64,7 @@ router.put('/attendance/:id/reject-ot', attendanceController.rejectOvertime)
 // Add this new route for marking all employees absent for today
 router.post('/attendance/mark-all-absent', markAllAbsentForToday)
 
+// Bulk approve attendance
+router.post('/bulk-approve', verifyToken, attendanceController.bulkApproveAttendance)
+
 module.exports = router

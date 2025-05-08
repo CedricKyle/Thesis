@@ -314,6 +314,18 @@ const statusHistory = computed(() => {
     return []
   }
 })
+
+const statusHistoryPage = ref(1)
+const statusHistoryRowsPerPage = 5
+
+const paginatedStatusHistory = computed(() => {
+  const start = (statusHistoryPage.value - 1) * statusHistoryRowsPerPage
+  return statusHistory.value.slice(start, start + statusHistoryRowsPerPage)
+})
+
+const statusHistoryTotalPages = computed(() =>
+  Math.max(1, Math.ceil(statusHistory.value.length / statusHistoryRowsPerPage)),
+)
 </script>
 
 <template>
@@ -331,7 +343,7 @@ const statusHistory = computed(() => {
 
     <!-- Request Modal -->
     <dialog v-if="showRequestModal" class="modal" open>
-      <div class="modal-box bg-white w-96">
+      <div class="modal-box bg-white rounded-lg p-6 w-full max-w-2xl shadow-lg">
         <h3 class="font-bold text-lg text-black">Create Request</h3>
         <form @submit.prevent="submitRequest">
           <div class="form-control mb-2">
@@ -403,14 +415,38 @@ const statusHistory = computed(() => {
         </div>
         <div v-if="statusHistory.length" class="mt-4">
           <h4 class="font-semibold text-sm mb-2">Status History</h4>
-          <ul class="text-xs space-y-1">
-            <li v-for="(entry, idx) in statusHistory" :key="idx">
-              <span class="font-bold">{{ entry.status }}</span>
-              <span>by {{ entry.by }}</span>
-              <span>on {{ entry.at }}</span>
-              <span v-if="entry.remarks">— {{ entry.remarks }}</span>
-            </li>
-          </ul>
+          <table class="table table-xs w-full">
+            <thead class="text-xs text-black">
+              <tr>
+                <th>Status</th>
+                <th>By</th>
+                <th>Date</th>
+                <th>Remarks</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(entry, idx) in paginatedStatusHistory" :key="idx">
+                <td>{{ entry.status }}</td>
+                <td>{{ entry.by }}</td>
+                <td>{{ entry.at }}</td>
+                <td>{{ entry.remarks || '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="flex items-center gap-2 mt-2">
+            <span class="text-black text-xs">Page</span>
+            <select
+              class="select !bg-white !border-black !text-black select-xs w-16"
+              v-model="statusHistoryPage"
+              :disabled="statusHistoryTotalPages <= 1"
+              @change="() => $nextTick(() => window.scrollTo(0, 0))"
+            >
+              <option v-for="page in statusHistoryTotalPages" :key="page" :value="page">
+                {{ page }}
+              </option>
+            </select>
+            <span class="text-black text-xs">of {{ statusHistoryTotalPages }}</span>
+          </div>
         </div>
         <div class="modal-action justify-center gap-4">
           <button type="button" class="btn-secondaryStyle" @click="closeViewModal">Close</button>

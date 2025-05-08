@@ -468,6 +468,91 @@ const payrollController = {
       res.status(500).json({ success: false, message: error.message })
     }
   },
+
+  // Bulk submit payrolls
+  async bulkSubmitPayrolls(req, res) {
+    try {
+      const { ids, remarks } = req.body
+      if (!Array.isArray(ids) || !ids.length) {
+        return res.status(400).json({ success: false, message: 'No payroll IDs provided.' })
+      }
+      const updated = []
+      for (const id of ids) {
+        const payroll = await Payroll.findByPk(id)
+        if (payroll && payroll.status === 0) {
+          await payroll.update({ status: 1 })
+          await AuditLog.create({
+            payroll_id: payroll.id,
+            user_id: req.user.employee_id,
+            employee_id: payroll.employee_id,
+            action: 'submit',
+            remarks: remarks || null,
+          })
+          updated.push(payroll.id)
+        }
+      }
+      res.json({ success: true, message: `Submitted ${updated.length} payroll(s) for review.` })
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message })
+    }
+  },
+
+  // Bulk approve payrolls
+  async bulkApprovePayrolls(req, res) {
+    try {
+      const { ids, remarks } = req.body
+      if (!Array.isArray(ids) || !ids.length) {
+        return res.status(400).json({ success: false, message: 'No payroll IDs provided.' })
+      }
+      const updated = []
+      for (const id of ids) {
+        const payroll = await Payroll.findByPk(id)
+        if (payroll && payroll.status === 1) {
+          await payroll.update({ status: 2 })
+          await AuditLog.create({
+            payroll_id: payroll.id,
+            user_id: req.user.employee_id,
+            employee_id: payroll.employee_id,
+            action: 'approve',
+            remarks: remarks || null,
+          })
+          updated.push(payroll.id)
+        }
+      }
+      res.json({ success: true, message: `Approved ${updated.length} payroll(s).` })
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message })
+    }
+  },
+
+  // Bulk mark as paid
+  async bulkMarkAsPaid(req, res) {
+    try {
+      const { ids } = req.body
+      if (!Array.isArray(ids) || !ids.length) {
+        return res.status(400).json({ success: false, message: 'No payroll IDs provided.' })
+      }
+      const updated = []
+      for (const id of ids) {
+        const payroll = await Payroll.findByPk(id)
+        // Only process if status is Approved (2)
+        if (payroll && payroll.status === 2) {
+          await payroll.update({ status: 9 })
+          await AuditLog.create({
+            payroll_id: payroll.id,
+            user_id: req.user.employee_id,
+            employee_id: payroll.employee_id,
+            action: 'process',
+            remarks: null,
+          })
+          updated.push(payroll.id)
+        }
+      }
+      res.json({ success: true, message: `Marked ${updated.length} payroll(s) as paid.` })
+    } catch (error) {
+      res.status(500).json({ success: false, message: error.message })
+    }
+  },
 }
 
 module.exports = payrollController

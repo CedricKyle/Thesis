@@ -1172,6 +1172,55 @@ const attendanceController = {
       res.status(500).json({ success: false, message: error.message })
     }
   },
+
+  // Bulk approve attendance records
+  async bulkApproveAttendance(req, res) {
+    const t = await sequelize.transaction()
+    try {
+      const { ids, approved_by } = req.body
+      if (!Array.isArray(ids) || !approved_by) {
+        await t.rollback()
+        return res
+          .status(400)
+          .json({ success: false, message: 'ids (array) and approved_by are required.' })
+      }
+
+      // Fetch all records to approve (not already approved)
+      const records = await EmployeeAttendance.findAll({
+        where: {
+          id: ids,
+          deleted_at: null,
+          approval_status: { [Op.ne]: 'Approved' },
+        },
+        transaction: t,
+      })
+
+      if (!records.length) {
+        await t.rollback()
+        return res.status(404).json({ success: false, message: 'No records found to approve.' })
+      }
+
+      // Bulk update
+      await Promise.all(
+        records.map((record) =>
+          record.update(
+            {
+              approval_status: 'Approved',
+              approved_by,
+              approved_at: new Date(),
+            },
+            { transaction: t },
+          ),
+        ),
+      )
+
+      await t.commit()
+      res.json({ success: true, message: `${records.length} attendance records approved.` })
+    } catch (error) {
+      await t.rollback()
+      res.status(500).json({ success: false, message: error.message })
+    }
+  },
 }
 
 // Helper functions
