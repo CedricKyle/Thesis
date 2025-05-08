@@ -324,14 +324,6 @@ export function usePermissions(employeeRole) {
           },
         },
       },
-      'Customer Service Management': {
-        icon: Mail,
-        submenu: {
-          Dashboard: {
-            route: '/admin/crm/dashboard',
-          },
-        },
-      },
       Procurement: {
         icon: ShoppingCart,
         submenu: {
@@ -346,6 +338,15 @@ export function usePermissions(employeeRole) {
           },
         },
       },
+      'Customer Service Management': {
+        icon: Mail,
+        submenu: {
+          Dashboard: {
+            route: '/admin/crm/dashboard',
+          },
+        },
+      },
+
       'Branch Operation': {
         icon: Store,
         submenu: {
