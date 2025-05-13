@@ -18,7 +18,6 @@ import FinanceSideBar from '@/views/Finance/FinanceSideBar.vue'
 import SalesSidebar from '@/views/Sales Department/SalesSidebar.vue'
 import SCMSidebar from '@/views/Supply Chain Management/SCMSidebar.vue'
 import CRMSidebar from '@/views/CRM Department/CRMASidebar.vue'
-import BranchOperationSidebar from '@/views/Branch Operation/BranchOperationSidebar.vue'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import { usePermissions } from '@/composables/Admin Composables/User & Role/role/usePermissions'
 import SCMBranchDistributionManagement from '@/views/Supply Chain Management/SCMBranchDistributionManagement.vue'
@@ -27,9 +26,7 @@ import SCMSupplierManagement from '@/views/Supply Chain Management/SCMSupplierMa
 import SCMPurchaseManagement from '@/views/Supply Chain Management/SCMPurchaseManagement.vue'
 import FinanceAccountingManagement from '@/views/Finance/FinanceAccountingManagement.vue'
 import FinanceTreasuryManagement from '@/views/Finance/FinanceTreasuryManagement.vue'
-import RequestModule from '@/views/Branch Operation/RequestModule.vue'
 import FinanceSalesManagement from '@/views/Finance/FinanceSalesManagement.vue'
-import BranchOpertionDashboard from '@/views/Branch Operation/BranchOpertionDashboard.vue'
 import HRPayroll from '@/views/Human Resource/HRPayroll.vue'
 import ProcurementDashboard from '@/views/Procurement/ProcurementDashboard.vue'
 import ProcurementPurchaseOrderManagement from '@/views/Procurement/ProcurementPurchaseOrderManagement.vue'
@@ -161,17 +158,6 @@ const routes = [
         name: 'AdminEditEmployee',
         component: () => import('@/components/Admin Components/HR/Employee/EditEmployeeForm.vue'),
         props: true,
-      },
-      // Admin Branch Operation Router
-      {
-        path: 'branch-operation/request-module',
-        name: 'AdminRequestModule',
-        component: RequestModule,
-      },
-      {
-        path: 'branch-operation/dashboard',
-        name: 'AdminBranchOperationDashboard',
-        component: BranchOpertionDashboard,
       },
       // Admin Procurement Router
       {
@@ -414,23 +400,6 @@ const routes = [
         path: 'supplier-management',
         name: 'ProcurementSupplierManagement',
         component: ProcurementSupplierManagement,
-      },
-    ],
-  },
-  //Branch Operation Router
-  {
-    path: '/branch-operation',
-    component: BranchOperationSidebar,
-    children: [
-      {
-        path: 'request-module',
-        name: 'BranchOperationRequestModule',
-        component: RequestModule,
-      },
-      {
-        path: 'dashboard',
-        name: 'BranchOperationDashboard',
-        component: BranchOpertionDashboard,
       },
     ],
   },

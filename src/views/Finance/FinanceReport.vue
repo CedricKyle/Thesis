@@ -292,7 +292,7 @@ const getPayPeriodMonth = (payPeriod) => {
         </tbody>
       </table>
 
-      <StockMonitoring />
+      <!-- <StockMonitoring /> -->
     </div>
   </div>
 </template>

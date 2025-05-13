@@ -2,6 +2,6 @@
 
 <template>
   <div>
-    <h1>Finance SCMSuppy Request</h1>
+    <h1>Finance SCM Supply Request</h1>
   </div>
 </template>

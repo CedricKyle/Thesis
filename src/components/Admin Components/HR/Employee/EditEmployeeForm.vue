@@ -4,7 +4,6 @@ import { useRouter, useRoute } from 'vue-router'
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
 import { useToast } from '@/composables/Admin Composables/Human Resource/useToast'
 import { useProfileImage } from '@/composables/Admin Composables/Human Resource/useProfileImage'
-import { useResumeUpload } from '@/composables/Admin Composables/Human Resource/useResumeUpload'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import { usePositionStore } from '@/stores/HR Management/positionStore'
 import { storeToRefs } from 'pinia'
@@ -25,8 +24,6 @@ const { roles } = storeToRefs(rolesStore)
 const { showToast, toastMessage, toastType, showToastMessage } = useToast()
 const { profileImage, profileImageFile, showUploadText, handleProfileUpload, removeProfile } =
   useProfileImage(profilePlaceholder)
-const { resumeFile, resumeFileName, isProcessing, handleResumeUpload, removeResume } =
-  useResumeUpload(showToastMessage)
 
 const employeeData = ref({
   employee_id: '',
@@ -49,7 +46,6 @@ const employeeData = ref({
     relationship: '',
     contact_number: '',
   },
-  branch_id: '',
 })
 
 const isLoading = ref(true)
@@ -59,12 +55,6 @@ const employeeToUpdate = ref(null)
 const originalData = ref(null)
 const changedFields = ref(new Set())
 
-const branches = [
-  { id: 1, name: 'Dasmariñas Branch' },
-  { id: 2, name: 'Silang Branch' },
-  { id: 3, name: 'Imus Branch' },
-]
-
 // Add departments data
 const departmentJobs = {
   [DEPARTMENTS.HR]: ['HR Manager'],
@@ -72,7 +62,6 @@ const departmentJobs = {
   [DEPARTMENTS.SALES]: ['Sales Manager'],
   [DEPARTMENTS.CRM]: ['Customer Service Representative'],
   [DEPARTMENTS.SCM]: ['Supply Chain Manager'],
-  [DEPARTMENTS.BRANCH_OPERATION]: ['Branch Operation Manager'],
   [DEPARTMENTS.PROCUREMENT]: ['Procurement Manager'],
 }
 
@@ -209,11 +198,6 @@ onMounted(async () => {
       profileImage.value = `http://localhost:3000/${response.profile_image_path}`
     }
 
-    // Set resume if exists
-    if (response.resume_path) {
-      resumeFileName.value = response.resume_path.split('/').pop()
-    }
-
     // Debug log to verify data
     console.log('Loaded employee data:', {
       employee: employeeData.value,
@@ -256,7 +240,6 @@ const handleUpdate = async () => {
       hasEmergencyChanges: hasEmergencyContactChanges.value,
       hasProfessionalChanges: hasProfessionalInfoChanges.value,
       profileImageChanged: !!profileImageFile.value,
-      resumeChanged: !!resumeFile.value,
     })
 
     // Include professional info changes in the check
@@ -264,8 +247,7 @@ const handleUpdate = async () => {
       hasPersonalInfoChanges.value ||
       hasEmergencyContactChanges.value ||
       hasProfessionalInfoChanges.value ||
-      profileImageFile.value ||
-      resumeFile.value
+      profileImageFile.value
 
     if (!hasChanges) {
       showToastMessage('No changes detected. Update cancelled.', 'info')
@@ -296,10 +278,6 @@ const handleUpdate = async () => {
         relationship: employeeData.value.emergency_contact?.relationship || '',
         contactNumber: employeeData.value.emergency_contact?.contact_number || '',
       },
-      branch_id:
-        employeeData.value.department === DEPARTMENTS.BRANCH_OPERATION
-          ? Number(employeeData.value.branch_id)
-          : null,
     }
 
     // Log the data being prepared for update
@@ -367,21 +345,10 @@ const handleUpdate = async () => {
     if (profileImageFile.value) {
       formData.append('profileImage', profileImageFile.value)
     }
-    if (resumeFile.value) {
-      formData.append('resume', resumeFile.value)
-    }
 
     formDataToUpdate.value = formData
     employeeToUpdate.value = updateData
     confirmModal.value?.showModal()
-
-    if (
-      employeeData.value.department === DEPARTMENTS.BRANCH_OPERATION &&
-      !employeeData.value.branch_id
-    ) {
-      showToastMessage('Branch is required for Branch Operation employees', 'error')
-      return
-    }
   } catch (error) {
     console.error('Error preparing update:', error)
     showToastMessage(error.message || 'Error preparing update', 'error')
@@ -451,11 +418,9 @@ watch(
     if (newDepartment === DEPARTMENTS.ADMIN) {
       employeeData.value.position_id = 'Administrator'
       employeeData.value.role = 'Admin'
-      employeeData.value.branch_id = ''
     } else {
       employeeData.value.role = ''
       employeeData.value.position_id = ''
-      employeeData.value.branch_id = ''
     }
   },
 )
@@ -582,65 +547,16 @@ watch(
               </select>
             </div>
 
-            <!-- Resume Upload -->
-            <div class="overflow-hidden">
-              <legend class="fieldset-legend text-black text-xs justify-start">
-                Upload Resume
-              </legend>
-              <div class="flex flex-col gap-2">
-                <div class="flex items-center gap-2">
-                  <label
-                    class="cursor-pointer flex items-center gap-2 text-primaryColor hover:text-primaryColor/80"
-                  >
-                    <input
-                      type="file"
-                      accept=".pdf"
-                      class="hidden"
-                      @change="handleResumeUpload"
-                      :disabled="isProcessing"
-                    />
-                    <Upload class="w-4 h-4" />
-                    <span class="text-sm">
-                      {{ isProcessing ? 'Processing...' : resumeFileName || 'Upload Resume' }}
-                    </span>
-                  </label>
-                  <button
-                    v-if="resumeFileName && !isProcessing"
-                    @click="removeResume"
-                    class="text-red-500 hover:text-red-600 text-md"
-                  >
-                    ×
-                  </button>
-                </div>
-                <p class="text-xs text-gray-500">* PDF files only, max 5MB</p>
-              </div>
-            </div>
-
-            <!-- Date of Hire -->
+            <!-- Date of Hire field -->
             <div>
-              <legend class="fieldset-legend text-black text-xs justify-start">Date of Hire</legend>
+              <legend class="fieldset-legend text-black text-xs justify-start">
+                Date of Hire <span class="text-red-500">*</span>
+              </legend>
               <input
                 v-model="employeeData.date_of_hire"
                 type="date"
                 class="border-b-1 w-full outline-none border-gray-300 p-0 pt-3 text-black"
-                @change="handleFieldChange('date_of_hire', employeeData.date_of_hire)"
               />
-            </div>
-
-            <!-- Branch Selection (only for Branch Operation) -->
-            <div v-if="employeeData.department === DEPARTMENTS.BRANCH_OPERATION">
-              <legend class="fieldset-legend text-black text-xs justify-start">
-                Branch <span class="text-red-500">*</span>
-              </legend>
-              <select
-                v-model="employeeData.branch_id"
-                class="select focus:outline-none bg-white border-black text-black"
-              >
-                <option disabled value="">Select Branch</option>
-                <option v-for="branch in branches" :key="branch.id" :value="branch.id">
-                  {{ branch.name }}
-                </option>
-              </select>
             </div>
           </div>
         </div>
@@ -851,17 +767,11 @@ watch(
             </template>
 
             <!-- File Updates Section -->
-            <template
-              v-if="formDataToUpdate?.has('profile_picture') || formDataToUpdate?.has('resume')"
-            >
+            <template v-if="formDataToUpdate?.has('profile_picture')">
               <div class="text-sm font-semibold mt-3 mb-2">File Updates:</div>
               <div v-if="formDataToUpdate?.has('profile_picture')" class="flex flex-row">
                 <div class="w-32 text-gray-500">Profile Image:</div>
                 <div class="text-black">New image selected</div>
-              </div>
-              <div v-if="formDataToUpdate?.has('resume')" class="flex flex-row">
-                <div class="w-32 text-gray-500">Resume:</div>
-                <div class="text-black">New resume selected</div>
               </div>
             </template>
           </div>

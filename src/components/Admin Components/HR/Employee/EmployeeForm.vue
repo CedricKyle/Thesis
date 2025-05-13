@@ -8,7 +8,6 @@ import profilePlaceholder from '@/assets/Images/profile-placeholder.png'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import { storeToRefs } from 'pinia'
 import Toast from '@/components/Admin Components/HR/Toast.vue'
-import { useResumeUpload } from '@/composables/Admin Composables/Human Resource/useResumeUpload'
 import { useToast } from '@/composables/Admin Composables/Human Resource/useToast'
 import { useRoute } from 'vue-router'
 import {
@@ -27,8 +26,6 @@ const { formErrors, validateProfessionalInfo, validatePersonalInfo, validateEmer
 const { profileImage, profileImageFile, showUploadText, handleProfileUpload, removeProfile } =
   useProfileImage(profilePlaceholder)
 const { showToast, toastMessage, toastType, showToastMessage } = useToast()
-const { resumeFile, resumeFileName, isProcessing, handleResumeUpload, removeResume } =
-  useResumeUpload(showToastMessage)
 const route = useRoute()
 
 // Initialize the files property in formErrors
@@ -65,15 +62,7 @@ const newEmployee = ref({
     relationship: '',
     contactNumber: '',
   },
-  branch_id: '',
 })
-
-// Example static branches (replace with your actual data or fetch from API/store)
-const branches = [
-  { id: 1, name: 'Dasmariñas Branch' },
-  { id: 2, name: 'Silang Branch' },
-  { id: 3, name: 'Imus Branch' },
-]
 
 // Define department-specific roles based on permissions
 const getDepartmentRoles = (department) => {
@@ -111,11 +100,9 @@ watch(
     if (newDepartment === DEPARTMENTS.ADMIN) {
       newEmployee.value.position_id = 'Admin'
       newEmployee.value.role_id = 'Admin'
-      newEmployee.value.branch_id = ''
     } else {
       newEmployee.value.role_id = ''
       newEmployee.value.position_id = ''
-      newEmployee.value.branch_id = ''
     }
   },
 )
@@ -146,10 +133,6 @@ watch(profileImage, (newValue) => {
   console.log('Profile image updated')
 })
 
-watch(resumeFile, (newValue) => {
-  newEmployee.value.resume = newValue
-})
-
 // Add these validation functions at the top of the script
 const validateDates = (dateString, fieldName) => {
   if (!dateString) {
@@ -174,16 +157,6 @@ const validateFiles = () => {
     const allowedTypes = ['image/jpeg', 'image/png', 'image/gif']
     if (!allowedTypes.includes(profileImageFile.value.type)) {
       errors.profileImage = 'Profile image must be JPG, PNG, or GIF'
-    }
-  }
-
-  if (resumeFile.value) {
-    if (resumeFile.value.size > maxSize) {
-      errors.resume = 'Resume must be less than 5MB'
-    }
-
-    if (resumeFile.value.type !== 'application/pdf') {
-      errors.resume = 'Resume must be a PDF file'
     }
   }
 
@@ -287,13 +260,6 @@ const handleFormSubmit = async () => {
       return
     }
 
-    if (
-      newEmployee.value.department === DEPARTMENTS.BRANCH_OPERATION &&
-      !newEmployee.value.branch_id
-    ) {
-      formErrors.value.professional.branch_id = 'Branch is required'
-    }
-
     employeeToAdd.value = { ...newEmployee.value }
     confirmModal.value?.showModal()
   } catch (error) {
@@ -383,8 +349,6 @@ const createEmployeeData = (employee) => {
         relationship: employee.emergencyContact.relationship.trim(),
         contactNumber: employee.emergencyContact.contactNumber.trim(),
       },
-      branch_id:
-        employee.department === DEPARTMENTS.BRANCH_OPERATION ? Number(employee.branch_id) : null,
     }
 
     // Create FormData
@@ -395,27 +359,16 @@ const createEmployeeData = (employee) => {
     if (profileImageFile.value) {
       formData.append('profileImage', profileImageFile.value)
     }
-    if (resumeFile.value) {
-      formData.append('resume', resumeFile.value)
-    }
 
     // Log the data being sent for debugging
     console.log('Sending employee data:', {
       employeeData: JSON.parse(formData.get('employeeData')),
       hasProfileImage: formData.has('profileImage'),
-      hasResume: formData.has('resume'),
       profileImageDetails: profileImageFile.value
         ? {
             name: profileImageFile.value.name,
             type: profileImageFile.value.type,
             size: profileImageFile.value.size,
-          }
-        : null,
-      resumeDetails: resumeFile.value
-        ? {
-            name: resumeFile.value.name,
-            type: resumeFile.value.type,
-            size: resumeFile.value.size,
           }
         : null,
     })
@@ -448,10 +401,8 @@ const resetForm = () => {
       relationship: '',
       contactNumber: '',
     },
-    branch_id: '',
   }
   removeProfile()
-  removeResume()
 }
 
 // Initialize roles on mount
@@ -596,62 +547,8 @@ const filteredRoles = computed(() => {
             </span>
           </div>
 
-          <!-- Branch Selection (only for Branch Operation) -->
-          <div v-if="newEmployee.department === DEPARTMENTS.BRANCH_OPERATION">
-            <legend class="fieldset-legend text-black text-xs justify-start">
-              Branch <span class="text-red-500">*</span>
-            </legend>
-            <select
-              v-model="newEmployee.branch_id"
-              class="select focus:outline-none bg-white border-black text-black"
-              :class="{ 'border-red-500': formErrors.professional.branch_id }"
-            >
-              <option disabled value="">Select Branch</option>
-              <option v-for="branch in branches" :key="branch.id" :value="branch.id">
-                {{ branch.name }}
-              </option>
-            </select>
-            <span v-if="formErrors.professional.branch_id" class="text-red-500 text-xs mt-1">
-              {{ formErrors.professional.branch_id }}
-            </span>
-          </div>
-
-          <div class="overflow-hidden">
-            <legend class="fieldset-legend text-black text-xs justify-start">Upload Resume</legend>
-            <div class="flex flex-col gap-2">
-              <div class="flex items-center gap-2">
-                <label
-                  class="cursor-pointer flex items-center gap-2 text-primaryColor hover:text-primaryColor/80"
-                  :class="{ 'opacity-50 cursor-not-allowed': isProcessing }"
-                >
-                  <input
-                    type="file"
-                    accept=".pdf"
-                    class="hidden"
-                    @change="handleResumeUpload"
-                    :disabled="isProcessing"
-                  />
-                  <Upload class="w-4 h-4" />
-                  <span class="text-sm">
-                    {{ isProcessing ? 'Processing...' : resumeFileName || 'Upload Resume' }}
-                  </span>
-                </label>
-                <button
-                  v-if="resumeFileName && !isProcessing"
-                  @click="removeResume"
-                  class="text-red-500 hover:text-red-600 text-md"
-                >
-                  ×
-                </button>
-              </div>
-              <p class="text-xs text-gray-500">* PDF files only, max 5MB</p>
-            </div>
-            <div v-if="formErrors.files?.resume" class="text-red-500 text-xs mt-1">
-              {{ formErrors.files.resume }}
-            </div>
-          </div>
-
-          <div class="">
+          <!-- Date of Hire field -->
+          <div>
             <legend class="fieldset-legend text-black text-xs justify-start">
               Date of Hire <span class="text-red-500">*</span>
             </legend>
@@ -983,11 +880,6 @@ const filteredRoles = computed(() => {
             <div v-if="profileImageFile" class="flex flex-row">
               <div class="w-32 text-gray-500">Profile Image:</div>
               <div class="text-black">{{ profileImageFile.name }}</div>
-            </div>
-
-            <div v-if="resumeFile" class="flex flex-row">
-              <div class="w-32 text-gray-500">Resume:</div>
-              <div class="text-black">{{ resumeFile.name }}</div>
             </div>
           </div>
         </div>

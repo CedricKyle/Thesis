@@ -135,20 +135,6 @@ export const menuConfig = {
       permission: PERMISSION_IDS.CRM_VIEW_DASHBOARD,
     },
   ],
-  [DEPARTMENTS.BRANCH_OPERATION]: [
-    {
-      name: 'Request Module',
-      route: '/branch-operation/request-module',
-      icon: Store,
-      permission: PERMISSION_IDS.BRANCH_OPERATION_MANAGE_REQUESTS_MODULE,
-    },
-    {
-      name: 'Dashboard',
-      route: '/branch-operation/dashboard',
-      icon: LayoutDashboard,
-      permission: PERMISSION_IDS.BRANCH_OPERATION_VIEW_DASHBOARD,
-    },
-  ],
   [DEPARTMENTS.PROCUREMENT]: [
     {
       name: 'Dashboard',
@@ -343,18 +329,6 @@ export function usePermissions(employeeRole) {
         submenu: {
           Dashboard: {
             route: '/admin/crm/dashboard',
-          },
-        },
-      },
-
-      'Branch Operation': {
-        icon: Store,
-        submenu: {
-          Dashboard: {
-            route: '/admin/branch-operation/dashboard',
-          },
-          'Request Module': {
-            route: '/admin/branch-operation/request-module',
           },
         },
       },

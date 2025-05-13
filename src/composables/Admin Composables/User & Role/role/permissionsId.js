@@ -4,7 +4,6 @@ export const DEPARTMENTS = {
   FINANCE: 'Finance Department',
   SCM: 'Supply Chain Management',
   CRM: 'Customer Relationship Management',
-  BRANCH_OPERATION: 'Branch Operation',
   PROCUREMENT: 'Procurement Department',
 }
 
@@ -50,9 +49,9 @@ export const PERMISSION_IDS = {
   CRM_VIEW_DASHBOARD: 18,
 
   // Branch Operation Permissions
-  BRANCH_OPERATION_FULL_ACCESS: 27,
-  BRANCH_OPERATION_MANAGE_REQUESTS_MODULE: 28,
-  BRANCH_OPERATION_VIEW_DASHBOARD: 30,
+  // BRANCH_OPERATION_FULL_ACCESS: 27,
+  // BRANCH_OPERATION_MANAGE_REQUESTS_MODULE: 28,
+  // BRANCH_OPERATION_VIEW_DASHBOARD: 30,
 
   // Procurement Department Permissions
   PROCUREMENT_FULL_ACCESS: 31,
@@ -121,21 +120,6 @@ export const permissionGroups = [
     permissions: [
       { id: PERMISSION_IDS.CRM_FULL_ACCESS, name: 'Full Access' },
       { id: PERMISSION_IDS.CRM_VIEW_DASHBOARD, name: 'View Dashboard' },
-    ],
-  },
-  {
-    department: DEPARTMENTS.BRANCH_OPERATION,
-    name: 'Branch Operation',
-    permissions: [
-      { id: PERMISSION_IDS.BRANCH_OPERATION_FULL_ACCESS, name: 'Full Access' },
-      {
-        id: PERMISSION_IDS.BRANCH_OPERATION_MANAGE_REQUESTS_MODULE,
-        name: 'Manage Requests Module',
-      },
-      {
-        id: PERMISSION_IDS.BRANCH_OPERATION_VIEW_DASHBOARD,
-        name: 'View Dashboard',
-      },
     ],
   },
   {
