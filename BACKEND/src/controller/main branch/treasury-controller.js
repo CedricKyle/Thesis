@@ -1,4 +1,4 @@
-const { SCMRequest, Employee } = require('../../model/Index.js')
+const { SCMRequest, Employee, Delivery, SCMRequestItem } = require('../../model/Index.js')
 
 // Release cash for a request
 const releaseCash = async (req, res) => {
@@ -43,7 +43,20 @@ const releaseCash = async (req, res) => {
       ],
     })
 
-    // 8. Respond with the updated request
+    // 8. Check if delivery already exists for this request
+    const existingDelivery = await Delivery.findOne({ where: { request_id: request.request_id } })
+    if (!existingDelivery) {
+      const items = await SCMRequestItem.findAll({ where: { request_id: request.request_id } })
+      await Delivery.create({
+        request_id: request.request_id,
+        supplier: 'STATIC SUPPLIER',
+        items: items.map((i) => i.toJSON()),
+        delivery_date: new Date(),
+        status: 'Pending',
+      })
+    }
+
+    // 9. Respond with the updated request
     res.json({ message: 'Cash released successfully', request: updatedRequest })
   } catch (error) {
     console.error('Error releasing cash:', error)

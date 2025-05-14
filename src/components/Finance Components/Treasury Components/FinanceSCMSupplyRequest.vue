@@ -8,7 +8,9 @@ import { useAuthStore } from '@/stores/Authentication/authStore'
 const treasuryStore = useTreasurySCMStore()
 const authStore = useAuthStore()
 
-const requests = computed(() => treasuryStore.requests)
+const requests = computed(() =>
+  treasuryStore.requests.filter((req) => req.payment_status === 'For Release'),
+)
 
 const showReleaseModal = ref(false)
 const selectedRequest = ref(null)
@@ -17,6 +19,38 @@ const receiptFile = ref(null)
 const loading = ref(false)
 const showReceiptModal = ref(false)
 const receiptData = ref(null)
+const releasedHistoryPage = ref(1)
+const rowsPerPage = ref(10)
+
+const releasedRequests = computed(() =>
+  treasuryStore.requests.filter((req) => req.payment_status === 'Released'),
+)
+
+const monthOptions = Array.from({ length: 12 }, (_, i) => i + 1)
+const yearOptions = [2023, 2024, 2025] // Adjust as needed
+
+const selectedMonth = ref(new Date().getMonth() + 1)
+const selectedYear = ref(new Date().getFullYear())
+
+function isSameMonthYear(dateStr, month, year) {
+  const d = new Date(dateStr)
+  return d.getMonth() + 1 === month && d.getFullYear() === year
+}
+
+const filteredReleasedRequests = computed(() =>
+  releasedRequests.value.filter((req) =>
+    isSameMonthYear(req.released_at, selectedMonth.value, selectedYear.value),
+  ),
+)
+const releasedHistoryTotalPages = computed(() =>
+  Math.ceil(filteredReleasedRequests.value.length / rowsPerPage.value),
+)
+const paginatedReleasedHistory = computed(() =>
+  filteredReleasedRequests.value.slice(
+    (releasedHistoryPage.value - 1) * rowsPerPage.value,
+    releasedHistoryPage.value * rowsPerPage.value,
+  ),
+)
 
 const toast = ref({
   show: false,
@@ -146,8 +180,102 @@ onMounted(() => {
             <span v-else class="text-green-700 font-bold">Released</span>
           </td>
         </tr>
+        <tr v-if="!requests.length">
+          <td colspan="7" class="text-center py-4 text-gray-500">No data available</td>
+        </tr>
       </tbody>
     </table>
+
+    <!-- Released History Table -->
+    <div class="mt-8 text-black">
+      <div class="flex justify-between mb-2">
+        <h3 class="font-semibold text-black">Released Cash History</h3>
+      </div>
+      <div class="flex gap-2 mb-2">
+        <select
+          v-model="selectedMonth"
+          class="select bg-white border border-black text-black select-sm cursor-pointer"
+        >
+          <option v-for="m in monthOptions" :key="m" :value="m">
+            {{ new Date(0, m - 1).toLocaleString('default', { month: 'long' }) }}
+          </option>
+        </select>
+        <select
+          v-model="selectedYear"
+          class="select bg-white border border-black text-black select-sm cursor-pointer"
+        >
+          <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
+        </select>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="table text-black w-full text-xs border border-gray-300 rounded-md">
+          <thead class="text-black text-xs">
+            <tr class="border border-gray-300 rounded-md">
+              <th>No.</th>
+              <th>Request ID</th>
+              <th>Description</th>
+              <th>Date</th>
+              <th>Amount</th>
+              <th>Prepared By</th>
+              <th>Approved By</th>
+              <th>Released By</th>
+              <th>Released At</th>
+              <th>Receipt</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(req, idx) in paginatedReleasedHistory" :key="req.request_id">
+              <td>{{ (releasedHistoryPage - 1) * rowsPerPage + idx + 1 }}</td>
+              <td>{{ req.request_id }}</td>
+              <td>{{ req.description }}</td>
+              <td>{{ new Date(req.request_date).toLocaleString() }}</td>
+              <td>
+                ₱{{
+                  Number(req.total_amount).toLocaleString('en-PH', { minimumFractionDigits: 2 })
+                }}
+              </td>
+              <td>{{ req.preparedBy?.full_name || req.prepared_by }}</td>
+              <td>{{ req.approvedBy?.full_name || req.approved_by || '-' }}</td>
+              <td>{{ req.releasedBy?.full_name || req.released_by || '-' }}</td>
+              <td>
+                {{ req.released_at ? new Date(req.released_at).toLocaleString() : '-' }}
+              </td>
+              <td>
+                <a
+                  v-if="req.payment_status === 'Released'"
+                  href="javascript:void(0)"
+                  class="text-blue-600 underline"
+                  @click="openReceiptModal(req)"
+                >
+                  View Receipt
+                </a>
+                <span v-else class="text-gray-400">No Receipt</span>
+              </td>
+            </tr>
+            <tr v-if="!paginatedReleasedHistory.length">
+              <td colspan="10" class="text-center py-4 text-gray-500">
+                No released cash history found for this month.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <!-- Pagination -->
+      <div class="flex items-center gap-2 mt-4">
+        <span class="text-black text-xs">Page</span>
+        <select
+          class="select !bg-white !border-black !text-black select-xs w-16"
+          v-model="releasedHistoryPage"
+          :disabled="releasedHistoryTotalPages <= 1"
+          @change="() => $nextTick(() => window.scrollTo(0, 0))"
+        >
+          <option v-for="page in releasedHistoryTotalPages" :key="page" :value="page">
+            {{ page }}
+          </option>
+        </select>
+        <span class="text-black text-xs">of {{ releasedHistoryTotalPages }}</span>
+      </div>
+    </div>
 
     <!-- Release Cash Modal -->
     <dialog :open="showReleaseModal" class="modal">

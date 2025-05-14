@@ -28,6 +28,7 @@ const AuditLog = require('./AuditLog.js')(sequelize, Sequelize.DataTypes)
 const PayrollDeduction = require('./PayrollDeduction')(sequelize, Sequelize.DataTypes)
 const SCMRequest = require('./SCM Model/SCMRequest')(sequelize)
 const SCMRequestItem = require('./SCM Model/SCMRequestItem')(sequelize)
+const Delivery = require('./SCM Model/Delivery')(sequelize)
 
 // Define relationships for other models (not EmployeeAttendance!)
 // (Keep only these if you need them)
@@ -94,6 +95,10 @@ SCMRequest.belongsTo(Employee, {
   targetKey: 'employee_id',
 })
 
+// Add Delivery relationships
+SCMRequest.hasMany(Delivery, { foreignKey: 'request_id', sourceKey: 'request_id' })
+Delivery.belongsTo(SCMRequest, { foreignKey: 'request_id', targetKey: 'request_id' })
+
 // Export models and sequelize instance
 const db = {
   sequelize,
@@ -117,6 +122,7 @@ const db = {
   PayrollDeduction,
   SCMRequest,
   SCMRequestItem,
+  Delivery,
 }
 
 // Call associate for all models
