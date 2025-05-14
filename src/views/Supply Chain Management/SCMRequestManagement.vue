@@ -685,24 +685,48 @@ const confirmSubmitToFinance = async () => {
             <b>Status:</b> {{ selectedRequest.request_status }}
           </div>
           <div class="mb-2 text-sm flex justify-between">
-            <b>Prepared by:</b> {{ selectedRequest.prepared_by }}
+            <b>Prepared by:</b>
+            {{
+              selectedRequest.preparedBy?.full_name || selectedRequest.prepared_by || 'Unknown User'
+            }}
           </div>
           <div class="mb-2 text-sm flex justify-between">
-            <b>Approved by:</b> {{ selectedRequest.approved_by || 'N/A' }}
+            <b>Approved by:</b>
+            {{ selectedRequest.approvedBy?.full_name || selectedRequest.approved_by || 'N/A' }}
           </div>
           <div class="mb-2 text-sm flex justify-between">
             <b>Total Amount:</b> ₱{{ selectedRequest.total_amount }}
           </div>
-          <div class="mb-2 text-sm flex justify-between">
+          <div class="mb-2 text-sm">
             <b>Items:</b>
-            <ul>
-              <li v-for="item in selectedRequest.requestItems" :key="item.id">
-                {{ item.item_name }} - {{ item.quantity }} {{ item.unit }} @ ₱{{
-                  item.unit_price
-                }}
-                = ₱{{ item.amount }}
-              </li>
-            </ul>
+            <table class="w-full text-xs border border-gray-300 mt-2">
+              <thead class="bg-primaryColor text-white">
+                <tr>
+                  <th class="border px-2 py-1">#</th>
+                  <th class="border px-2 py-1">Item Name</th>
+                  <th class="border px-2 py-1">Qty</th>
+                  <th class="border px-2 py-1">Unit</th>
+                  <th class="border px-2 py-1">Unit Price</th>
+                  <th class="border px-2 py-1">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(item, idx) in selectedRequest.requestItems" :key="item.id">
+                  <td class="border px-2 py-1">{{ idx + 1 }}</td>
+                  <td class="border px-2 py-1">{{ item.item_name }}</td>
+                  <td class="border px-2 py-1">{{ item.quantity }}</td>
+                  <td class="border px-2 py-1">{{ item.unit }}</td>
+                  <td class="border px-2 py-1">
+                    ₱{{
+                      Number(item.unit_price).toLocaleString('en-PH', { minimumFractionDigits: 2 })
+                    }}
+                  </td>
+                  <td class="border px-2 py-1">
+                    ₱{{ Number(item.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </div>
         <div class="flex justify-end mt-4">

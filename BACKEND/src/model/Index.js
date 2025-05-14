@@ -73,6 +73,27 @@ SCMRequestItem.belongsTo(SCMRequest, {
   targetKey: 'request_id',
 })
 
+// Association: SCMRequest.prepared_by -> Employee.employee_id
+SCMRequest.belongsTo(Employee, {
+  foreignKey: 'prepared_by',
+  as: 'preparedBy',
+  targetKey: 'employee_id',
+})
+
+// Association: SCMRequest.approved_by -> Employee.employee_id (optional)
+SCMRequest.belongsTo(Employee, {
+  foreignKey: 'approved_by',
+  as: 'approvedBy',
+  targetKey: 'employee_id',
+})
+
+// Add this association:
+SCMRequest.belongsTo(Employee, {
+  as: 'releasedBy',
+  foreignKey: 'released_by',
+  targetKey: 'employee_id',
+})
+
 // Export models and sequelize instance
 const db = {
   sequelize,

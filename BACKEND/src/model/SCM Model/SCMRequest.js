@@ -51,6 +51,23 @@ module.exports = (sequelize) => {
         type: DataTypes.DATE,
         allowNull: true,
       },
+      payment_status: {
+        type: DataTypes.ENUM('For Release', 'Released'),
+        defaultValue: 'For Release',
+      },
+      released_by: {
+        type: DataTypes.STRING(20),
+        allowNull: true,
+        references: { model: 'employees', key: 'employee_id' },
+      },
+      released_at: {
+        type: DataTypes.DATE,
+        allowNull: true,
+      },
+      receipt_url: {
+        type: DataTypes.STRING(255),
+        allowNull: true,
+      },
     },
     {
       tableName: 'scm_requests',

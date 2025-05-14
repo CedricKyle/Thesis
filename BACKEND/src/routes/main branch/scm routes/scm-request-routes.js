@@ -14,4 +14,10 @@ router.post('/:id/restore', verifyToken, scmRequestController.restoreRequest)
 router.put('/:id', verifyToken, scmRequestController.updateRequest)
 router.post('/:id/submit-to-finance', verifyToken, scmRequestController.submitToFinance)
 
+// Finance approval routes
+router.post('/:id/approve', verifyToken, scmRequestController.approveRequest)
+router.post('/:id/reject', verifyToken, scmRequestController.rejectRequest)
+router.post('/bulk-approve', verifyToken, scmRequestController.bulkApproveRequests)
+router.post('/bulk-reject', verifyToken, scmRequestController.bulkRejectRequests)
+
 module.exports = router

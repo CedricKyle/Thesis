@@ -8,6 +8,7 @@ import NotificationModal from '/src/components/common/NotificationModal.vue'
   <div>
     <router-view />
     <NotificationModal />
+    <div id="print-area" style="display: none"></div>
   </div>
 </template>
 
