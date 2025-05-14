@@ -26,6 +26,9 @@ const Leave = require('./LeavesModel')(sequelize)
 const Payroll = require('./PayrollModel')(sequelize)
 const AuditLog = require('./AuditLog.js')(sequelize, Sequelize.DataTypes)
 const PayrollDeduction = require('./PayrollDeduction')(sequelize, Sequelize.DataTypes)
+const SCMRequest = require('./SCM Model/SCMRequest')(sequelize)
+const SCMRequestItem = require('./SCM Model/SCMRequestItem')(sequelize)
+
 // Define relationships for other models (not EmployeeAttendance!)
 // (Keep only these if you need them)
 Employee.hasOne(EmergencyContact, {
@@ -59,6 +62,17 @@ InventoryProduct.hasMany(StockAdjustment, { foreignKey: 'product_id' })
 Leave.belongsTo(Employee, { foreignKey: 'employee_id', targetKey: 'employee_id' })
 Employee.hasMany(Leave, { foreignKey: 'employee_id', sourceKey: 'employee_id' })
 
+// Add SCMRequest relationships
+SCMRequest.hasMany(SCMRequestItem, {
+  foreignKey: 'request_id',
+  sourceKey: 'request_id',
+  as: 'requestItems',
+})
+SCMRequestItem.belongsTo(SCMRequest, {
+  foreignKey: 'request_id',
+  targetKey: 'request_id',
+})
+
 // Export models and sequelize instance
 const db = {
   sequelize,
@@ -80,6 +94,8 @@ const db = {
   Payroll,
   AuditLog,
   PayrollDeduction,
+  SCMRequest,
+  SCMRequestItem,
 }
 
 // Call associate for all models

@@ -17,6 +17,7 @@ const employeeScheduleRoutes = require('./routes/main branch/employee-schedule-r
 const path = require('path')
 const leaveRoutes = require('./routes/main branch/leave-routes.js')
 const payrollRoutes = require('./routes/main branch/payroll-routes.js')
+const scmRequestRoutes = require('./routes/main branch/scm routes/scm-request-routes.js')
 dotenv.config()
 
 const app = express()
@@ -73,6 +74,7 @@ app.use('/api/available-schedules', availableScheduleRoutes)
 app.use('/api/employee-schedules', employeeScheduleRoutes)
 app.use('/api/leaves', leaveRoutes)
 app.use('/api/payrolls', payrollRoutes)
+app.use('/api/scm-requests', scmRequestRoutes)
 
 // Error handling middleware
 app.use((err, req, res, next) => {
