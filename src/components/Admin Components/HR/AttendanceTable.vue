@@ -4,19 +4,35 @@ import { useAttendanceLogic } from '@/composables/Admin Composables/Human Resour
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
 import { useAuthStore } from '@/stores/Authentication/authStore'
 import { useAttendanceStore } from '@/stores/HR Management/attendanceStore'
-import { useToast } from '@/composables/Admin Composables/User & Role/role/useToast'
 import { TabulatorFull as Tabulator } from 'tabulator-tables'
 import { PERMISSION_IDS } from '@/composables/Admin Composables/User & Role/role/permissionsId'
 import { TriangleAlert } from 'lucide-vue-next'
 import { useEmployeeScheduleStore } from '@/stores/HR Management/employeeScheduleStore'
+import Toast from '@/components/Admin Components/HR/Toast.vue'
 import axios from 'axios'
 
 const { formatDate, calculateOvertime } = useAttendanceLogic()
 const employeeStore = useEmployeeStore()
 const authStore = useAuthStore()
 const attendanceStore = useAttendanceStore()
-const { showToast } = useToast()
 const employeeScheduleStore = useEmployeeScheduleStore()
+
+// Add toast state management
+const showToastMessage = ref(false)
+const toastMessage = ref('')
+const toastType = ref('info')
+
+// Function to show toast
+const showToast = (message, type = 'info') => {
+  toastMessage.value = message
+  toastType.value = type
+  showToastMessage.value = true
+
+  // Auto-hide toast after 3 seconds
+  setTimeout(() => {
+    showToastMessage.value = false
+  }, 3000)
+}
 
 const props = defineProps({
   records: {
@@ -536,25 +552,52 @@ const closeApprovalModal = () => {
 
 const confirmApproval = async () => {
   try {
-    // Get the current user's employee record from employeeStore
-    const currentEmployee = employeeStore.employees.find(
-      (emp) => emp.employee_id === authStore.currentUser.id,
-    )
+    // Add debug logs
+    console.log('Auth store current user:', authStore.currentUser)
+    console.log('Auth store user ID:', authStore.currentUser?.id)
 
-    if (!currentEmployee) {
-      throw new Error('Employee information not found')
+    // Instead of looking up in the employeeStore, use the current user data directly
+    if (!authStore.currentUser || !authStore.currentUser.id) {
+      throw new Error('Current user information not available')
     }
 
+    let approverName = authStore.currentUser.full_name || authStore.currentUser.name
+
+    // If name is not available in authStore, try to get it from the employee API
+    if (!approverName) {
+      try {
+        // First check employeeStore
+        const currentEmployee = employeeStore.employees.find(
+          (emp) => String(emp.employee_id) === String(authStore.currentUser.id),
+        )
+
+        if (currentEmployee && currentEmployee.full_name) {
+          approverName = currentEmployee.full_name
+        } else {
+          // Fetch from API if not found in store
+          const response = await axios.get(`/api/employees/${authStore.currentUser.id}`, {
+            headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+          })
+
+          if (response.data && response.data.full_name) {
+            approverName = response.data.full_name
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching approver name:', err)
+        // Fallback to a default name
+        approverName = 'Admin User'
+      }
+    }
+
+    // Use the currentUser information with resolved name
     const approverDetails = {
-      name: currentEmployee.full_name, // Use the full name from employee store
+      name: approverName,
       userId: authStore.currentUser.id,
       timestamp: new Date().toISOString(),
     }
-    console.log('Approver details before approval (detailed):', {
-      name: approverDetails.name,
-      userId: approverDetails.userId,
-      timestamp: approverDetails.timestamp,
-    })
+
+    console.log('Using approver details:', approverDetails)
 
     // Update the store
     const updatedRecord = await attendanceStore.approveAttendance(
@@ -959,4 +1002,7 @@ watch(selectedRows, () => {
   <div v-if="isHR" class="tabs tabs-border bg-primaryColor ...">
     <!-- Attendance List Tab, Overtime, Add Attendance -->
   </div>
+
+  <!-- Add Toast component at the end of the template -->
+  <Toast :show="showToastMessage" :message="toastMessage" :type="toastType" />
 </template>

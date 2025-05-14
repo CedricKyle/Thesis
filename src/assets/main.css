@@ -99,6 +99,7 @@
   .tabulator-header {
     background-color: #466114 !important;
     color: white !important;
+    font-weight: 500 !important;
   }
 
   .tabulator-col {

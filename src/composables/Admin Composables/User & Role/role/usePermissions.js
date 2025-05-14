@@ -21,7 +21,7 @@ import {
   Landmark,
   ChartNoAxesColumnIncreasing,
   Archive,
-  Store,
+  Factory,
 } from 'lucide-vue-next'
 
 export const menuConfig = {
@@ -115,16 +115,22 @@ export const menuConfig = {
       permission: PERMISSION_IDS.SCM_MANAGE_SUPPLIERS_MANAGEMENT,
     },
     {
-      name: 'Purchase Management',
-      route: '/scm/purchase-management',
+      name: 'Purchase Order Management',
+      route: '/scm/purchase-order-management',
       icon: ShoppingCart,
-      permission: PERMISSION_IDS.SCM_MANAGE_PURCHASE_MANAGEMENT,
+      permission: PERMISSION_IDS.SCM_MANAGE_PURCHASE_ORDER_MANAGEMENT,
     },
     {
       name: 'Branch Distribution Management',
       route: '/scm/branch-distribution-management',
       icon: Truck,
       permission: PERMISSION_IDS.SCM_MANAGE_BRANCH_DISTRIBUTION_MANAGEMENT,
+    },
+    {
+      name: 'Request Management',
+      route: '/scm/request-management',
+      icon: FileText,
+      permission: PERMISSION_IDS.SCM_MANAGE_REQUEST_MANAGEMENT,
     },
   ],
   [DEPARTMENTS.CRM]: [
@@ -135,24 +141,12 @@ export const menuConfig = {
       permission: PERMISSION_IDS.CRM_VIEW_DASHBOARD,
     },
   ],
-  [DEPARTMENTS.PROCUREMENT]: [
+  [DEPARTMENTS.PRODUCTION]: [
     {
       name: 'Dashboard',
-      route: '/procurement/dashboard',
+      route: '/production/dashboard',
       icon: LayoutDashboard,
-      permission: PERMISSION_IDS.PROCUREMENT_VIEW_DASHBOARD,
-    },
-    {
-      name: 'Purchase Order Management',
-      route: '/procurement/purchase-order-management',
-      icon: ShoppingCart,
-      permission: PERMISSION_IDS.PROCUREMENT_MANAGE_PURCHASE_ORDER_MANAGEMENT,
-    },
-    {
-      name: 'Supplier Management',
-      route: '/procurement/supplier-management',
-      icon: Users,
-      permission: PERMISSION_IDS.PROCUREMENT_MANAGE_SUPPLIERS_MANAGEMENT,
+      permission: PERMISSION_IDS.PRODUCTION_VIEW_DASHBOARD,
     },
   ],
   [DEPARTMENTS.ADMIN]: [
@@ -203,11 +197,10 @@ export function usePermissions(employeeRole) {
     const fullAccessPermissions = {
       [DEPARTMENTS.HR]: PERMISSION_IDS.HR_FULL_ACCESS,
       [DEPARTMENTS.FINANCE]: PERMISSION_IDS.FINANCE_FULL_ACCESS,
-      [DEPARTMENTS.SALES]: PERMISSION_IDS.SALES_FULL_ACCESS,
       [DEPARTMENTS.SCM]: PERMISSION_IDS.SCM_FULL_ACCESS,
       [DEPARTMENTS.CRM]: PERMISSION_IDS.CRM_FULL_ACCESS,
-      [DEPARTMENTS.PROCUREMENT]: PERMISSION_IDS.PROCUREMENT_FULL_ACCESS,
-      [DEPARTMENTS.BRANCH_OPERATION]: PERMISSION_IDS.BRANCH_OPERATION_FULL_ACCESS,
+      [DEPARTMENTS.PRODUCTION]: PERMISSION_IDS.PRODUCTION_FULL_ACCESS,
+      [DEPARTMENTS.ADMIN]: PERMISSION_IDS.ADMIN_FULL_ACCESS,
     }
 
     return employeeRole.value.permissions.includes(
@@ -293,7 +286,7 @@ export function usePermissions(employeeRole) {
           },
         },
       },
-      'Supply Chain Management': {
+      'Supply Chain': {
         icon: Archive,
         submenu: {
           Dashboard: {
@@ -308,23 +301,23 @@ export function usePermissions(employeeRole) {
           'Branch Distribution': {
             route: '/admin/inventory/branch-distribution-management',
           },
-        },
-      },
-      Procurement: {
-        icon: ShoppingCart,
-        submenu: {
-          Dashboard: {
-            route: '/admin/procurement/dashboard',
+          'Supplier Management': {
+            route: '/admin/inventory/supplier-management',
           },
           'Purchase Order': {
-            route: '/admin/procurement/purchase-order-management',
-          },
-          Supplier: {
-            route: '/admin/procurement/supplier-management',
+            route: '/admin/inventory/purchase-order-management',
           },
         },
       },
-      'Customer Service Management': {
+      Production: {
+        icon: Factory,
+        submenu: {
+          Dashboard: {
+            route: '/admin/production/dashboard',
+          },
+        },
+      },
+      'Customer Service': {
         icon: Mail,
         submenu: {
           Dashboard: {

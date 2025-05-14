@@ -803,7 +803,7 @@ export const useAttendanceStore = defineStore('attendance', () => {
   }
 
   // Add this function before the return statement
-  const approveAttendance = async (attendanceId) => {
+  const approveAttendance = async (attendanceId, approverDetails = null) => {
     try {
       const authStore = useAuthStore()
       const currentUser = authStore.currentUser
@@ -812,20 +812,39 @@ export const useAttendanceStore = defineStore('attendance', () => {
         throw new Error('No authenticated user found')
       }
 
-      // Get the employee store to access employee details
-      const employeeStore = useEmployeeStore()
-      const currentEmployee = employeeStore.employees.find(
-        (emp) => emp.employee_id === currentUser.id,
-      )
+      console.log('Current user from auth store:', currentUser)
+      console.log('Current user ID:', currentUser.id)
 
-      if (!currentEmployee) {
-        throw new Error('Employee information not found')
+      // Check if approver details were passed directly
+      if (approverDetails && approverDetails.name) {
+        console.log('Using provided approver details:', approverDetails)
+      } else {
+        // Get the employee store to access employee details
+        const employeeStore = useEmployeeStore()
+        console.log('Employee store employees count:', employeeStore.employees.length)
+
+        // Use string comparison to find the employee
+        const currentEmployee = employeeStore.employees.find(
+          (emp) => String(emp.employee_id) === String(currentUser.id),
+        )
+
+        console.log('Found employee by ID:', currentEmployee)
+
+        if (!currentEmployee) {
+          throw new Error('Employee information not found')
+        }
+
+        approverDetails = {
+          name: currentEmployee.full_name,
+          userId: currentUser.id,
+          timestamp: new Date().toISOString(),
+        }
       }
 
       const response = await axios.post(
         `/api/attendance/${attendanceId}/approve`,
         {
-          approved_by: currentEmployee.full_name, // Now storing full name
+          approved_by: approverDetails.name, // Use the provided or found name
         },
         { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } },
       )
@@ -835,6 +854,7 @@ export const useAttendanceStore = defineStore('attendance', () => {
         return response.data.data
       }
     } catch (error) {
+      console.error('Error in approveAttendance:', error)
       throw new Error(error.response?.data?.message || 'Failed to approve attendance')
     }
   }

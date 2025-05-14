@@ -18,21 +18,19 @@ import FinanceSideBar from '@/views/Finance/FinanceSideBar.vue'
 import SalesSidebar from '@/views/Sales Department/SalesSidebar.vue'
 import SCMSidebar from '@/views/Supply Chain Management/SCMSidebar.vue'
 import CRMSidebar from '@/views/CRM Department/CRMASidebar.vue'
+import ProductionSidebar from '@/views/Production Department/ProductionSidebar.vue'
+import ProductionDashboard from '@/views/Production Department/ProductionDashboard.vue'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import { usePermissions } from '@/composables/Admin Composables/User & Role/role/usePermissions'
 import SCMBranchDistributionManagement from '@/views/Supply Chain Management/SCMBranchDistributionManagement.vue'
 import SCMInventoryManagement from '@/views/Supply Chain Management/SCMInventoryManagement.vue'
 import SCMSupplierManagement from '@/views/Supply Chain Management/SCMSupplierManagement.vue'
-import SCMPurchaseManagement from '@/views/Supply Chain Management/SCMPurchaseManagement.vue'
 import FinanceAccountingManagement from '@/views/Finance/FinanceAccountingManagement.vue'
 import FinanceTreasuryManagement from '@/views/Finance/FinanceTreasuryManagement.vue'
 import FinanceSalesManagement from '@/views/Finance/FinanceSalesManagement.vue'
 import HRPayroll from '@/views/Human Resource/HRPayroll.vue'
-import ProcurementDashboard from '@/views/Procurement/ProcurementDashboard.vue'
-import ProcurementPurchaseOrderManagement from '@/views/Procurement/ProcurementPurchaseOrderManagement.vue'
-import ProcurementSupplierManagement from '@/views/Procurement/ProcurementSupplierManagement.vue'
-import ProcurementSidebar from '@/views/Procurement/ProcurementSidebar.vue'
 import SCMRequestManagement from '@/views/Supply Chain Management/SCMRequestManagement.vue'
+import SCMPurchaseOrderManagement from '@/views/Supply Chain Management/SCMPurchaseOrderManagement.vue'
 import {
   PERMISSION_IDS,
   DEPARTMENTS,
@@ -136,6 +134,16 @@ const routes = [
         name: 'AdminBranchDistributionManagement',
         component: SCMBranchDistributionManagement,
       },
+      {
+        path: 'inventory/supplier-management',
+        name: 'AdminSupplierManagement',
+        component: SCMSupplierManagement,
+      },
+      {
+        path: 'inventory/purchase-order-management',
+        name: 'AdminPurchaseOrderManagement',
+        component: SCMPurchaseOrderManagement,
+      },
       // ADMIN CRM Router
       {
         path: 'crm/dashboard',
@@ -159,21 +167,11 @@ const routes = [
         component: () => import('@/components/Admin Components/HR/Employee/EditEmployeeForm.vue'),
         props: true,
       },
-      // Admin Procurement Router
+      // Admin Production Router
       {
-        path: 'procurement/dashboard',
-        name: 'AdminProcurementDashboard',
-        component: ProcurementDashboard,
-      },
-      {
-        path: 'procurement/purchase-order-management',
-        name: 'AdminProcurementPurchaseOrderManagement',
-        component: ProcurementPurchaseOrderManagement,
-      },
-      {
-        path: 'procurement/supplier-management',
-        name: 'AdminProcurementSupplierManagement',
-        component: ProcurementSupplierManagement,
+        path: 'production/dashboard',
+        name: 'AdminProductionDashboard',
+        component: ProductionDashboard,
       },
     ],
   },
@@ -349,6 +347,22 @@ const routes = [
         },
       },
       {
+        path: 'supplier-management',
+        name: 'SCMSupplierManagement',
+        component: SCMSupplierManagement,
+        meta: {
+          permissions: [PERMISSION_IDS.SCM_MANAGE_SUPPLIERS_MANAGEMENT],
+        },
+      },
+      {
+        path: 'purchase-order-management',
+        name: 'SCMPurchaseOrderManagement',
+        component: SCMPurchaseOrderManagement,
+        meta: {
+          permissions: [PERMISSION_IDS.SCM_MANAGE_PURCHASE_ORDER_MANAGEMENT],
+        },
+      },
+      {
         path: 'branch-distribution-management',
         name: 'SCMBranchDistributionManagement',
         component: SCMBranchDistributionManagement,
@@ -381,25 +395,19 @@ const routes = [
       },
     ],
   },
-  // Procurement Router
+  // Production Router
   {
-    path: '/procurement',
-    component: ProcurementSidebar,
+    path: '/production',
+    component: ProductionSidebar,
+    meta: {
+      requiresAuth: true,
+      department: DEPARTMENTS.PRODUCTION,
+    },
     children: [
       {
         path: 'dashboard',
-        name: 'ProcurementDashboard',
-        component: ProcurementDashboard,
-      },
-      {
-        path: 'purchase-order-management',
-        name: 'ProcurementPurchaseOrderManagement',
-        component: ProcurementPurchaseOrderManagement,
-      },
-      {
-        path: 'supplier-management',
-        name: 'ProcurementSupplierManagement',
-        component: ProcurementSupplierManagement,
+        name: 'ProductionDashboard',
+        component: ProductionDashboard,
       },
     ],
   },

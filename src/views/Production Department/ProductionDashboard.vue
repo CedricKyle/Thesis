@@ -1,6 +1,7 @@
 <script setup></script>
+
 <template>
   <div>
-    <h1>Procurement Supplier Management</h1>
+    <h1>Production Dashboard</h1>
   </div>
 </template>

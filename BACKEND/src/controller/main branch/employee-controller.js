@@ -178,7 +178,7 @@ const createEmployee = async (req, res) => {
     }
 
     // Create user account
-    const defaultPassword = 'countryside123'
+    const defaultPassword = employeeData.lastName.trim().toLowerCase()
     const hashedPassword = await bcrypt.hash(defaultPassword, 10)
 
     await User.create(
@@ -201,7 +201,7 @@ const createEmployee = async (req, res) => {
         profileImagePath,
         userCredentials: {
           username: employeeId,
-          defaultPassword: 'countryside123',
+          defaultPassword: defaultPassword,
         },
       },
     })
@@ -778,7 +778,8 @@ const login = async (req, res) => {
 
     // If no user account exists, create one
     if (!user) {
-      const defaultPassword = 'countryside123'
+      // Use the employee's last name as the default password (lowercase, trimmed)
+      const defaultPassword = employee.last_name.trim().toLowerCase()
       const hashedPassword = await bcrypt.hash(defaultPassword, 10)
 
       user = await User.create({
@@ -789,7 +790,7 @@ const login = async (req, res) => {
 
       if (password !== defaultPassword) {
         return res.status(401).json({
-          message: 'New account created. Please use the default password: countryside123',
+          message: `New account created. Please use the default password: ${defaultPassword}`,
           code: 'USE_DEFAULT_PASSWORD',
         })
       }
