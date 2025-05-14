@@ -16,6 +16,30 @@ const menuItems = [
     icon: LayoutDashboard,
     permission: PERMISSION_IDS.PRODUCTION_VIEW_DASHBOARD,
   },
+   {
+    name: 'Production',
+    route: '/production/Production',
+    icon: LayoutDashboard,
+    permission: PERMISSION_IDS.PRODUCTION_VIEW_DASHBOARD,
+  },
+   {
+    name: 'Inventory',
+    route: '/production/Inventory',
+    icon: LayoutDashboard,
+    permission: PERMISSION_IDS.PRODUCTION_VIEW_DASHBOARD,
+  },
+  {
+    name: 'Requests',
+    route: '/production/Request',
+    icon: LayoutDashboard,
+    permission: PERMISSION_IDS.PRODUCTION_VIEW_DASHBOARD,
+  },
+   {
+    name: 'Report',
+    route: '/production/Report',
+    icon: LayoutDashboard,
+    permission: PERMISSION_IDS.PRODUCTION_VIEW_DASHBOARD,
+  },
 ]
 </script>
 

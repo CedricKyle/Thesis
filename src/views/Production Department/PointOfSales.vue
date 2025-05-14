@@ -1,7 +1,7 @@
 <template>
   <div class="flex min-h-screen overflow-hidden">
     <!-- Main Content Area -->
-    <div class="flex-1 p-6 bg-base-200 overflow-auto">
+    <div>
       <!-- Filter + Add Button -->
       <div class="flex flex-wrap items-center justify-between mb-6">
         <div>

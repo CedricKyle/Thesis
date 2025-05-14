@@ -21,6 +21,10 @@ import CRMSidebar from '@/views/CRM Department/CRMASidebar.vue'
 import ProductionSidebar from '@/views/Production Department/ProductionSidebar.vue'
 import ProductionDashboard from '@/views/Production Department/ProductionDashboard.vue'
 import PointOfSales from '@/views/Production Department/PointOfSales.vue'
+import Production from '@/views/Production Department/Production.vue'
+import Inventory from '@/views/Production Department/Inventory.vue'
+import Reports from '@/views/Production Department/Report.vue'
+import Requests from '@/views/Production Department/Request.vue'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import { usePermissions } from '@/composables/Admin Composables/User & Role/role/usePermissions'
 import SCMBranchDistributionManagement from '@/views/Supply Chain Management/SCMBranchDistributionManagement.vue'
@@ -414,7 +418,29 @@ const routes = [
         path: 'Point_of_Sales',
         name: 'PointOfSales',
         component: PointOfSales,
-      },   
+      }, 
+      
+       {
+        path: 'production',
+        name: 'Production',
+        component: Production,
+      }, 
+       {
+        path: 'inventory',
+        name: 'Inventory',
+        component: Inventory,
+      }, 
+      {
+        path: 'request',
+        name: 'Requests',
+        component: Requests,
+      }, 
+      
+      {
+        path: 'report',
+        name: 'Report',
+        component: Reports,
+      }, 
     ],
   },
   // Access Denied Router
