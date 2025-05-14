@@ -10,6 +10,12 @@ const menuItems = [
     icon: LayoutDashboard,
     permission: PERMISSION_IDS.PRODUCTION_VIEW_DASHBOARD,
   },
+    {
+    name: 'Point Of Sales',
+    route: '/production/Point_of_Sales',
+    icon: LayoutDashboard,
+    permission: PERMISSION_IDS.PRODUCTION_VIEW_DASHBOARD,
+  },
 ]
 </script>
 
