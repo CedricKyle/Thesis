@@ -1,5 +1,5 @@
 <template>
-  <div class="p-4 bg-gray-100 min-h-screen">
+  <div class=" min-h-screen">
     <!-- Tabs -->
     <div class="tabs bg-primaryColor text-white rounded-t-lg">
       <a class="tab tab-bordered tab-active px-6">Production</a>

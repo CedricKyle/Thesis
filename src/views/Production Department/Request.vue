@@ -1,5 +1,5 @@
 <template>
-  <div class="p-6 bg-gray-200 min-h-screen space-y-4">
+  <div class=" min-h-screen space-y-4">
     <!-- Filter Section -->
     <div class="bg-white p-4 rounded shadow flex flex-wrap gap-4">
       <input type="text" placeholder="Search" class="input input-bordered w-48" />
