@@ -162,7 +162,7 @@ const getPayPeriodMonth = (payPeriod) => {
       </div>
 
       <!-- Accounting Request Management Tab -->
-      <input type="radio" name="my_tabs_2" class="tab" aria-label="Accounting Request Management" />
+      <input type="radio" name="my_tabs_2" class="tab" aria-label="Request Management" />
       <div class="tab-content bg-white p-5">
         <FinanceAccountingRequestManagement />
       </div>

@@ -1,3 +1,7 @@
-<script></script>
+<script setup></script>
 
-<template></template>
+<template>
+  <div>
+    <h1>Finance Accounting Request Management</h1>
+  </div>
+</template>

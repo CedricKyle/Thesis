@@ -50,7 +50,6 @@ function getDepartmentDefaultRoute(department) {
     'Sales Department': '/sales/dashboard',
     'Supply Chain Management': '/scm/dashboard',
     'Customer Relationship Management': '/crm/dashboard',
-    'Branch Operation': '/branch-operation/dashboard',
   }
 
   return deptRouteMap[department] || `/${department.toLowerCase().replace(/\s+/g, '-')}/dashboard`

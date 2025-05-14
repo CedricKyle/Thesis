@@ -79,20 +79,6 @@ const createEmployee = async (req, res) => {
       profileImagePath = await saveFile(profileFile, 'profile')
     }
 
-    // Handle resume file
-    let resumePath = null
-    if (req.files?.resume?.[0]) {
-      const resumeFile = req.files.resume[0]
-      // Validate file type
-      if (resumeFile.mimetype !== 'application/pdf') {
-        return res.status(400).json({
-          message: 'Invalid file type for resume',
-          allowedType: 'application/pdf',
-        })
-      }
-      resumePath = await saveFile(resumeFile, 'resume')
-    }
-
     // Generate employee ID
     const hireYear = new Date(employeeData.dateOfHire).getFullYear()
     const existingEmployees = await Employee.findAll({
@@ -145,12 +131,6 @@ const createEmployee = async (req, res) => {
       })
     }
 
-    if (employeeData.department === 'Branch Operation' && !employeeData.branch_id) {
-      return res.status(400).json({
-        message: 'Branch ID is required for Branch Operation employees',
-      })
-    }
-
     // Create employee with verified role_id
     const employee = await Employee.create(
       {
@@ -161,7 +141,7 @@ const createEmployee = async (req, res) => {
         full_name: fullName,
         department: employeeData.department,
         position_id: employeeData.position_id,
-        role_id: role.id, // Use the role's ID
+        role_id: role.id,
         date_of_hire: employeeData.dateOfHire,
         date_of_birth: employeeData.dateOfBirth,
         gender: employeeData.gender,
@@ -169,8 +149,6 @@ const createEmployee = async (req, res) => {
         email: employeeData.email,
         address: employeeData.address,
         profile_image_path: profileImagePath,
-        resume_path: resumePath,
-        branch_id: employeeData.department === 'Branch Operation' ? employeeData.branch_id : null,
       },
       { transaction: t },
     )
@@ -200,7 +178,7 @@ const createEmployee = async (req, res) => {
     }
 
     // Create user account
-    const defaultPassword = 'countryside123'
+    const defaultPassword = employeeData.lastName.trim().toLowerCase()
     const hashedPassword = await bcrypt.hash(defaultPassword, 10)
 
     await User.create(
@@ -221,10 +199,9 @@ const createEmployee = async (req, res) => {
         email: employeeData.email,
         fullName,
         profileImagePath,
-        resumePath,
         userCredentials: {
           username: employeeId,
-          defaultPassword: 'countryside123',
+          defaultPassword: defaultPassword,
         },
       },
     })
@@ -397,20 +374,6 @@ const updateEmployee = async (req, res) => {
       profileImagePath = await saveFile(profileFile, 'profile')
     }
 
-    // Handle resume file
-    let resumePath = null
-    if (req.files?.resume?.[0]) {
-      const resumeFile = req.files.resume[0]
-      resumePath = await saveFile(resumeFile, 'resume')
-    }
-
-    if (employeeData.department === 'Branch Operation' && !employeeData.branch_id) {
-      await t.rollback()
-      return res.status(400).json({
-        message: 'Branch ID is required for Branch Operation employees',
-      })
-    }
-
     // Update employee
     const [updatedCount] = await Employee.update(
       {
@@ -428,8 +391,6 @@ const updateEmployee = async (req, res) => {
         email: employeeData.email,
         address: employeeData.address,
         profile_image_path: profileImagePath,
-        resume_path: resumePath,
-        branch_id: employeeData.department === 'Branch Operation' ? employeeData.branch_id : null,
       },
       {
         where: { employee_id: id },
@@ -630,15 +591,14 @@ const addEmployee = async (req, res) => {
 
     const employeeData = JSON.parse(req.body.employeeData)
     const profilePath = req.files?.profileImage?.[0]?.path
-    const resumePath = req.files?.resume?.[0]?.path
 
     const [result] = await connection.execute(
       `INSERT INTO employees (
         employee_id, first_name, middle_name, last_name, full_name,
         department, position_id, role_id, date_of_hire, date_of_birth,
         gender, contact_number, email, address,
-        profile_image_path, resume_path
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        profile_image_path
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         employeeData.id,
         employeeData.firstName,
@@ -655,7 +615,6 @@ const addEmployee = async (req, res) => {
         employeeData.email,
         employeeData.address,
         profilePath,
-        resumePath,
       ],
     )
 
@@ -679,16 +638,13 @@ const addEmployee = async (req, res) => {
     await connection.commit()
     res.status(201).json({
       message: 'Employee added successfully',
-      employee: { ...employeeData, profile_image_path: profilePath, resume_path: resumePath },
+      employee: { ...employeeData, profile_image_path: profilePath },
     })
   } catch (error) {
     await connection.rollback()
     // Delete uploaded files if database operation fails
     if (req.files?.profileImage?.[0]) {
       await deleteFile(req.files.profileImage[0].path)
-    }
-    if (req.files?.resume?.[0]) {
-      await deleteFile(req.files.resume[0].path)
     }
     res.status(500).json({ error: error.message })
   } finally {
@@ -704,29 +660,24 @@ const updateEmployeeWithFiles = async (req, res) => {
 
     const employeeData = JSON.parse(req.body.employeeData)
     const oldEmployee = await connection.execute(
-      'SELECT profile_image_path, resume_path FROM employees WHERE employee_id = ?',
+      'SELECT profile_image_path FROM employees WHERE employee_id = ?',
       [employeeData.id],
     )
 
     // Handle new files
     const profilePath = req.files?.profileImage?.[0]?.path || oldEmployee.profile_image_path
-    const resumePath = req.files?.resume?.[0]?.path || oldEmployee.resume_path
 
     // Delete old files if new ones are uploaded
     if (req.files?.profileImage?.[0] && oldEmployee.profile_image_path) {
       await deleteFile(oldEmployee.profile_image_path)
     }
-    if (req.files?.resume?.[0] && oldEmployee.resume_path) {
-      await deleteFile(oldEmployee.resume_path)
-    }
 
     // Update employee record
     await connection.execute(
       `UPDATE employees SET
-        profile_image_path = ?,
-        resume_path = ?
+        profile_image_path = ?
       WHERE employee_id = ?`,
-      [profilePath, resumePath, employeeData.id],
+      [profilePath, employeeData.id],
     )
 
     await connection.commit()
@@ -736,9 +687,6 @@ const updateEmployeeWithFiles = async (req, res) => {
     // Delete new uploaded files if update fails
     if (req.files?.profileImage?.[0]) {
       await deleteFile(req.files.profileImage[0].path)
-    }
-    if (req.files?.resume?.[0]) {
-      await deleteFile(req.files.resume[0].path)
     }
     res.status(500).json({ error: error.message })
   } finally {
@@ -830,7 +778,8 @@ const login = async (req, res) => {
 
     // If no user account exists, create one
     if (!user) {
-      const defaultPassword = 'countryside123'
+      // Use the employee's last name as the default password (lowercase, trimmed)
+      const defaultPassword = employee.last_name.trim().toLowerCase()
       const hashedPassword = await bcrypt.hash(defaultPassword, 10)
 
       user = await User.create({
@@ -841,7 +790,7 @@ const login = async (req, res) => {
 
       if (password !== defaultPassword) {
         return res.status(401).json({
-          message: 'New account created. Please use the default password: countryside123',
+          message: `New account created. Please use the default password: ${defaultPassword}`,
           code: 'USE_DEFAULT_PASSWORD',
         })
       }
@@ -904,7 +853,6 @@ const login = async (req, res) => {
       message: 'Login successful',
       user: {
         ...employee.toJSON(),
-        branch_id: employee.branch_id,
         permissions: permissions,
         user: undefined,
       },

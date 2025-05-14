@@ -115,7 +115,6 @@ export const useEmployeeStore = defineStore('employee', () => {
       console.log('Creating employee with data:', {
         employeeData,
         hasProfileImage: formData.has('profileImage'),
-        hasResume: formData.has('resume'),
       })
 
       const response = await employeeAPI.createEmployee(formData)
@@ -252,38 +251,6 @@ export const useEmployeeStore = defineStore('employee', () => {
     sortDesc.value = false
   }
 
-  // Add helper function to download resume
-  function downloadResume(employeeId) {
-    try {
-      const employee = employees.value.find((emp) => emp.id === employeeId)
-      if (!employee || !employee.resume) {
-        throw new Error('Resume not found')
-      }
-
-      // Create blob from base64 data
-      const byteString = atob(employee.resume.data.split(',')[1])
-      const ab = new ArrayBuffer(byteString.length)
-      const ia = new Uint8Array(ab)
-      for (let i = 0; i < byteString.length; i++) {
-        ia[i] = byteString.charCodeAt(i)
-      }
-      const blob = new Blob([ab], { type: employee.resume.type })
-
-      // Create download link
-      const url = window.URL.createObjectURL(blob)
-      const link = document.createElement('a')
-      link.href = url
-      link.download = employee.resume.name
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(url)
-    } catch (error) {
-      console.error('Error downloading resume:', error)
-      throw error
-    }
-  }
-
   // Add this function if not already present
   const getEmployee = async (id) => {
     try {
@@ -341,7 +308,6 @@ export const useEmployeeStore = defineStore('employee', () => {
     handleSort,
     searchEmployees,
     resetFilters,
-    downloadResume,
     getEmployee,
     restoreEmployee,
   }

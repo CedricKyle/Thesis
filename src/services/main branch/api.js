@@ -72,4 +72,12 @@ export const requestAPI = {
 
   // --- NEW: Batch update status ---
   batchUpdateStatus: (payload) => axios.post('/api/requests/batch-update-status', payload),
+
+  // --- NEW: Resubmit and Resume endpoints ---
+  resubmitRequest: (id, data) => axios.put(`/api/requests/${id}/resubmit`, data),
+  resumeRequest: (id, data) => axios.put(`/api/requests/${id}/resume`, data),
+}
+
+export async function updateRequest(id, data) {
+  return await axios.put(`/api/requests/${id}`, data)
 }

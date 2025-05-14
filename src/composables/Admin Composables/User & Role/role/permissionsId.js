@@ -4,8 +4,7 @@ export const DEPARTMENTS = {
   FINANCE: 'Finance Department',
   SCM: 'Supply Chain Management',
   CRM: 'Customer Relationship Management',
-  BRANCH_OPERATION: 'Branch Operation',
-  PROCUREMENT: 'Procurement Department',
+  PRODUCTION: 'Production Department',
 }
 
 export const PERMISSION_IDS = {
@@ -44,21 +43,21 @@ export const PERMISSION_IDS = {
   // SCM_MANAGE_PURCHASE_MANAGEMENT: 21,
   SCM_MANAGE_BRANCH_DISTRIBUTION_MANAGEMENT: 22,
   SCM_MANAGE_REQUEST_MANAGEMENT: 35,
+  SCM_MANAGE_SUPPLIERS_MANAGEMENT: 33,
+  SCM_MANAGE_PURCHASE_ORDER_MANAGEMENT: 34,
 
   // CRM Department Permissions
   CRM_FULL_ACCESS: 17,
   CRM_VIEW_DASHBOARD: 18,
 
   // Branch Operation Permissions
-  BRANCH_OPERATION_FULL_ACCESS: 27,
-  BRANCH_OPERATION_MANAGE_REQUESTS_MODULE: 28,
-  BRANCH_OPERATION_VIEW_DASHBOARD: 30,
+  // BRANCH_OPERATION_FULL_ACCESS: 27,
+  // BRANCH_OPERATION_MANAGE_REQUESTS_MODULE: 28,
+  // BRANCH_OPERATION_VIEW_DASHBOARD: 30,
 
-  // Procurement Department Permissions
-  PROCUREMENT_FULL_ACCESS: 31,
-  PROCUREMENT_VIEW_DASHBOARD: 32,
-  PROCUREMENT_MANAGE_SUPPLIERS_MANAGEMENT: 33,
-  PROCUREMENT_MANAGE_PURCHASE_ORDER_MANAGEMENT: 34,
+  // Production Department Permissions
+  PRODUCTION_FULL_ACCESS: 31,
+  PRODUCTION_VIEW_DASHBOARD: 32,
 }
 
 export const permissionGroups = [
@@ -113,6 +112,14 @@ export const permissionGroups = [
         id: PERMISSION_IDS.SCM_MANAGE_REQUEST_MANAGEMENT,
         name: 'Manage Request Management',
       },
+      {
+        id: PERMISSION_IDS.SCM_MANAGE_SUPPLIERS_MANAGEMENT,
+        name: 'Manage Suppliers Management',
+      },
+      {
+        id: PERMISSION_IDS.SCM_MANAGE_PURCHASE_ORDER_MANAGEMENT,
+        name: 'Manage Purchase Order Management',
+      },
     ],
   },
   {
@@ -124,34 +131,11 @@ export const permissionGroups = [
     ],
   },
   {
-    department: DEPARTMENTS.BRANCH_OPERATION,
-    name: 'Branch Operation',
+    department: DEPARTMENTS.PRODUCTION,
+    name: 'Production Department',
     permissions: [
-      { id: PERMISSION_IDS.BRANCH_OPERATION_FULL_ACCESS, name: 'Full Access' },
-      {
-        id: PERMISSION_IDS.BRANCH_OPERATION_MANAGE_REQUESTS_MODULE,
-        name: 'Manage Requests Module',
-      },
-      {
-        id: PERMISSION_IDS.BRANCH_OPERATION_VIEW_DASHBOARD,
-        name: 'View Dashboard',
-      },
-    ],
-  },
-  {
-    department: DEPARTMENTS.PROCUREMENT,
-    name: 'Procurement',
-    permissions: [
-      { id: PERMISSION_IDS.PROCUREMENT_FULL_ACCESS, name: 'Full Access' },
-      { id: PERMISSION_IDS.PROCUREMENT_VIEW_DASHBOARD, name: 'View Dashboard' },
-      {
-        id: PERMISSION_IDS.PROCUREMENT_MANAGE_SUPPLIERS_MANAGEMENT,
-        name: 'Manage Suppliers Management',
-      },
-      {
-        id: PERMISSION_IDS.PROCUREMENT_MANAGE_PURCHASE_ORDER_MANAGEMENT,
-        name: 'Manage Purchase Order Management',
-      },
+      { id: PERMISSION_IDS.PRODUCTION_FULL_ACCESS, name: 'Full Access' },
+      { id: PERMISSION_IDS.PRODUCTION_VIEW_DASHBOARD, name: 'View Dashboard' },
     ],
   },
 ]

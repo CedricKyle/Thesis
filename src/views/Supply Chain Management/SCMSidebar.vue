@@ -23,6 +23,18 @@ const menuItems = [
     permission: PERMISSION_IDS.SCM_MANAGE_INVENTORY_MANAGEMENT,
   },
   {
+    name: 'Supplier Management',
+    route: '/scm/supplier-management',
+    icon: HandCoins,
+    permission: PERMISSION_IDS.SCM_MANAGE_SUPPLIERS_MANAGEMENT,
+  },
+  {
+    name: 'Purchase Order Management',
+    route: '/scm/purchase-order-management',
+    icon: HandCoins,
+    permission: PERMISSION_IDS.SCM_MANAGE_PURCHASE_ORDER_MANAGEMENT,
+  },
+  {
     name: 'Request Management',
     route: '/scm/request-management',
     icon: HandCoins,
