@@ -145,6 +145,10 @@ const tableOptions = {
 // Get requests from store
 const requests = computed(() => financeRequestStore.requests)
 
+const mainTableRequests = computed(() =>
+  financeRequestStore.requests.filter((req) => req.request_status !== 'Approved'),
+)
+
 // Toggle request selection
 const toggleSelect = (id) => {
   if (selectedIds.value.includes(id)) {
@@ -302,6 +306,56 @@ const confirmBulkReject = async () => {
     showBulkRejectModal.value = false
   }
 }
+
+const approvedRequests = computed(() =>
+  financeRequestStore.requests.filter((req) => req.request_status === 'Approved'),
+)
+
+const filteredApprovedRequests = computed(() =>
+  approvedRequests.value.filter((req) =>
+    isSameMonthYear(req.request_date, selectedMonth.value, selectedYear.value),
+  ),
+)
+
+const approvedHistoryTotalPages = computed(() =>
+  Math.ceil(filteredApprovedRequests.value.length / rowsPerPage.value),
+)
+
+const approvedHistoryPage = ref(1)
+
+const paginatedApprovedHistory = computed(() =>
+  filteredApprovedRequests.value.slice(
+    (approvedHistoryPage.value - 1) * rowsPerPage.value,
+    approvedHistoryPage.value * rowsPerPage.value,
+  ),
+)
+
+const monthOptions = Array.from({ length: 12 }, (_, i) => i + 1)
+const yearOptions = [2023, 2024, 2025] // Adjust as needed
+
+const selectedMonth = ref(new Date().getMonth() + 1)
+const selectedYear = ref(new Date().getFullYear())
+
+const rowsPerPage = ref(10)
+
+function isSameMonthYear(dateStr, month, year) {
+  if (!dateStr) return false
+  const d = new Date(dateStr)
+  return d.getMonth() + 1 === month && d.getFullYear() === year
+}
+
+const showApprovedViewModal = ref(false)
+const approvedViewRequest = ref(null)
+
+function openApprovedViewModal(request) {
+  approvedViewRequest.value = request
+  showApprovedViewModal.value = true
+}
+
+function closeApprovedViewModal() {
+  showApprovedViewModal.value = false
+  approvedViewRequest.value = null
+}
 </script>
 
 <template>
@@ -328,7 +382,7 @@ const confirmBulkReject = async () => {
     </div>
 
     <!-- Using BaseTable component -->
-    <BaseTable :columns="columns" :data="requests" :options="tableOptions" />
+    <BaseTable :columns="columns" :data="mainTableRequests" :options="tableOptions" />
   </div>
 
   <!-- View Modal -->
@@ -384,6 +438,7 @@ const confirmBulkReject = async () => {
             <thead class="bg-primaryColor text-white">
               <tr>
                 <th class="border px-2 py-1">#</th>
+                <th class="border px-2 py-1">Type</th>
                 <th class="border px-2 py-1">Item Name</th>
                 <th class="border px-2 py-1">Qty</th>
                 <th class="border px-2 py-1">Unit</th>
@@ -394,6 +449,7 @@ const confirmBulkReject = async () => {
             <tbody>
               <tr v-for="(item, idx) in selectedRequest.requestItems" :key="item.id || idx">
                 <td class="border px-2 py-1">{{ idx + 1 }}</td>
+                <td class="border px-2 py-1">{{ item.supply_type || '-' }}</td>
                 <td class="border px-2 py-1">{{ item.item_name }}</td>
                 <td class="border px-2 py-1">{{ item.quantity }}</td>
                 <td class="border px-2 py-1">{{ item.unit }}</td>
@@ -514,6 +570,161 @@ const confirmBulkReject = async () => {
         >
           Yes, Reject
         </button>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="mt-8 text-black">
+    <div class="flex justify-between mb-2">
+      <h3 class="font-semibold text-black">Approved Requests History</h3>
+      <div class="flex gap-2">
+        <select
+          v-model="selectedMonth"
+          class="select bg-white border border-black text-black select-sm cursor-pointer"
+        >
+          <option v-for="m in monthOptions" :key="m" :value="m">
+            {{ new Date(0, m - 1).toLocaleString('default', { month: 'long' }) }}
+          </option>
+        </select>
+        <select
+          v-model="selectedYear"
+          class="select bg-white border border-black text-black select-sm cursor-pointer"
+        >
+          <option v-for="y in yearOptions" :key="y" :value="y">{{ y }}</option>
+        </select>
+      </div>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="table text-black w-full text-xs border border-gray-300 rounded-md">
+        <thead class="text-black text-xs">
+          <tr>
+            <th>No.</th>
+            <th>Request ID</th>
+            <th>Description</th>
+            <th>Date</th>
+            <th>Amount</th>
+            <th>Prepared By</th>
+            <th>Approved By</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(req, idx) in paginatedApprovedHistory" :key="req.request_id">
+            <td>{{ (approvedHistoryPage - 1) * rowsPerPage + idx + 1 }}</td>
+            <td>{{ req.request_id }}</td>
+            <td>{{ req.description }}</td>
+            <td>{{ new Date(req.request_date).toLocaleString() }}</td>
+            <td>
+              ₱{{ Number(req.total_amount).toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}
+            </td>
+            <td>{{ req.preparedBy?.full_name || req.prepared_by }}</td>
+            <td>{{ req.approvedBy?.full_name || req.approved_by || '-' }}</td>
+            <td>
+              <button
+                class="btn btn-xs btn-circle btn-ghost view-button border-none hover:bg-primaryColor/80"
+                @click="openApprovedViewModal(req)"
+                title="View Details"
+              >
+                <svg
+                  class="h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+                  <circle cx="12" cy="12" r="3" />
+                </svg>
+              </button>
+            </td>
+          </tr>
+          <tr v-if="!paginatedApprovedHistory.length">
+            <td colspan="8" class="text-center py-4 text-gray-500">
+              No approved requests found for this month.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <!-- Pagination -->
+    <div class="flex items-center gap-2 mt-4">
+      <span class="text-black text-xs">Page</span>
+      <select
+        class="select !bg-white !border-black !text-black select-xs w-16"
+        v-model="approvedHistoryPage"
+        :disabled="approvedHistoryTotalPages <= 1"
+        @change="() => $nextTick(() => window.scrollTo(0, 0))"
+      >
+        <option v-for="page in approvedHistoryTotalPages" :key="page" :value="page">
+          {{ page }}
+        </option>
+      </select>
+      <span class="text-black text-xs">of {{ approvedHistoryTotalPages }}</span>
+    </div>
+  </div>
+
+  <!-- Approved View Modal -->
+  <dialog :open="showApprovedViewModal" class="modal">
+    <div class="modal-box bg-white max-w-2xl p-6 rounded-lg shadow-lg">
+      <h3 class="font-bold text-lg text-black mb-2">Approved Request Details</h3>
+      <div v-if="approvedViewRequest" class="text-sm text-black">
+        <div class="mb-2"><b>Request ID:</b> {{ approvedViewRequest.request_id }}</div>
+        <div class="mb-2"><b>Description:</b> {{ approvedViewRequest.description }}</div>
+        <div class="mb-2">
+          <b>Date:</b> {{ new Date(approvedViewRequest.request_date).toLocaleString() }}
+        </div>
+        <div class="mb-2"><b>Status:</b> {{ approvedViewRequest.request_status }}</div>
+        <div class="mb-2">
+          <b>Total Amount:</b> ₱{{
+            Number(approvedViewRequest.total_amount).toLocaleString('en-PH', {
+              minimumFractionDigits: 2,
+            })
+          }}
+        </div>
+        <div class="mb-2">
+          <b>Prepared By:</b>
+          {{ approvedViewRequest.preparedBy?.full_name || approvedViewRequest.prepared_by || '-' }}
+        </div>
+        <div class="mb-2">
+          <b>Approved By:</b>
+          {{ approvedViewRequest.approvedBy?.full_name || approvedViewRequest.approved_by || '-' }}
+        </div>
+        <div class="mb-2">
+          <b>Items:</b>
+          <table class="w-full text-xs border border-gray-300 mt-2">
+            <thead class="bg-primaryColor text-white">
+              <tr>
+                <th class="border px-2 py-1">#</th>
+                <th class="border px-2 py-1">Type</th>
+                <th class="border px-2 py-1">Item Name</th>
+                <th class="border px-2 py-1">Qty</th>
+                <th class="border px-2 py-1">Unit</th>
+                <th class="border px-2 py-1">Unit Price</th>
+                <th class="border px-2 py-1">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="(item, idx) in approvedViewRequest.requestItems" :key="item.id || idx">
+                <td class="border px-2 py-1">{{ idx + 1 }}</td>
+                <td class="border px-2 py-1">{{ item.supply_type || '-' }}</td>
+                <td class="border px-2 py-1">{{ item.item_name }}</td>
+                <td class="border px-2 py-1">{{ item.quantity }}</td>
+                <td class="border px-2 py-1">{{ item.unit }}</td>
+                <td class="border px-2 py-1">
+                  ₱{{
+                    Number(item.unit_price).toLocaleString('en-PH', { minimumFractionDigits: 2 })
+                  }}
+                </td>
+                <td class="border px-2 py-1">
+                  ₱{{ Number(item.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="flex justify-end mt-4">
+        <button class="btn-secondaryStyle" @click="closeApprovedViewModal">Close</button>
       </div>
     </div>
   </dialog>

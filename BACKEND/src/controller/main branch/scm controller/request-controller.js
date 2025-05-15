@@ -63,6 +63,7 @@ const createRequest = async (req, res) => {
     const requestItemsToCreate = requestItems.map((item) => ({
       request_id: requestId,
       item_name: item.item_name,
+      supply_type: item.supply_type,
       quantity: item.quantity,
       unit: item.unit,
       unit_price: item.unit_price,
@@ -105,7 +106,15 @@ const getAllRequests = async (req, res) => {
         {
           model: SCMRequestItem,
           as: 'requestItems',
-          attributes: ['id', 'item_name', 'quantity', 'unit', 'unit_price', 'amount'],
+          attributes: [
+            'id',
+            'item_name',
+            'supply_type',
+            'quantity',
+            'unit',
+            'unit_price',
+            'amount',
+          ],
         },
         {
           model: Employee,
@@ -147,7 +156,15 @@ const getRequestById = async (req, res) => {
         {
           model: SCMRequestItem,
           as: 'requestItems',
-          attributes: ['id', 'item_name', 'quantity', 'unit', 'unit_price', 'amount'],
+          attributes: [
+            'id',
+            'item_name',
+            'supply_type',
+            'quantity',
+            'unit',
+            'unit_price',
+            'amount',
+          ],
         },
         {
           model: Employee,
@@ -344,6 +361,7 @@ const updateRequest = async (req, res) => {
     const requestItemsToCreate = requestItems.map((item) => ({
       request_id: id,
       item_name: item.item_name,
+      supply_type: item.supply_type,
       quantity: item.quantity,
       unit: item.unit,
       unit_price: item.unit_price,

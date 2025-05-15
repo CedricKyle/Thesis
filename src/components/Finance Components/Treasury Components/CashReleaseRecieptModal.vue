@@ -38,6 +38,7 @@ function printReceipt() {
           <thead>
             <tr>
               <th class="border px-2 py-1">#</th>
+              <th class="border px-2 py-1">Type</th>
               <th class="border px-2 py-1">Item Name</th>
               <th class="border px-2 py-1">Qty</th>
               <th class="border px-2 py-1">Unit</th>
@@ -48,6 +49,7 @@ function printReceipt() {
           <tbody>
             <tr v-for="(item, idx) in receipt?.items || []" :key="item.id || idx">
               <td class="border px-2 py-1">{{ idx + 1 }}</td>
+              <td class="border px-2 py-1">{{ item.supply_type || '-' }}</td>
               <td class="border px-2 py-1">{{ item.item_name }}</td>
               <td class="border px-2 py-1">{{ item.quantity }}</td>
               <td class="border px-2 py-1">{{ item.unit }}</td>
@@ -59,7 +61,7 @@ function printReceipt() {
               </td>
             </tr>
             <tr>
-              <td class="border px-2 py-1 font-bold text-right" colspan="5">Total</td>
+              <td class="border px-2 py-1 font-bold text-right" colspan="6">Total</td>
               <td class="border px-2 py-1 font-bold">
                 ₱{{
                   Number(receipt?.amount || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })

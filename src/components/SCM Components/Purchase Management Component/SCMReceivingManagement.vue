@@ -16,6 +16,7 @@ const selectedDelivery = ref(null)
 const showCancelModal = ref(false)
 const cancelDelivery = ref(null)
 const cancelReason = ref('')
+const showConfirmModal = ref(false)
 
 const toast = ref({
   show: false,
@@ -71,7 +72,7 @@ async function confirmReceive() {
       delivery_date: editDeliveryDate.value,
       items: editItems.value.filter((item) => item.item_name),
     })
-    // 2. Mark as received
+    console.log('authStore.user:', authStore.user)
     await deliveryStore.receiveDelivery(selectedDelivery.value.id, {
       received_by: authStore.user?.full_name || 'Unknown User',
       // Add receipt_url, remarks, etc. if needed
@@ -106,15 +107,26 @@ async function confirmCancelDelivery() {
   closeCancelModal()
 }
 
+function handleConfirmReceive() {
+  showConfirmModal.value = false
+  confirmReceive()
+}
+
 watch(error, (val) => {
   if (val) showToast(val, 'error')
 })
 
+function toDatetimeLocal(date) {
+  if (!date) return ''
+  const d = new Date(date)
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
+  return d.toISOString().slice(0, 16)
+}
+
 watch(showReceiveModal, (val) => {
   if (val && selectedDelivery.value) {
     editSupplier.value = selectedDelivery.value.supplier
-    editDeliveryDate.value = selectedDelivery.value.delivery_date
-    // Defensive: ensure items is an array
+    editDeliveryDate.value = toDatetimeLocal(selectedDelivery.value.delivery_date)
     let items = selectedDelivery.value.items
     if (typeof items === 'string') {
       try {
@@ -287,7 +299,21 @@ watch(showReceiveModal, (val) => {
         </div>
         <div class="flex justify-end gap-4 mt-4">
           <button class="btn-secondaryStyle" @click="closeReceiveModal">Cancel</button>
-          <button class="btn-primaryStyle" @click="closeReceiveModal">Confirm Receive</button>
+          <button class="btn-primaryStyle" @click="showConfirmModal = true">Confirm Receive</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- Confirmation Modal -->
+    <dialog :open="showConfirmModal" class="modal">
+      <div class="modal-box bg-white max-w-md p-6 rounded-lg shadow-lg">
+        <h3 class="font-bold text-lg text-black mb-2">Confirm Receive</h3>
+        <p class="mb-4 text-sm text-black">
+          Are you sure you want to confirm receipt of this delivery?
+        </p>
+        <div class="flex justify-end gap-4 mt-4">
+          <button class="btn-secondaryStyle" @click="showConfirmModal = false">Cancel</button>
+          <button class="btn-primaryStyle" @click="handleConfirmReceive">Yes, Confirm</button>
         </div>
       </div>
     </dialog>

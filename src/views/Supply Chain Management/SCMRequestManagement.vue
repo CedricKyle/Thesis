@@ -175,6 +175,18 @@ const unitOptions = [
   'ream',
 ]
 
+// Add this after the unitOptions array
+const supplyTypes = [
+  'Food Ingredients',
+  'Office Supplies',
+  'Kitchen Equipment',
+  'Cleaning Supplies',
+  'Service Equipment',
+  'Raw Materials',
+  'Packaging Materials',
+  'Others',
+]
+
 // Array to hold all request items
 const requestItems = ref([
   {
@@ -184,6 +196,7 @@ const requestItems = ref([
     unit: 'kg', // Default unit
     unit_price: '',
     amount: '',
+    supply_type: 'Food Ingredients', // Default value
   },
 ])
 
@@ -211,6 +224,7 @@ const openAddRequestModal = () => {
       unit: 'kg', // Default unit
       unit_price: '',
       amount: '',
+      supply_type: 'Food Ingredients',
     },
   ]
 }
@@ -231,6 +245,7 @@ const addNewItem = () => {
     unit: 'kg', // Default unit
     unit_price: '',
     amount: '',
+    supply_type: 'Food Ingredients',
   })
 }
 
@@ -282,13 +297,16 @@ const submitRequest = async () => {
   try {
     await scmRequestStore.createRequest({
       description,
-      requestItems: requestItems.value.map(({ item_name, quantity, unit, unit_price, amount }) => ({
-        item_name,
-        quantity,
-        unit,
-        unit_price,
-        amount,
-      })),
+      requestItems: requestItems.value.map(
+        ({ item_name, quantity, unit, unit_price, amount, supply_type }) => ({
+          item_name,
+          quantity,
+          unit,
+          unit_price,
+          amount,
+          supply_type,
+        }),
+      ),
       preparedBy,
     })
     closeAddRequestModal()
@@ -556,11 +574,14 @@ const paginatedReleasedHistory = computed(() =>
 
         <form @submit.prevent="submitRequest" class="py-4">
           <!-- Headers -->
-          <div class="grid grid-cols-13 gap-4 border border-black p-1">
+          <div class="grid grid-cols-15 gap-4 border border-black p-1">
             <div class="col-span-1">
               <span class="text-xs font-bold text-black">Item No.</span>
             </div>
-            <div class="col-span-3">
+            <div class="col-span-2">
+              <span class="text-xs font-bold text-black">Type</span>
+            </div>
+            <div class="col-span-4">
               <span class="text-xs font-bold text-black">Item Name</span>
             </div>
             <div class="col-span-2">
@@ -569,7 +590,7 @@ const paginatedReleasedHistory = computed(() =>
             <div class="col-span-1">
               <span class="text-xs font-bold text-black">Unit</span>
             </div>
-            <div class="col-span-3">
+            <div class="col-span-2">
               <span class="text-xs font-bold text-black">Unit Price</span>
             </div>
             <div class="col-span-3">
@@ -581,15 +602,27 @@ const paginatedReleasedHistory = computed(() =>
           <div
             v-for="(item, index) in requestItems"
             :key="index"
-            class="grid grid-cols-13 border border-black"
+            class="grid grid-cols-15 border border-black"
           >
             <!-- Item No. -->
             <div class="form-control col-span-1 flex items-center border-r border-black p-1">
               <span class="text-sm text-black">{{ item.id }}</span>
             </div>
 
+            <!-- Supply Type Dropdown -->
+            <div class="form-control col-span-2 border-r border-black">
+              <select
+                v-model="item.supply_type"
+                class="select select-sm text-xs text-black bg-white border-none p-1 h-full min-h-full focus:outline-none"
+              >
+                <option v-for="type in supplyTypes" :key="type" :value="type">
+                  {{ type }}
+                </option>
+              </select>
+            </div>
+
             <!-- Item Name -->
-            <div class="form-control col-span-3 border-r border-black">
+            <div class="form-control col-span-4 border-r border-black">
               <input
                 type="text"
                 v-model="item.item_name"
@@ -625,7 +658,7 @@ const paginatedReleasedHistory = computed(() =>
             </div>
 
             <!-- Unit Price -->
-            <div class="form-control col-span-3 border-r border-black">
+            <div class="form-control col-span-2 border-r border-black">
               <input
                 type="number"
                 v-model="item.unit_price"
@@ -781,16 +814,18 @@ const paginatedReleasedHistory = computed(() =>
               <thead class="bg-primaryColor text-white">
                 <tr>
                   <th class="border px-2 py-1">#</th>
+                  <th class="border px-2 py-1">Type</th>
                   <th class="border px-2 py-1">Item Name</th>
                   <th class="border px-2 py-1">Qty</th>
                   <th class="border px-2 py-1">Unit</th>
                   <th class="border px-2 py-1">Unit Price</th>
-                  <th class="border px-2 py-1">Amount</th>
+                  <th class="border px-2 py-1">Total Amount</th>
                 </tr>
               </thead>
               <tbody>
                 <tr v-for="(item, idx) in selectedRequest.requestItems" :key="item.id">
                   <td class="border px-2 py-1">{{ idx + 1 }}</td>
+                  <td class="border px-2 py-1">{{ item.supply_type || '-' }}</td>
                   <td class="border px-2 py-1">{{ item.item_name }}</td>
                   <td class="border px-2 py-1">{{ item.quantity }}</td>
                   <td class="border px-2 py-1">{{ item.unit }}</td>

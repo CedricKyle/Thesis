@@ -309,7 +309,34 @@ onMounted(() => {
       :show="showReceiptModal"
       :receipt="receiptData"
       :onClose="closeReceiptModal"
-    />
+    >
+      <table class="w-full text-xs border border-gray-300 mt-2">
+        <thead class="bg-primaryColor text-white">
+          <tr>
+            <th class="border px-2 py-1">#</th>
+            <th class="border px-2 py-1">Item Name</th>
+            <th class="border px-2 py-1">Qty</th>
+            <th class="border px-2 py-1">Unit</th>
+            <th class="border px-2 py-1">Unit Price</th>
+            <th class="border px-2 py-1">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(item, idx) in selectedRequest.requestItems" :key="item.id">
+            <td class="border px-2 py-1">{{ idx + 1 }}</td>
+            <td class="border px-2 py-1">{{ item.item_name }}</td>
+            <td class="border px-2 py-1">{{ item.quantity }}</td>
+            <td class="border px-2 py-1">{{ item.unit }}</td>
+            <td class="border px-2 py-1">
+              ₱{{ Number(item.unit_price).toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}
+            </td>
+            <td class="border px-2 py-1">
+              ₱{{ Number(item.amount).toLocaleString('en-PH', { minimumFractionDigits: 2 }) }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </CashReleaseReceiptModal>
 
     <Toast
       :show="toast.show"
