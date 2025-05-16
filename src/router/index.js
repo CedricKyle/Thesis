@@ -35,6 +35,13 @@ import ProductionInventoryOverview from '@/views/Production Department/Productio
 import ProductionDistribution from '@/views/Production Department/ProductionDistribution.vue'
 import ProductionHistory from '@/views/Production Department/ProductionHistory.vue'
 import ProductionBatchEntry from '@/views/Production Department/ProductionBatchEntry.vue'
+import BranchOperation from '@/views/Branch Operation/BranchOperation.vue'
+import BranchOperationDashboard from '@/views/Branch Operation/BranchOperationDashboard.vue'
+import BranchOperationPOS from '@/views/Branch Operation/BranchOperationPOS.vue'
+import BranchOperationSales from '@/views/Branch Operation/BranchOperationSales.vue'
+import BranchOperationInventory from '@/views/Branch Operation/BranchOperationInventory.vue'
+import BranchOperationSidebar from '@/views/Branch Operation/BranchOperationSidebar.vue'
+import BranchOperationEmployee from '@/views/Branch Operation/BranchOperationEmployee.vue'
 import {
   PERMISSION_IDS,
   DEPARTMENTS,
@@ -472,6 +479,54 @@ const routes = [
       },
     ],
   },
+  // Branch Operation Router
+  {
+    path: '/branch-operation',
+    component: BranchOperationSidebar,
+    children: [
+      {
+        path: 'dashboard',
+        name: 'BranchOperationDashboard',
+        component: BranchOperationDashboard,
+        meta: {
+          permissions: [PERMISSION_IDS.BRANCH_OPERATION_VIEW_DASHBOARD],
+        },
+      },
+      {
+        path: 'pos',
+        name: 'BranchOperationPOS',
+        component: BranchOperationPOS,
+        meta: {
+          permissions: [PERMISSION_IDS.BRANCH_OPERATION_MANAGE_POS],
+        },
+      },
+      {
+        path: 'sales',
+        name: 'BranchOperationSales',
+        component: BranchOperationSales,
+        meta: {
+          permissions: [PERMISSION_IDS.BRANCH_OPERATION_MANAGE_SALES],
+        },
+      },
+      {
+        path: 'inventory',
+        name: 'BranchOperationInventory',
+        component: BranchOperationInventory,
+        meta: {
+          permissions: [PERMISSION_IDS.BRANCH_OPERATION_MANAGE_INVENTORY],
+        },
+      },
+      {
+        path: 'employee',
+        name: 'BranchOperationEmployee',
+        component: BranchOperationEmployee,
+        meta: {
+          permissions: [PERMISSION_IDS.BRANCH_OPERATION_MANAGE_EMPLOYEES],
+        },
+      },
+    ],
+  },
+
   // Access Denied Router
   {
     path: '/access-denied',

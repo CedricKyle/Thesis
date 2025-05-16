@@ -175,6 +175,38 @@ export const menuConfig = {
       permission: PERMISSION_IDS.PRODUCTION_MANAGE_HISTORY,
     },
   ],
+  [DEPARTMENTS.BRANCH_OPERATION]: [
+    {
+      name: 'Dashboard',
+      route: '/branch-operation/dashboard',
+      icon: LayoutDashboard,
+      permission: PERMISSION_IDS.BRANCH_OPERATION_VIEW_DASHBOARD,
+    },
+    {
+      name: 'POS',
+      route: '/branch-operation/pos',
+      icon: ShoppingCart,
+      permission: PERMISSION_IDS.BRANCH_OPERATION_MANAGE_POS,
+    },
+    {
+      name: 'Sales',
+      route: '/branch-operation/sales',
+      icon: ShoppingCart,
+      permission: PERMISSION_IDS.BRANCH_OPERATION_MANAGE_SALES,
+    },
+    {
+      name: 'Inventory',
+      route: '/branch-operation/inventory',
+      icon: Package,
+      permission: PERMISSION_IDS.BRANCH_OPERATION_MANAGE_INVENTORY,
+    },
+    {
+      name: 'Employees',
+      route: '/branch-operation/employee',
+      icon: Users,
+      permission: PERMISSION_IDS.BRANCH_OPERATION_MANAGE_EMPLOYEES,
+    },
+  ],
   [DEPARTMENTS.ADMIN]: [
     {
       name: 'HR Dashboard',
