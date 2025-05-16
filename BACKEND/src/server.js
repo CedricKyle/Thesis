@@ -23,6 +23,8 @@ const deliveryRoutes = require('./routes/main branch/scm routes/delivery-routes'
 const inventoryReceivingRoutes = require('./routes/main branch/scm routes/inventory-receiving-routes.js')
 const scmInventoryRoutes = require('./routes/main branch/scm routes/scm-inventory-routes.js')
 const scmInventoryStockRoutes = require('./routes/main branch/scm routes/scm-inventory-stock-routes.js')
+const productionBatchRoutes = require('./routes/main branch/production routes/production-batch-routes.js')
+const productionBatchImageUploadRoutes = require('./routes/main branch/production routes/production-batch-image-upload.js')
 dotenv.config()
 
 const app = express()
@@ -85,6 +87,8 @@ app.use('/api/deliveries', deliveryRoutes)
 app.use('/api/inventory-receivings', inventoryReceivingRoutes)
 app.use('/api/inventory', scmInventoryRoutes)
 app.use('/api/inventory-stock', scmInventoryStockRoutes)
+app.use('/api/production/batches', productionBatchRoutes)
+app.use('/api/production/batch-upload-image', productionBatchImageUploadRoutes)
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack)

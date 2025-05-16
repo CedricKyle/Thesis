@@ -34,6 +34,9 @@ const InventoryReceivingItem = require('./SCM Model/InventoryReceivingItem')(seq
 const Inventory = require('./SCM Model/Inventory')(sequelize)
 const InventoryStockIn = require('./SCM Model/SCMStockIn')(sequelize)
 const InventoryStockOut = require('./SCM Model/SCMStockOut')(sequelize)
+const ProductionBatch = require('./Production Model/ProductionBatch')(sequelize)
+const BatchRawMaterial = require('./Production Model/BatchRawMaterial')(sequelize)
+const ProductionFinishedGood = require('./Production Model/ProductionFinishedGood')(sequelize)
 
 // Define relationships for other models (not EmployeeAttendance!)
 // (Keep only these if you need them)
@@ -146,6 +149,36 @@ Inventory.hasMany(InventoryReceivingItem, {
   as: 'receivingItems',
 })
 
+// Add relationships
+ProductionBatch.hasMany(BatchRawMaterial, {
+  foreignKey: 'batch_id',
+  as: 'raw_materials',
+})
+BatchRawMaterial.belongsTo(ProductionBatch, {
+  foreignKey: 'batch_id',
+})
+
+// BatchRawMaterial belongsTo Inventory (for item details)
+BatchRawMaterial.belongsTo(Inventory, {
+  foreignKey: 'inventory_item_code',
+  targetKey: 'item_code',
+  as: 'inventory_item',
+})
+Inventory.hasMany(BatchRawMaterial, {
+  foreignKey: 'inventory_item_code',
+  sourceKey: 'item_code',
+  as: 'batch_usage',
+})
+
+ProductionBatch.hasMany(ProductionFinishedGood, {
+  foreignKey: 'batch_id',
+  as: 'finished_goods',
+})
+ProductionFinishedGood.belongsTo(ProductionBatch, {
+  foreignKey: 'batch_id',
+  as: 'batch',
+})
+
 // Export models and sequelize instance
 const db = {
   sequelize,
@@ -175,6 +208,9 @@ const db = {
   Inventory,
   InventoryStockIn,
   InventoryStockOut,
+  ProductionBatch,
+  BatchRawMaterial,
+  ProductionFinishedGood,
 }
 
 // Call associate for all models
