@@ -9,18 +9,11 @@ import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import { useAuthStore } from '@/stores/Authentication/authStore'
 import axios from 'axios'
 
-// PrimeVue imports
-import PrimeVue from 'primevue/config'
-import 'primevue/resources/themes/lara-light-blue/theme.css'
-import 'primeicons/primeicons.css'
-
 const app = createApp(App)
 const pinia = createPinia()
 
 // Initialize Pinia first
 app.use(pinia)
-// Initialize PrimeVue
-app.use(PrimeVue)
 
 // Initialize auth store first
 const authStore = useAuthStore()

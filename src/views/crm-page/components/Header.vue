@@ -28,9 +28,15 @@
   
   <script setup>
   import { ref, onMounted, onBeforeUnmount } from 'vue';
+  import { useRouter } from 'vue-router';
   
   const hasScrolled = ref(false);
-  
+  const router = useRouter();
+
+  const handleClick = (path) => {
+    router.push(path);
+  };
+
   // Function to check scroll position
   const checkScroll = () => {
     if (window.scrollY > 200) {  // You can change 50 to whatever scroll threshold you prefer
