@@ -694,6 +694,96 @@ const updateEmployeeWithFiles = async (req, res) => {
   }
 }
 
+// Update profile image only
+const updateProfileImage = async (req, res) => {
+  const t = await sequelize.transaction()
+  try {
+    // Get employee ID from request body
+    const { employeeId } = req.body
+
+    if (!employeeId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Missing employee ID'
+      })
+    }
+
+    // Check if employee exists
+    const employee = await Employee.findOne({
+      where: { employee_id: employeeId },
+      transaction: t
+    })
+
+    if (!employee) {
+      await t.rollback()
+      return res.status(404).json({
+        success: false,
+        message: 'Employee not found'
+      })
+    }
+
+    // Handle profile image file
+    if (!req.files?.profileImage?.[0]) {
+      await t.rollback()
+      return res.status(400).json({
+        success: false,
+        message: 'No profile image provided'
+      })
+    }
+
+    // Get the profile image file
+    const profileFile = req.files.profileImage[0]
+    
+    // Validate file type
+    const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif']
+    if (!allowedImageTypes.includes(profileFile.mimetype)) {
+      await t.rollback()
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid file type for profile image',
+        allowedTypes: allowedImageTypes
+      })
+    }
+
+    // Save new file
+    const profileImagePath = await saveFile(profileFile, 'profile')
+
+    // Delete old file if exists and different
+    if (employee.profile_image_path && profileImagePath !== employee.profile_image_path) {
+      try {
+        const oldFilePath = path.join(__dirname, '../../../', employee.profile_image_path)
+        await fs.access(oldFilePath)
+        await fs.unlink(oldFilePath)
+      } catch (error) {
+        console.error('Error deleting old profile image:', error)
+        // Continue with update even if old file deletion fails
+      }
+    }
+
+    // Update employee record
+    await employee.update(
+      { profile_image_path: profileImagePath },
+      { transaction: t }
+    )
+
+    await t.commit()
+
+    return res.status(200).json({
+      success: true,
+      message: 'Profile image updated successfully',
+      profile_image_path: profileImagePath
+    })
+  } catch (error) {
+    await t.rollback()
+    console.error('Error updating profile image:', error)
+    return res.status(500).json({
+      success: false,
+      message: 'Error updating profile image',
+      error: error.message
+    })
+  }
+}
+
 // Serve files
 const getFile = async (req, res) => {
   try {
@@ -1050,6 +1140,157 @@ const restoreEmergencyContact = async (req, res) => {
   }
 }
 
+// Update personal info (full name, phone number, birthday) without permission checks
+const updatePersonalInfo = async (req, res) => {
+  try {
+    // Get employee ID from the token
+    const employeeId = req.user.employee_id
+
+    // Update only allowed fields (personal information)
+    const { contactNumber, address, email } = req.body
+
+    // Validate email format if provided
+    if (email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(email)) {
+        return res.status(400).json({
+          message: 'Invalid email format',
+        })
+      }
+
+      // Check if email already exists for a different employee
+      const existingEmail = await Employee.findOne({
+        where: {
+          email,
+          employee_id: { [Sequelize.Op.ne]: employeeId },
+        },
+      })
+
+      if (existingEmail) {
+        return res.status(400).json({
+          message: 'Email already exists',
+        })
+      }
+    }
+
+    // Update employee
+    await Employee.update(
+      {
+        contact_number: contactNumber,
+        address,
+        email,
+      },
+      {
+        where: { employee_id: employeeId },
+      },
+    )
+
+    // If email is changed, update the user account email as well
+    if (email) {
+      await User.update(
+        { email },
+        {
+          where: { employee_id: employeeId },
+        },
+      )
+    }
+
+    // Send success response
+    res.json({
+      message: 'Personal information updated successfully',
+    })
+  } catch (error) {
+    console.error('Error updating personal info:', error)
+    res.status(500).json({
+      message: 'Error updating personal information',
+      error: error.message,
+    })
+  }
+}
+
+// Function to change employee password
+const changePassword = async (req, res) => {
+  try {
+    // Get employee ID from the token
+    const employeeId = req.user.employee_id
+    
+    // Get current, new password and confirmation from request body
+    const { currentPassword, newPassword, confirmPassword } = req.body
+    
+    // Validate request data
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      return res.status(400).json({
+        message: 'All password fields are required',
+        code: 'MISSING_FIELDS',
+      })
+    }
+    
+    // Check if new password matches confirmation
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({
+        message: 'New password and confirmation do not match',
+        code: 'PASSWORD_MISMATCH',
+      })
+    }
+    
+    // Password strength validation
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        message: 'Password must be at least 6 characters long',
+        code: 'WEAK_PASSWORD',
+      })
+    }
+    
+    // Get user record
+    const user = await User.findOne({
+      where: { employee_id: employeeId },
+    })
+    
+    if (!user) {
+      return res.status(404).json({
+        message: 'User account not found',
+        code: 'USER_NOT_FOUND',
+      })
+    }
+    
+    // Verify current password
+    const isValidPassword = await bcrypt.compare(currentPassword, user.password)
+    
+    if (!isValidPassword) {
+      return res.status(401).json({
+        message: 'Current password is incorrect',
+        code: 'INVALID_CURRENT_PASSWORD',
+      })
+    }
+    
+    // Check if new password is the same as the current password
+    if (currentPassword === newPassword) {
+      return res.status(400).json({
+        message: 'New password must be different from current password',
+        code: 'SAME_PASSWORD',
+      })
+    }
+    
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10)
+    
+    // Update password
+    await user.update({ password: hashedPassword })
+    
+    // Send success response
+    res.json({
+      message: 'Password changed successfully',
+    })
+  } catch (error) {
+    console.error('Error changing password:', error)
+    res.status(500).json({
+      message: 'Error changing password',
+      error: error.message,
+      code: 'PASSWORD_CHANGE_ERROR',
+    })
+  }
+}
+
 // Export all functions
 module.exports = {
   createEmployee,
@@ -1066,4 +1307,7 @@ module.exports = {
   restoreEmployee,
   checkEmergencyContact,
   restoreEmergencyContact,
+  updateProfileImage,
+  updatePersonalInfo,
+  changePassword,
 }

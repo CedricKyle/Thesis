@@ -22,6 +22,8 @@ import {
   ChartNoAxesColumnIncreasing,
   Archive,
   Factory,
+  HandPlatter,
+  ScrollText,
 } from 'lucide-vue-next'
 
 export const menuConfig = {
@@ -147,6 +149,62 @@ export const menuConfig = {
       route: '/production/dashboard',
       icon: LayoutDashboard,
       permission: PERMISSION_IDS.PRODUCTION_VIEW_DASHBOARD,
+    },
+    {
+      name: 'Inventory Overview',
+      route: '/production/inventory-overview',
+      icon: Package,
+      permission: PERMISSION_IDS.PRODUCTION_MANAGE_INVENTORY_OVERVIEW,
+    },
+    {
+      name: 'Production Batch Entry',
+      route: '/production/production-batch-entry',
+      icon: HandPlatter,
+      permission: PERMISSION_IDS.PRODUCTION_MANAGE_BATCH_ENTRY,
+    },
+    {
+      name: 'Production Distribution',
+      route: '/production/production-distribution',
+      icon: Truck,
+      permission: PERMISSION_IDS.PRODUCTION_MANAGE_DISTRIBUTION,
+    },
+    {
+      name: 'Production History',
+      route: '/production/production-history',
+      icon: ScrollText,
+      permission: PERMISSION_IDS.PRODUCTION_MANAGE_HISTORY,
+    },
+  ],
+  [DEPARTMENTS.BRANCH_OPERATION]: [
+    {
+      name: 'Dashboard',
+      route: '/branch-operation/dashboard',
+      icon: LayoutDashboard,
+      permission: PERMISSION_IDS.BRANCH_OPERATION_VIEW_DASHBOARD,
+    },
+    {
+      name: 'POS',
+      route: '/branch-operation/pos',
+      icon: ShoppingCart,
+      permission: PERMISSION_IDS.BRANCH_OPERATION_MANAGE_POS,
+    },
+    {
+      name: 'Sales',
+      route: '/branch-operation/sales',
+      icon: ShoppingCart,
+      permission: PERMISSION_IDS.BRANCH_OPERATION_MANAGE_SALES,
+    },
+    {
+      name: 'Inventory',
+      route: '/branch-operation/inventory',
+      icon: Package,
+      permission: PERMISSION_IDS.BRANCH_OPERATION_MANAGE_INVENTORY,
+    },
+    {
+      name: 'Employees',
+      route: '/branch-operation/employee',
+      icon: Users,
+      permission: PERMISSION_IDS.BRANCH_OPERATION_MANAGE_EMPLOYEES,
     },
   ],
   [DEPARTMENTS.ADMIN]: [
@@ -295,17 +353,17 @@ export function usePermissions(employeeRole) {
           'Inventory ': {
             route: '/admin/inventory/inventory-management',
           },
+          'Purchase Order': {
+            route: '/admin/inventory/purchase-order-management',
+          },
           'Request Management': {
             route: '/admin/inventory/request-management',
-          },
-          'Branch Distribution': {
-            route: '/admin/inventory/branch-distribution-management',
           },
           'Supplier Management': {
             route: '/admin/inventory/supplier-management',
           },
-          'Purchase Order': {
-            route: '/admin/inventory/purchase-order-management',
+          'Branch Distribution': {
+            route: '/admin/inventory/branch-distribution-management',
           },
         },
       },
@@ -314,6 +372,19 @@ export function usePermissions(employeeRole) {
         submenu: {
           Dashboard: {
             route: '/admin/production/dashboard',
+          },
+
+          'Inventory Overview': {
+            route: '/admin/production/inventory-overview',
+          },
+          'Production Batch Entry': {
+            route: '/admin/production/production-batch-entry',
+          },
+          'Production Distribution': {
+            route: '/admin/production/production-distribution',
+          },
+          'Production History': {
+            route: '/admin/production/production-history',
           },
         },
       },

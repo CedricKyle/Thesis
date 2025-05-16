@@ -5,6 +5,7 @@ export const DEPARTMENTS = {
   SCM: 'Supply Chain Management',
   CRM: 'Customer Relationship Management',
   PRODUCTION: 'Production Department',
+  BRANCH_OPERATION: 'Branch Operation',
 }
 
 export const PERMISSION_IDS = {
@@ -58,6 +59,18 @@ export const PERMISSION_IDS = {
   // Production Department Permissions
   PRODUCTION_FULL_ACCESS: 31,
   PRODUCTION_VIEW_DASHBOARD: 32,
+  PRODUCTION_MANAGE_INVENTORY_OVERVIEW: 36,
+  PRODUCTION_MANAGE_HISTORY: 37,
+  PRODUCTION_MANAGE_DISTRIBUTION: 38,
+  PRODUCTION_MANAGE_BATCH_ENTRY: 39,
+
+  // Branch Operation Permissions
+  BRANCH_OPERATION_FULL_ACCESS: 40,
+  BRANCH_OPERATION_VIEW_DASHBOARD: 41,
+  BRANCH_OPERATION_MANAGE_INVENTORY: 42,
+  BRANCH_OPERATION_MANAGE_SALES: 43,
+  BRANCH_OPERATION_MANAGE_EMPLOYEES: 44,
+  BRANCH_OPERATION_MANAGE_POS: 45,
 }
 
 export const permissionGroups = [
@@ -136,6 +149,25 @@ export const permissionGroups = [
     permissions: [
       { id: PERMISSION_IDS.PRODUCTION_FULL_ACCESS, name: 'Full Access' },
       { id: PERMISSION_IDS.PRODUCTION_VIEW_DASHBOARD, name: 'View Dashboard' },
+      {
+        id: PERMISSION_IDS.PRODUCTION_MANAGE_INVENTORY_OVERVIEW,
+        name: 'Manage Inventory Overview',
+      },
+      { id: PERMISSION_IDS.PRODUCTION_MANAGE_HISTORY, name: 'Manage History' },
+      { id: PERMISSION_IDS.PRODUCTION_MANAGE_DISTRIBUTION, name: 'Manage Distribution' },
+      { id: PERMISSION_IDS.PRODUCTION_MANAGE_BATCH_ENTRY, name: 'Manage Batch Entry' },
+    ],
+  },
+  {
+    department: DEPARTMENTS.BRANCH_OPERATION,
+    name: 'Branch Operation',
+    permissions: [
+      { id: PERMISSION_IDS.BRANCH_OPERATION_FULL_ACCESS, name: 'Full Access' },
+      { id: PERMISSION_IDS.BRANCH_OPERATION_VIEW_DASHBOARD, name: 'View Dashboard' },
+      { id: PERMISSION_IDS.BRANCH_OPERATION_MANAGE_POS, name: 'Manage POS' },
+      { id: PERMISSION_IDS.BRANCH_OPERATION_MANAGE_INVENTORY, name: 'Manage Inventory' },
+      { id: PERMISSION_IDS.BRANCH_OPERATION_MANAGE_SALES, name: 'Manage Sales' },
+      { id: PERMISSION_IDS.BRANCH_OPERATION_MANAGE_EMPLOYEES, name: 'Manage Employees' },
     ],
   },
 ]

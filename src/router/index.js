@@ -20,11 +20,6 @@ import SCMSidebar from '@/views/Supply Chain Management/SCMSidebar.vue'
 import CRMSidebar from '@/views/CRM Department/CRMASidebar.vue'
 import ProductionSidebar from '@/views/Production Department/ProductionSidebar.vue'
 import ProductionDashboard from '@/views/Production Department/ProductionDashboard.vue'
-import PointOfSales from '@/views/Production Department/PointOfSales.vue'
-import Production from '@/views/Production Department/Production.vue'
-import Inventory from '@/views/Production Department/Inventory.vue'
-import Reports from '@/views/Production Department/Report.vue'
-import Requests from '@/views/Production Department/Request.vue'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import { usePermissions } from '@/composables/Admin Composables/User & Role/role/usePermissions'
 import SCMBranchDistributionManagement from '@/views/Supply Chain Management/SCMBranchDistributionManagement.vue'
@@ -36,6 +31,17 @@ import FinanceSalesManagement from '@/views/Finance/FinanceSalesManagement.vue'
 import HRPayroll from '@/views/Human Resource/HRPayroll.vue'
 import SCMRequestManagement from '@/views/Supply Chain Management/SCMRequestManagement.vue'
 import SCMPurchaseOrderManagement from '@/views/Supply Chain Management/SCMPurchaseOrderManagement.vue'
+import ProductionInventoryOverview from '@/views/Production Department/ProductionInventoryOverview.vue'
+import ProductionDistribution from '@/views/Production Department/ProductionDistribution.vue'
+import ProductionHistory from '@/views/Production Department/ProductionHistory.vue'
+import ProductionBatchEntry from '@/views/Production Department/ProductionBatchEntry.vue'
+import BranchOperation from '@/views/Branch Operation/BranchOperation.vue'
+import BranchOperationDashboard from '@/views/Branch Operation/BranchOperationDashboard.vue'
+import BranchOperationPOS from '@/views/Branch Operation/BranchOperationPOS.vue'
+import BranchOperationSales from '@/views/Branch Operation/BranchOperationSales.vue'
+import BranchOperationInventory from '@/views/Branch Operation/BranchOperationInventory.vue'
+import BranchOperationSidebar from '@/views/Branch Operation/BranchOperationSidebar.vue'
+import BranchOperationEmployee from '@/views/Branch Operation/BranchOperationEmployee.vue'
 import {
   PERMISSION_IDS,
   DEPARTMENTS,
@@ -43,10 +49,68 @@ import {
 import { useAuthStore } from '@/stores/Authentication/authStore'
 import { computed } from 'vue'
 
+// Import CRM Page components
+import MainLayout from '@/views/crm-page/layouts/MainLayout.vue'
+import Home from '@/views/crm-page/pages/Home.vue'
+import Menu from '@/views/crm-page/pages/Menu.vue'
+import FoodGallery from '@/views/crm-page/pages/FoodGallery.vue'
+import StoreDirectory from '@/views/crm-page/pages/StoreDirectory.vue'
+import Feedbacks from '@/views/crm-page/pages/Feedbacks.vue'
+
 const routes = [
   {
     path: '/',
-    redirect: '/admin',
+    redirect: '/home',
+  },
+  // CRM Page Routes (Public)
+  {
+    path: '/',
+    component: MainLayout,
+    meta: {
+      isPublic: true
+    },
+    children: [
+      { 
+        path: 'home', 
+        name: 'Home', 
+        component: Home,
+        meta: {
+          isPublic: true
+        }
+      },
+      { 
+        path: 'menu', 
+        name: 'Menu', 
+        component: Menu,
+        meta: {
+          isPublic: true
+        }
+      },
+      { 
+        path: 'food-gallery', 
+        name: 'FoodGallery', 
+        component: FoodGallery,
+        meta: {
+          isPublic: true
+        }
+      },
+      { 
+        path: 'store-directory', 
+        name: 'StoreDirectory', 
+        component: StoreDirectory,
+        meta: {
+          isPublic: true
+        }
+      },
+      { 
+        path: 'feedbacks', 
+        name: 'Feedbacks', 
+        component: Feedbacks,
+        meta: {
+          isPublic: true
+        }
+      }
+    ]
   },
   // Admin Router
   {
@@ -178,6 +242,27 @@ const routes = [
         name: 'AdminProductionDashboard',
         component: ProductionDashboard,
       },
+
+      {
+        path: 'production/inventory-overview',
+        name: 'AdminInventoryOverview',
+        component: ProductionInventoryOverview,
+      },
+      {
+        path: 'production/production-batch-entry',
+        name: 'AdminProductionBatchEntry',
+        component: ProductionBatchEntry,
+      },
+      {
+        path: 'production/production-distribution',
+        name: 'AdminProductionDistribution',
+        component: ProductionDistribution,
+      },
+      {
+        path: 'production/production-history',
+        name: 'AdminProductionHistory',
+        component: ProductionHistory,
+      },
     ],
   },
 
@@ -290,6 +375,36 @@ const routes = [
     path: '/login',
     name: 'Login',
     component: LoginPage,
+  },
+  // Profile Route
+  {
+    path: '/profile',
+    name: 'EmployeeProfile',
+    component: () => import('@/views/Profile/EmployeeProfileView.vue'),
+    meta: {
+      requiresAuth: true,
+      title: 'Employee Profile'
+    },
+  },
+  // Edit Personal Information Route
+  {
+    path: '/profile/edit',
+    name: 'EditPersonalInfo',
+    component: () => import('@/components/Employee Profile/EditPersonalInfo.vue'),
+    meta: {
+      requiresAuth: true,
+      title: 'Edit Personal Information'
+    },
+  },
+  // Settings Route
+  {
+    path: '/settings',
+    name: 'Settings',
+    component: () => import('@/views/Profile/SettingsView.vue'),
+    meta: {
+      requiresAuth: true,
+      title: 'Account Settings'
+    }
   },
   // Sales Router
   {
@@ -413,36 +528,93 @@ const routes = [
         path: 'dashboard',
         name: 'ProductionDashboard',
         component: ProductionDashboard,
-      },   
+        meta: {
+          permissions: [PERMISSION_IDS.PRODUCTION_VIEW_DASHBOARD],
+        },
+      },
+
       {
-        path: 'Point_of_Sales',
-        name: 'PointOfSales',
-        component: PointOfSales,
-      }, 
-      
-       {
-        path: 'production',
-        name: 'Production',
-        component: Production,
-      }, 
-       {
-        path: 'inventory',
-        name: 'Inventory',
-        component: Inventory,
-      }, 
+        path: 'inventory-overview',
+        name: 'ProductionInventoryOverview',
+        component: ProductionInventoryOverview,
+        meta: {
+          permissions: [PERMISSION_IDS.PRODUCTION_MANAGE_INVENTORY_OVERVIEW],
+        },
+      },
       {
-        path: 'request',
-        name: 'Requests',
-        component: Requests,
-      }, 
-      
+        path: 'production-batch-entry',
+        name: 'ProductionBatchEntry',
+        component: ProductionBatchEntry,
+        meta: {
+          permissions: [PERMISSION_IDS.PRODUCTION_MANAGE_BATCH_ENTRY],
+        },
+      },
       {
-        path: 'report',
-        name: 'Report',
-        component: Reports,
-      }, 
+        path: 'production-distribution',
+        name: 'ProductionDistribution',
+        component: ProductionDistribution,
+        meta: {
+          permissions: [PERMISSION_IDS.PRODUCTION_MANAGE_DISTRIBUTION],
+        },
+      },
+      {
+        path: 'production-history',
+        name: 'ProductionHistory',
+        component: ProductionHistory,
+        meta: {
+          permissions: [PERMISSION_IDS.PRODUCTION_MANAGE_HISTORY],
+        },
+      },
     ],
   },
+  // Branch Operation Router
+  {
+    path: '/branch-operation',
+    component: BranchOperationSidebar,
+    children: [
+      {
+        path: 'dashboard',
+        name: 'BranchOperationDashboard',
+        component: BranchOperationDashboard,
+        meta: {
+          permissions: [PERMISSION_IDS.BRANCH_OPERATION_VIEW_DASHBOARD],
+        },
+      },
+      {
+        path: 'pos',
+        name: 'BranchOperationPOS',
+        component: BranchOperationPOS,
+        meta: {
+          permissions: [PERMISSION_IDS.BRANCH_OPERATION_MANAGE_POS],
+        },
+      },
+      {
+        path: 'sales',
+        name: 'BranchOperationSales',
+        component: BranchOperationSales,
+        meta: {
+          permissions: [PERMISSION_IDS.BRANCH_OPERATION_MANAGE_SALES],
+        },
+      },
+      {
+        path: 'inventory',
+        name: 'BranchOperationInventory',
+        component: BranchOperationInventory,
+        meta: {
+          permissions: [PERMISSION_IDS.BRANCH_OPERATION_MANAGE_INVENTORY],
+        },
+      },
+      {
+        path: 'employee',
+        name: 'BranchOperationEmployee',
+        component: BranchOperationEmployee,
+        meta: {
+          permissions: [PERMISSION_IDS.BRANCH_OPERATION_MANAGE_EMPLOYEES],
+        },
+      },
+    ],
+  },
+
   // Access Denied Router
   {
     path: '/access-denied',
@@ -472,9 +644,11 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, from, next) => {
+  // Check if route is public
+  const isPublicRoute = to.matched.some(record => record.meta.isPublic)
   const publicRoutes = ['/login', '/access-denied']
 
-  if (publicRoutes.includes(to.path)) {
+  if (isPublicRoute || publicRoutes.includes(to.path)) {
     next()
     return
   }

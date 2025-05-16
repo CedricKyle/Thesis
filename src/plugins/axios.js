@@ -10,15 +10,18 @@ const axiosInstance = axios.create({
     Accept: 'application/json',
     'X-Requested-With': 'XMLHttpRequest',
   },
+  timeout: 10000, // Add 10 second timeout
 })
 
 // Add request interceptor
 axiosInstance.interceptors.request.use(
   (config) => {
-    // Add any request processing here
+    // Log API requests in development
+    console.log(`API Request: ${config.method.toUpperCase()} ${config.baseURL}${config.url}`);
     return config
   },
   (error) => {
+    console.error('API Request Error:', error)
     return Promise.reject(error)
   },
 )
@@ -27,6 +30,21 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
   (response) => response,
   async (error) => {
+    console.error('API Response Error:', {
+      message: error.message,
+      code: error.code,
+      url: error.config?.url,
+      method: error.config?.method,
+      status: error.response?.status,
+      data: error.response?.data,
+    })
+
+    // If it's a network error (e.g., server not running)
+    if (error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED') {
+      console.error('Network error - please check if the backend server is running at:', error.config.baseURL);
+      // You can add custom error notification here
+    }
+
     const authStore = useAuthStore()
 
     if (error.response?.status === 401 || error.response?.status === 403) {
@@ -45,17 +63,25 @@ axiosInstance.interceptors.response.use(
           break
       }
 
-      // Show notification
-      ElNotification({
-        title: 'Session Expired',
-        message: message,
-        type: 'warning',
-        duration: 5000,
-        onClose: async () => {
-          await authStore.logout()
+      // Show notification if ElNotification is available
+      if (typeof ElNotification !== 'undefined') {
+        ElNotification({
+          title: 'Session Expired',
+          message: message,
+          type: 'warning',
+          duration: 5000,
+          onClose: async () => {
+            await authStore.logout()
+            window.location.href = '/login'
+          },
+        })
+      } else {
+        console.warn('Session expired:', message);
+        await authStore.logout()
+        setTimeout(() => {
           window.location.href = '/login'
-        },
-      })
+        }, 1000)
+      }
     }
     return Promise.reject(error)
   },

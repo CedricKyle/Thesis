@@ -1,7 +1,7 @@
 <script setup>
 import BaseDepartmentSidebar from '@/components/common/BaseDepartmentSidebar.vue'
 import { PERMISSION_IDS } from '@/composables/Admin Composables/User & Role/role/permissionsId'
-import { LayoutDashboard } from 'lucide-vue-next'
+import { LayoutDashboard, Package, HandPlatter, Truck, ScrollText } from 'lucide-vue-next'
 
 const menuItems = [
   {
@@ -10,39 +10,38 @@ const menuItems = [
     icon: LayoutDashboard,
     permission: PERMISSION_IDS.PRODUCTION_VIEW_DASHBOARD,
   },
-    {
-    name: 'Point Of Sales',
-    route: '/production/Point_of_Sales',
-    icon: LayoutDashboard,
-    permission: PERMISSION_IDS.PRODUCTION_VIEW_DASHBOARD,
-  },
-   {
-    name: 'Production',
-    route: '/production/Production',
-    icon: LayoutDashboard,
-    permission: PERMISSION_IDS.PRODUCTION_VIEW_DASHBOARD,
-  },
-   {
-    name: 'Inventory',
-    route: '/production/Inventory',
-    icon: LayoutDashboard,
+
+  {
+    name: 'Inventory Overview',
+    route: '/production/inventory-overview',
+    icon: Package,
     permission: PERMISSION_IDS.PRODUCTION_VIEW_DASHBOARD,
   },
   {
-    name: 'Requests',
-    route: '/production/Request',
-    icon: LayoutDashboard,
+    name: 'Production Batch Entry',
+    route: '/production/production-batch-entry',
+    icon: HandPlatter,
     permission: PERMISSION_IDS.PRODUCTION_VIEW_DASHBOARD,
   },
-   {
-    name: 'Report',
-    route: '/production/Report',
-    icon: LayoutDashboard,
+  {
+    name: 'Production Distribution',
+    route: '/production/production-distribution',
+    icon: Truck,
+    permission: PERMISSION_IDS.PRODUCTION_VIEW_DASHBOARD,
+  },
+  {
+    name: 'Production History',
+    route: '/production/production-history',
+    icon: ScrollText,
     permission: PERMISSION_IDS.PRODUCTION_VIEW_DASHBOARD,
   },
 ]
 </script>
 
 <template>
-  <BaseDepartmentSidebar :menuItems="menuItems" />
+  <BaseDepartmentSidebar
+    :menuItems="menuItems"
+    :departmentName="'Production Department'"
+    :basePath="'/production'"
+  />
 </template>
