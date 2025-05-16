@@ -4,7 +4,15 @@ import { useRouter } from 'vue-router'
 import { usePermissions } from '@/composables/Admin Composables/User & Role/role/usePermissions'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import { useAuthStore } from '@/stores/Authentication/authStore'
-import { LogOut, User, Settings } from 'lucide-vue-next'
+import { 
+  Menu, 
+  X, 
+  ChevronRight, 
+  ChevronLeft, 
+  LogOut, 
+  User,
+  Settings
+} from 'lucide-vue-next'
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
 import profilePlaceholder from '@/assets/Images/profile-placeholder.png'
 

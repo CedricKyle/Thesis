@@ -263,8 +263,18 @@ const cancelRestore = () => {
   employeeToRestore.value = null
 }
 
-onMounted(() => {
-  store.loadEmployees()
+onMounted(async () => {
+  try {
+    console.log('EmployeeList mounted, loading employees...');
+    await store.loadEmployees();
+    console.log('Employees loaded successfully:', {
+      count: store.employees.length,
+      hasError: !!store.error
+    });
+  } catch (error) {
+    console.error('Failed to load employees on mount:', error);
+    showToastMessage('Failed to load employees. Please try refreshing the page.', 'error');
+  }
 })
 
 // Add a watch for authentication state

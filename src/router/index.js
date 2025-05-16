@@ -49,10 +49,68 @@ import {
 import { useAuthStore } from '@/stores/Authentication/authStore'
 import { computed } from 'vue'
 
+// Import CRM Page components
+import MainLayout from '@/views/crm-page/layouts/MainLayout.vue'
+import Home from '@/views/crm-page/pages/Home.vue'
+import Menu from '@/views/crm-page/pages/Menu.vue'
+import FoodGallery from '@/views/crm-page/pages/FoodGallery.vue'
+import StoreDirectory from '@/views/crm-page/pages/StoreDirectory.vue'
+import Feedbacks from '@/views/crm-page/pages/Feedbacks.vue'
+
 const routes = [
   {
     path: '/',
-    redirect: '/admin',
+    redirect: '/home',
+  },
+  // CRM Page Routes (Public)
+  {
+    path: '/',
+    component: MainLayout,
+    meta: {
+      isPublic: true
+    },
+    children: [
+      { 
+        path: 'home', 
+        name: 'Home', 
+        component: Home,
+        meta: {
+          isPublic: true
+        }
+      },
+      { 
+        path: 'menu', 
+        name: 'Menu', 
+        component: Menu,
+        meta: {
+          isPublic: true
+        }
+      },
+      { 
+        path: 'food-gallery', 
+        name: 'FoodGallery', 
+        component: FoodGallery,
+        meta: {
+          isPublic: true
+        }
+      },
+      { 
+        path: 'store-directory', 
+        name: 'StoreDirectory', 
+        component: StoreDirectory,
+        meta: {
+          isPublic: true
+        }
+      },
+      { 
+        path: 'feedbacks', 
+        name: 'Feedbacks', 
+        component: Feedbacks,
+        meta: {
+          isPublic: true
+        }
+      }
+    ]
   },
   // Admin Router
   {
@@ -318,6 +376,36 @@ const routes = [
     name: 'Login',
     component: LoginPage,
   },
+  // Profile Route
+  {
+    path: '/profile',
+    name: 'EmployeeProfile',
+    component: () => import('@/views/Profile/EmployeeProfileView.vue'),
+    meta: {
+      requiresAuth: true,
+      title: 'Employee Profile'
+    },
+  },
+  // Edit Personal Information Route
+  {
+    path: '/profile/edit',
+    name: 'EditPersonalInfo',
+    component: () => import('@/components/Employee Profile/EditPersonalInfo.vue'),
+    meta: {
+      requiresAuth: true,
+      title: 'Edit Personal Information'
+    },
+  },
+  // Settings Route
+  {
+    path: '/settings',
+    name: 'Settings',
+    component: () => import('@/views/Profile/SettingsView.vue'),
+    meta: {
+      requiresAuth: true,
+      title: 'Account Settings'
+    }
+  },
   // Sales Router
   {
     path: '/sales',
@@ -556,9 +644,11 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to, from, next) => {
+  // Check if route is public
+  const isPublicRoute = to.matched.some(record => record.meta.isPublic)
   const publicRoutes = ['/login', '/access-denied']
 
-  if (publicRoutes.includes(to.path)) {
+  if (isPublicRoute || publicRoutes.includes(to.path)) {
     next()
     return
   }
