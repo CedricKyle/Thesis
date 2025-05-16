@@ -26,6 +26,15 @@ const Leave = require('./LeavesModel')(sequelize)
 const Payroll = require('./PayrollModel')(sequelize)
 const AuditLog = require('./AuditLog.js')(sequelize, Sequelize.DataTypes)
 const PayrollDeduction = require('./PayrollDeduction')(sequelize, Sequelize.DataTypes)
+const SCMRequest = require('./SCM Model/SCMRequest')(sequelize)
+const SCMRequestItem = require('./SCM Model/SCMRequestItem')(sequelize)
+const Delivery = require('./SCM Model/Delivery')(sequelize)
+const InventoryReceiving = require('./SCM Model/InventoryReceiving')(sequelize)
+const InventoryReceivingItem = require('./SCM Model/InventoryReceivingItem')(sequelize)
+const Inventory = require('./SCM Model/Inventory')(sequelize)
+const InventoryStockIn = require('./SCM Model/SCMStockIn')(sequelize)
+const InventoryStockOut = require('./SCM Model/SCMStockOut')(sequelize)
+
 // Define relationships for other models (not EmployeeAttendance!)
 // (Keep only these if you need them)
 Employee.hasOne(EmergencyContact, {
@@ -59,6 +68,84 @@ InventoryProduct.hasMany(StockAdjustment, { foreignKey: 'product_id' })
 Leave.belongsTo(Employee, { foreignKey: 'employee_id', targetKey: 'employee_id' })
 Employee.hasMany(Leave, { foreignKey: 'employee_id', sourceKey: 'employee_id' })
 
+// Add SCMRequest relationships
+SCMRequest.hasMany(SCMRequestItem, {
+  foreignKey: 'request_id',
+  sourceKey: 'request_id',
+  as: 'requestItems',
+})
+SCMRequestItem.belongsTo(SCMRequest, {
+  foreignKey: 'request_id',
+  targetKey: 'request_id',
+})
+
+// Association: SCMRequest.prepared_by -> Employee.employee_id
+SCMRequest.belongsTo(Employee, {
+  foreignKey: 'prepared_by',
+  as: 'preparedBy',
+  targetKey: 'employee_id',
+})
+
+// Association: SCMRequest.approved_by -> Employee.employee_id (optional)
+SCMRequest.belongsTo(Employee, {
+  foreignKey: 'approved_by',
+  as: 'approvedBy',
+  targetKey: 'employee_id',
+})
+
+// Add this association:
+SCMRequest.belongsTo(Employee, {
+  as: 'releasedBy',
+  foreignKey: 'released_by',
+  targetKey: 'employee_id',
+})
+
+// Add Delivery relationships
+SCMRequest.hasMany(Delivery, { foreignKey: 'request_id', sourceKey: 'request_id' })
+Delivery.belongsTo(SCMRequest, { foreignKey: 'request_id', targetKey: 'request_id' })
+
+// InventoryReceiving belongsTo SCMRequest
+InventoryReceiving.belongsTo(SCMRequest, {
+  foreignKey: 'request_id',
+  targetKey: 'request_id',
+  as: 'request',
+})
+
+// SCMRequest hasMany InventoryReceiving
+SCMRequest.hasMany(InventoryReceiving, {
+  foreignKey: 'request_id',
+  sourceKey: 'request_id',
+  as: 'receivings',
+})
+
+// InventoryReceiving hasMany InventoryReceivingItem
+InventoryReceiving.hasMany(InventoryReceivingItem, {
+  foreignKey: 'receiving_id',
+  sourceKey: 'receiving_id',
+  as: 'items',
+})
+
+// InventoryReceivingItem belongsTo InventoryReceiving
+InventoryReceivingItem.belongsTo(InventoryReceiving, {
+  foreignKey: 'receiving_id',
+  targetKey: 'receiving_id',
+  as: 'receiving',
+})
+
+// InventoryReceivingItem belongsTo Inventory
+InventoryReceivingItem.belongsTo(Inventory, {
+  foreignKey: 'item_code',
+  targetKey: 'item_code',
+  as: 'inventoryItem',
+})
+
+// Inventory hasMany InventoryReceivingItem
+Inventory.hasMany(InventoryReceivingItem, {
+  foreignKey: 'item_code',
+  sourceKey: 'item_code',
+  as: 'receivingItems',
+})
+
 // Export models and sequelize instance
 const db = {
   sequelize,
@@ -80,6 +167,14 @@ const db = {
   Payroll,
   AuditLog,
   PayrollDeduction,
+  SCMRequest,
+  SCMRequestItem,
+  Delivery,
+  InventoryReceiving,
+  InventoryReceivingItem,
+  Inventory,
+  InventoryStockIn,
+  InventoryStockOut,
 }
 
 // Call associate for all models
