@@ -20,6 +20,9 @@ module.exports = (sequelize) => {
       canceled_by: { type: DataTypes.STRING },
       canceled_at: { type: DataTypes.DATE },
       cancel_reason: { type: DataTypes.STRING },
+      paid_status: { type: DataTypes.ENUM('Unpaid', 'Paid'), defaultValue: 'Unpaid' },
+      paid_at: { type: DataTypes.DATE },
+      paid_by: { type: DataTypes.STRING },
     },
     {
       tableName: 'deliveries',

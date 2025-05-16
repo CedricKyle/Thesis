@@ -7,5 +7,6 @@ router.post('/', deliveryController.createDelivery)
 router.post('/:id/receive', deliveryController.receiveDelivery)
 router.post('/:id/cancel', deliveryController.cancelDelivery)
 router.put('/:id', deliveryController.updateDelivery)
+router.post('/:id/mark-paid', deliveryController.markAsPaid)
 
 module.exports = router

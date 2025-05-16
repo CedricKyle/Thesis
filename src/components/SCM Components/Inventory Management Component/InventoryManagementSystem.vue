@@ -1,78 +1,224 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useDeliveryStore } from '@/stores/SCM Stores/deliveryStore'
+import { useInventoryStore } from '@/stores/SCM Stores/inventoryStore'
+import { PERMISSION_IDS } from '@/composables/Admin Composables/User & Role/role/permissionsId'
+import { useAuthStore } from '@/stores/Authentication/authStore'
+import Toast from '@/components/Admin Components/HR/Toast.vue'
+import { Pencil } from 'lucide-vue-next'
+import { useInventoryStockStore } from '@/stores/SCM Stores/inventoryStockStore'
 
 // State Management
 const activeTab = ref('monitoring') // monitoring, stock-in, stock-out, adjustment
-const inventory = ref([
-  // Sample data - replace with actual data from your store later
-  {
-    id: 1,
-    item_code: 'RM001',
-    item_name: 'Raw Material 1',
-    type: 'raw_material',
-    quantity: 100,
-    unit: 'kg',
-    minimum_stock_level: 20,
-    updated_at: new Date(),
-  },
-  // Add more sample items as needed
-])
-
 const searchQuery = ref('')
 const filterType = ref('all')
 
+const deliveryStore = useDeliveryStore()
+const inventoryStore = useInventoryStore()
+const authStore = useAuthStore()
+const inventoryStockStore = useInventoryStockStore()
+
+const toast = ref({
+  show: false,
+  message: '',
+  type: 'info',
+  customClass: '',
+})
+
+const showEditModal = ref(false)
+const editItem = ref(null)
+const editReorderPoint = ref(0)
+
+const monitoringPage = ref(1)
+const monitoringRowsPerPage = ref(10)
+
+const monitoringTotalPages = computed(() =>
+  Math.ceil(filteredInventory.value.length / monitoringRowsPerPage.value),
+)
+
+const paginatedInventory = computed(() =>
+  filteredInventory.value.slice(
+    (monitoringPage.value - 1) * monitoringRowsPerPage.value,
+    monitoringPage.value * monitoringRowsPerPage.value,
+  ),
+)
+
+const showStockInModal = ref(false)
+const showStockOutModal = ref(false)
+const selectedItem = ref(null)
+
+const stockInForm = ref({
+  item_code: '',
+  quantity: 0,
+  unit: '',
+  date: new Date().toISOString().split('T')[0],
+  supplier: '',
+  remarks: '',
+  document: null,
+})
+
+const stockOutForm = ref({
+  item_code: '',
+  quantity: 0,
+  unit: '',
+  date: new Date().toISOString().split('T')[0],
+  reason: '',
+  remarks: '',
+  document: null,
+})
+
+function showToast(message, type = 'info', customClass = '') {
+  toast.value = { show: true, message, type, customClass }
+  setTimeout(() => {
+    toast.value.show = false
+  }, 2500)
+}
+
+onMounted(() => {
+  inventoryStore.fetchInventory()
+  deliveryStore.fetchDeliveries()
+  inventoryStockStore.fetchStockIns()
+  inventoryStockStore.fetchStockOuts()
+})
+
 // Computed Properties
 const filteredInventory = computed(() => {
-  return inventory.value.filter((item) => {
+  return inventoryStore.inventory.filter((item) => {
     const matchesSearch = item.item_name.toLowerCase().includes(searchQuery.value.toLowerCase())
-    const matchesType = filterType.value === 'all' || item.type === filterType.value
+    const matchesType = filterType.value === 'all' || item.category === filterType.value
     return matchesSearch && matchesType
   })
 })
 
 // Stats Computed Properties
 const stats = computed(() => ({
-  total: inventory.value.length,
-  inStock: inventory.value.filter((i) => i.quantity > i.minimum_stock_level).length,
-  lowStock: inventory.value.filter((i) => i.quantity <= i.minimum_stock_level && i.quantity > 0)
+  total: inventoryStore.inventory.length,
+  inStock: inventoryStore.inventory.filter((i) => i.quantity > i.reorder_point).length,
+  lowStock: inventoryStore.inventory.filter((i) => i.quantity <= i.reorder_point && i.quantity > 0)
     .length,
-  outOfStock: inventory.value.filter((i) => i.quantity === 0).length,
+  outOfStock: inventoryStore.inventory.filter((i) => i.quantity === 0).length,
 }))
 
-function addToInventory(receivedItems) {
-  receivedItems.forEach((received) => {
-    const existing = inventory.value.find((item) => item.item_code === received.item_code)
-    if (existing) {
-      existing.quantity += Number(received.quantity)
-      existing.updated_at = new Date()
-    } else {
-      inventory.value.push({
-        ...received,
-        quantity: Number(received.quantity),
-        updated_at: new Date(),
-      })
-    }
-  })
+const receivedDeliveries = computed(() =>
+  deliveryStore.deliveries
+    .filter((delivery) => delivery.status === 'Received')
+    .map((delivery) => ({
+      ...delivery,
+      items: typeof delivery.items === 'string' ? JSON.parse(delivery.items) : delivery.items,
+    })),
+)
+
+const canEditReorderPoint = computed(() => true)
+
+const uniqueCategories = computed(() => {
+  const categories = new Set(inventoryStore.inventory.map((item) => item.category))
+  return Array.from(categories).sort()
+})
+
+async function confirmAndReceiveDelivery(deliveryId, deliveryPayload, receivingPayload) {
+  try {
+    // 1. Mark delivery as received
+    await deliveryStore.receiveDelivery(deliveryId, deliveryPayload)
+    // 2. Refresh inventory
+    await inventoryStore.fetchInventory()
+    alert('Delivery received and inventory updated!')
+  } catch (err) {
+    alert('Error: ' + err)
+  }
 }
 
-function simulateReceive() {
-  addToInventory([
-    {
-      item_code: 'RM001',
-      item_name: 'Raw Material 1',
-      type: 'raw_material',
-      quantity: 5,
-      unit: 'kg',
-      minimum_stock_level: 20,
-    },
-    {
-      item_code: 'RM002',
-      item_name: 'Bigas',
-      quantity: 3,
-      unit: 'pack',
-      minimum_stock_level: 10,
-    },
-  ])
+async function updateReorderPoint(item) {
+  try {
+    await inventoryStore.updateInventory(item.item_code, { reorder_point: item.reorder_point })
+    showToast('Min. Stock Level updated!', 'success')
+  } catch (err) {
+    showToast('Failed to update Min. Stock Level', 'error')
+  }
+}
+
+function openEditModal(item) {
+  editItem.value = item
+  editReorderPoint.value = item.reorder_point
+  showEditModal.value = true
+}
+
+async function saveEditReorderPoint() {
+  try {
+    await inventoryStore.updateInventory(editItem.value.item_code, {
+      reorder_point: editReorderPoint.value,
+    })
+    showToast('Min. Stock Level updated!', 'success')
+    showEditModal.value = false
+    editItem.value = null
+  } catch (err) {
+    showToast('Failed to update Min. Stock Level', 'error')
+  }
+}
+
+watch([searchQuery, filterType], () => {
+  monitoringPage.value = 1
+})
+
+async function handleStockIn() {
+  try {
+    await inventoryStockStore.createStockIn(stockInForm.value)
+    await inventoryStore.fetchInventory() // Refresh inventory
+    showStockInModal.value = false
+    showToast('Stock in recorded successfully!', 'success')
+    // Reset form
+    stockInForm.value = {
+      item_code: '',
+      quantity: 0,
+      unit: '',
+      date: new Date().toISOString().split('T')[0],
+      supplier: '',
+      remarks: '',
+      document: null,
+    }
+  } catch (err) {
+    showToast(err.response?.data?.message || 'Failed to record stock in', 'error')
+  }
+}
+
+async function handleStockOut() {
+  try {
+    await inventoryStockStore.createStockOut(stockOutForm.value)
+    await inventoryStore.fetchInventory() // Refresh inventory
+    showStockOutModal.value = false
+    showToast('Stock out recorded successfully!', 'success')
+    // Reset form
+    stockOutForm.value = {
+      item_code: '',
+      quantity: 0,
+      unit: '',
+      date: new Date().toISOString().split('T')[0],
+      reason: '',
+      remarks: '',
+      document: null,
+    }
+  } catch (err) {
+    showToast(err.response?.data?.message || 'Failed to record stock out', 'error')
+  }
+}
+
+function openStockInModal(item) {
+  selectedItem.value = item
+  stockInForm.value = {
+    ...stockInForm.value,
+    item_code: item.item_code,
+    unit: item.unit,
+  }
+  showStockInModal.value = true
+}
+
+function openStockOutModal(item) {
+  selectedItem.value = item
+  stockOutForm.value = {
+    ...stockOutForm.value,
+    item_code: item.item_code,
+    unit: item.unit,
+  }
+  showStockOutModal.value = true
 }
 </script>
 
@@ -103,6 +249,17 @@ function simulateReceive() {
             .join(' ')
         }}
       </button>
+      <button
+        @click="activeTab = 'received-deliveries'"
+        :class="[
+          'px-4 py-2 text-sm font-medium border-b-2 -mb-px',
+          activeTab === 'received-deliveries'
+            ? 'border-primaryColor text-primaryColor'
+            : 'border-transparent text-gray-500 hover:text-gray-700',
+        ]"
+      >
+        Received Deliveries
+      </button>
     </div>
 
     <!-- Content Area -->
@@ -116,12 +273,21 @@ function simulateReceive() {
               v-model="searchQuery"
               type="text"
               placeholder="Search items..."
-              class="input input-bordered input-sm w-64"
+              class="input-search input-sm w-64 border border-black"
             />
-            <select v-model="filterType" class="select select-bordered select-sm">
+            <select
+              v-model="filterType"
+              class="select !bg-white !border-black !text-black select-bordered select-sm"
+            >
               <option value="all">All Items</option>
-              <option value="raw_material">Raw Materials</option>
-              <option value="finished_product">Finished Products</option>
+              <option v-for="category in uniqueCategories" :key="category" :value="category">
+                {{
+                  category
+                    .split('_')
+                    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(' ')
+                }}
+              </option>
             </select>
           </div>
         </div>
@@ -129,19 +295,19 @@ function simulateReceive() {
         <!-- Stats Cards -->
         <div class="grid grid-cols-4 gap-4 mb-6">
           <div class="stat bg-blue-50 rounded-lg p-4">
-            <div class="stat-title text-xs">Total Items</div>
+            <div class="stat-title text-xs text-gray-500">Total Items</div>
             <div class="stat-value text-blue-500 text-2xl">{{ stats.total }}</div>
           </div>
           <div class="stat bg-green-50 rounded-lg p-4">
-            <div class="stat-title text-xs">In Stock</div>
+            <div class="stat-title text-xs text-gray-500">In Stock</div>
             <div class="stat-value text-green-500 text-2xl">{{ stats.inStock }}</div>
           </div>
           <div class="stat bg-yellow-50 rounded-lg p-4">
-            <div class="stat-title text-xs">Low Stock</div>
+            <div class="stat-title text-xs text-gray-500">Low Stock</div>
             <div class="stat-value text-yellow-500 text-2xl">{{ stats.lowStock }}</div>
           </div>
           <div class="stat bg-red-50 rounded-lg p-4">
-            <div class="stat-title text-xs">Out of Stock</div>
+            <div class="stat-title text-xs text-gray-500">Out of Stock</div>
             <div class="stat-value text-red-500 text-2xl">{{ stats.outOfStock }}</div>
           </div>
         </div>
@@ -162,24 +328,39 @@ function simulateReceive() {
               </tr>
             </thead>
             <tbody class="text-xs text-black">
-              <tr v-for="item in filteredInventory" :key="item.id" class="text-xs hover:bg-gray-50">
+              <tr
+                v-for="item in paginatedInventory"
+                :key="item.id"
+                class="text-xs hover:bg-gray-50"
+              >
                 <td>{{ item.item_code }}</td>
                 <td>{{ item.item_name }}</td>
-                <td>{{ item.type }}</td>
+                <td>{{ item.category }}</td>
                 <td>{{ item.quantity }}</td>
                 <td>{{ item.unit }}</td>
-                <td>{{ item.minimum_stock_level }}</td>
+                <td>
+                  {{ item.reorder_point }}
+                  <button
+                    v-if="canEditReorderPoint"
+                    class="cursor-pointer btn-xs ml-2"
+                    @click="openEditModal(item)"
+                    title="Edit Min. Stock Level"
+                  >
+                    <Pencil class="w-3 h-3" />
+                  </button>
+                </td>
                 <td>
                   <span
                     :class="{
-                      'badge badge-sm badge-success': item.quantity > item.minimum_stock_level,
-                      'badge badge-sm badge-warning':
-                        item.quantity <= item.minimum_stock_level && item.quantity > 0,
-                      'badge badge-sm badge-error': item.quantity === 0,
+                      'badge badge-sm badge-success badge-outline':
+                        item.quantity > item.reorder_point,
+                      'badge badge-sm badge-warning badge-outline':
+                        item.quantity <= item.reorder_point && item.quantity > 0,
+                      'badge badge-sm badge-error badge-outline': item.quantity === 0,
                     }"
                   >
                     {{
-                      item.quantity > item.minimum_stock_level
+                      item.quantity > item.reorder_point
                         ? 'In Stock'
                         : item.quantity === 0
                           ? 'Out of Stock'
@@ -189,29 +370,281 @@ function simulateReceive() {
                 </td>
                 <td>{{ new Date(item.updated_at).toLocaleDateString() }}</td>
               </tr>
+              <tr v-if="!paginatedInventory.length">
+                <td colspan="8" class="text-center py-4 text-gray-500">No data available</td>
+              </tr>
             </tbody>
           </table>
         </div>
 
-        <button class="btn btn-primary mb-4" @click="simulateReceive">
-          Simulate Confirm Receive
-        </button>
+        <div class="flex items-center gap-2 mt-4">
+          <span class="text-black text-xs">Page</span>
+          <select
+            class="select !bg-white !border-black !text-black select-xs w-16"
+            v-model="monitoringPage"
+            :disabled="monitoringTotalPages <= 1"
+            @change="() => $nextTick(() => window.scrollTo(0, 0))"
+          >
+            <option v-for="page in monitoringTotalPages" :key="page" :value="page">
+              {{ page }}
+            </option>
+          </select>
+          <span class="text-black text-xs">of {{ monitoringTotalPages }}</span>
+          <span class="ml-4 text-xs text-black">Rows per page:</span>
+          <select
+            class="select !bg-white !border-black !text-black select-xs w-16"
+            v-model="monitoringRowsPerPage"
+            @change="monitoringPage = 1"
+          >
+            <option :value="5">5</option>
+            <option :value="10">10</option>
+            <option :value="20">20</option>
+            <option :value="50">50</option>
+          </select>
+        </div>
+
+        <div class="flex justify-end mt-4">
+          <button class="btn-secondaryStyle" @click="inventoryStore.fetchInventory()">
+            Refresh Inventory
+          </button>
+        </div>
       </div>
 
       <!-- Stock In Tab -->
-      <div v-if="activeTab === 'stock-in'" class="text-center py-8 text-gray-500">
-        Stock In functionality coming soon...
+      <div v-if="activeTab === 'stock-in'">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-lg font-bold text-black">Stock In</h2>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="table table-compact w-full">
+            <thead>
+              <tr class="bg-primaryColor text-white">
+                <th class="text-xs">Item Code</th>
+                <th class="text-xs">Item Name</th>
+                <th class="text-xs">Current Stock</th>
+                <th class="text-xs">Unit</th>
+                <th class="text-xs">Action</th>
+              </tr>
+            </thead>
+            <tbody class="text-xs text-black">
+              <tr v-for="item in inventoryStore.inventory" :key="item.id" class="hover:bg-gray-50">
+                <td>{{ item.item_code }}</td>
+                <td>{{ item.item_name }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ item.unit }}</td>
+                <td>
+                  <button class="btn-secondaryStyle btn-xs" @click="openStockInModal(item)">
+                    Stock In
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- Stock Out Tab -->
-      <div v-if="activeTab === 'stock-out'" class="text-center py-8 text-gray-500">
-        Stock Out functionality coming soon...
+      <div v-if="activeTab === 'stock-out'">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-lg font-bold text-black">Stock Out</h2>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="table table-compact w-full">
+            <thead>
+              <tr class="bg-primaryColor text-white">
+                <th class="text-xs">Item Code</th>
+                <th class="text-xs">Item Name</th>
+                <th class="text-xs">Current Stock</th>
+                <th class="text-xs">Unit</th>
+                <th class="text-xs">Action</th>
+              </tr>
+            </thead>
+            <tbody class="text-xs text-black">
+              <tr v-for="item in inventoryStore.inventory" :key="item.id" class="hover:bg-gray-50">
+                <td>{{ item.item_code }}</td>
+                <td>{{ item.item_name }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ item.unit }}</td>
+                <td>
+                  <button
+                    class="btn-secondaryStyle btn-xs"
+                    @click="openStockOutModal(item)"
+                    :disabled="item.quantity <= 0"
+                  >
+                    Stock Out
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
       </div>
 
       <!-- Adjustment Tab -->
       <div v-if="activeTab === 'adjustment'" class="text-center py-8 text-gray-500">
         Stock Adjustment functionality coming soon...
       </div>
+
+      <!-- Received Deliveries Tab -->
+      <div v-if="activeTab === 'received-deliveries'">
+        <h2 class="text-lg font-bold mb-2 text-black">Received Deliveries</h2>
+        <div
+          v-for="delivery in receivedDeliveries"
+          :key="delivery.id"
+          class="mb-6 border rounded p-4"
+        >
+          <div class="mb-2 text-xs text-black">
+            <strong>Supplier:</strong> {{ delivery.supplier }}<br />
+            <strong>Delivery Date:</strong> {{ new Date(delivery.delivery_date).toLocaleString()
+            }}<br />
+            <strong>Received By:</strong> {{ delivery.received_by }}
+          </div>
+          <table class="table table-compact w-full">
+            <thead class="text-xs text-black">
+              <tr>
+                <th>Item Name</th>
+                <th>Quantity</th>
+                <th>Unit</th>
+                <th>Unit Price</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody class="text-xs text-black">
+              <tr v-for="item in delivery.items" :key="item.id">
+                <td>{{ item.item_name }}</td>
+                <td>{{ item.quantity }}</td>
+                <td>{{ item.unit }}</td>
+                <td>{{ item.unit_price }}</td>
+                <td>{{ item.amount }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   </div>
+
+  <Toast
+    :show="toast.show"
+    :message="toast.message"
+    :type="toast.type"
+    :customClass="toast.customClass"
+  />
+
+  <dialog :open="showEditModal" class="modal">
+    <div class="modal-box bg-white max-w-xs p-6 rounded-lg shadow-lg">
+      <h3 class="font-bold text-md text-black mb-2">Edit Min. Stock Level</h3>
+      <div class="mb-2 text-sm text-black">
+        <b>Item:</b> {{ editItem?.item_name }}<br />
+        <b>Current Min. Stock Level:</b> {{ editItem?.reorder_point }}
+      </div>
+      <div class="mb-4">
+        <label class="block text-xs mb-1 text-black">New Min. Stock Level</label>
+        <input
+          v-model.number="editReorderPoint"
+          type="number"
+          min="0"
+          class="input-search input-sm w-full border border-gray-300"
+        />
+      </div>
+      <div class="flex justify-end gap-2">
+        <button class="btn-secondaryStyle" @click="showEditModal = false">Cancel</button>
+        <button class="btn-primaryStyle" @click="saveEditReorderPoint">Save</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Stock In Modal -->
+  <dialog :open="showStockInModal" class="modal">
+    <div class="modal-box bg-white max-w-md p-6 rounded-lg shadow-lg">
+      <h3 class="font-bold text-lg text-black mb-4">Stock In</h3>
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-black mb-1">Item</label>
+        <input
+          type="text"
+          :value="selectedItem?.item_name"
+          class="input-search w-full border border-black bg-white text-black"
+          :class="{ 'bg-gray-600': !selectedItem }"
+          disabled
+        />
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-black mb-1">Quantity</label>
+        <input
+          v-model.number="stockInForm.quantity"
+          type="number"
+          min="1"
+          class="input-search w-full"
+        />
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-black mb-1">Date</label>
+        <input v-model="stockInForm.date" type="date" class="input-search w-full" />
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-black mb-1">Supplier</label>
+        <input v-model="stockInForm.supplier" type="text" class="input-search w-full" />
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-black mb-1">Remarks</label>
+        <textarea
+          v-model="stockInForm.remarks"
+          class="textarea textarea-bordered w-full border border-black bg-white text-black"
+          rows="3"
+        ></textarea>
+      </div>
+      <div class="flex justify-end gap-2">
+        <button class="btn-secondaryStyle" @click="showStockInModal = false">Cancel</button>
+        <button class="btn-primaryStyle" @click="handleStockIn">Confirm</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Stock Out Modal -->
+  <dialog :open="showStockOutModal" class="modal">
+    <div class="modal-box bg-white max-w-md p-6 rounded-lg shadow-lg">
+      <h3 class="font-bold text-lg text-black mb-4">Stock Out</h3>
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-black mb-1">Item</label>
+        <input
+          type="text"
+          :value="selectedItem?.item_name"
+          class="input input-bordered w-full"
+          disabled
+        />
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-black mb-1">Quantity</label>
+        <input
+          v-model.number="stockOutForm.quantity"
+          type="number"
+          min="1"
+          :max="selectedItem?.quantity"
+          class="input input-bordered w-full"
+        />
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-black mb-1">Date</label>
+        <input v-model="stockOutForm.date" type="date" class="input input-bordered w-full" />
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-black mb-1">Reason</label>
+        <input v-model="stockOutForm.reason" type="text" class="input input-bordered w-full" />
+      </div>
+      <div class="mb-4">
+        <label class="block text-sm font-medium text-black mb-1">Remarks</label>
+        <textarea
+          v-model="stockOutForm.remarks"
+          class="textarea textarea-bordered w-full"
+          rows="3"
+        ></textarea>
+      </div>
+      <div class="flex justify-end gap-2">
+        <button class="btn-secondaryStyle" @click="showStockOutModal = false">Cancel</button>
+        <button class="btn-primaryStyle" @click="handleStockOut">Confirm</button>
+      </div>
+    </div>
+  </dialog>
 </template>

@@ -5,7 +5,7 @@ import SCMPurchaseOrder from '@/components/SCM Components/Purchase Management Co
 
 <template>
   <div class="tabs tabs-border bg-primaryColor max-h-[600px] shadow-md">
-    <input type="radio" name="my_tabs_2" class="tab" aria-label="Receiving Order" />
+    <input type="radio" name="my_tabs_2" class="tab" aria-label="Receiving Order" checked />
     <div class="tab-content bg-white p-5">
       <SCMReceivingManagement />
     </div>
