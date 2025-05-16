@@ -20,11 +20,6 @@ import SCMSidebar from '@/views/Supply Chain Management/SCMSidebar.vue'
 import CRMSidebar from '@/views/CRM Department/CRMASidebar.vue'
 import ProductionSidebar from '@/views/Production Department/ProductionSidebar.vue'
 import ProductionDashboard from '@/views/Production Department/ProductionDashboard.vue'
-import PointOfSales from '@/views/Production Department/PointOfSales.vue'
-import Production from '@/views/Production Department/Production.vue'
-import Inventory from '@/views/Production Department/Inventory.vue'
-import Reports from '@/views/Production Department/Report.vue'
-import Requests from '@/views/Production Department/Request.vue'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import { usePermissions } from '@/composables/Admin Composables/User & Role/role/usePermissions'
 import SCMBranchDistributionManagement from '@/views/Supply Chain Management/SCMBranchDistributionManagement.vue'
@@ -36,6 +31,10 @@ import FinanceSalesManagement from '@/views/Finance/FinanceSalesManagement.vue'
 import HRPayroll from '@/views/Human Resource/HRPayroll.vue'
 import SCMRequestManagement from '@/views/Supply Chain Management/SCMRequestManagement.vue'
 import SCMPurchaseOrderManagement from '@/views/Supply Chain Management/SCMPurchaseOrderManagement.vue'
+import ProductionInventoryOverview from '@/views/Production Department/ProductionInventoryOverview.vue'
+import ProductionDistribution from '@/views/Production Department/ProductionDistribution.vue'
+import ProductionHistory from '@/views/Production Department/ProductionHistory.vue'
+import ProductionBatchEntry from '@/views/Production Department/ProductionBatchEntry.vue'
 import {
   PERMISSION_IDS,
   DEPARTMENTS,
@@ -235,8 +234,28 @@ const routes = [
         path: 'production/dashboard',
         name: 'AdminProductionDashboard',
         component: ProductionDashboard,
-      },  
-      
+      },
+
+      {
+        path: 'production/inventory-overview',
+        name: 'AdminInventoryOverview',
+        component: ProductionInventoryOverview,
+      },
+      {
+        path: 'production/production-batch-entry',
+        name: 'AdminProductionBatchEntry',
+        component: ProductionBatchEntry,
+      },
+      {
+        path: 'production/production-distribution',
+        name: 'AdminProductionDistribution',
+        component: ProductionDistribution,
+      },
+      {
+        path: 'production/production-history',
+        name: 'AdminProductionHistory',
+        component: ProductionHistory,
+      },
     ],
   },
 
@@ -472,34 +491,43 @@ const routes = [
         path: 'dashboard',
         name: 'ProductionDashboard',
         component: ProductionDashboard,
-      },   
+        meta: {
+          permissions: [PERMISSION_IDS.PRODUCTION_VIEW_DASHBOARD],
+        },
+      },
+
       {
-        path: 'Point_of_Sales',
-        name: 'PointOfSales',
-        component: PointOfSales,
-      }, 
-      
-       {
-        path: 'production',
-        name: 'Production',
-        component: Production,
-      }, 
-       {
-        path: 'inventory',
-        name: 'Inventory',
-        component: Inventory,
-      }, 
+        path: 'inventory-overview',
+        name: 'ProductionInventoryOverview',
+        component: ProductionInventoryOverview,
+        meta: {
+          permissions: [PERMISSION_IDS.PRODUCTION_MANAGE_INVENTORY_OVERVIEW],
+        },
+      },
       {
-        path: 'request',
-        name: 'Requests',
-        component: Requests,
-      }, 
-      
+        path: 'production-batch-entry',
+        name: 'ProductionBatchEntry',
+        component: ProductionBatchEntry,
+        meta: {
+          permissions: [PERMISSION_IDS.PRODUCTION_MANAGE_BATCH_ENTRY],
+        },
+      },
       {
-        path: 'report',
-        name: 'Report',
-        component: Reports,
-      }, 
+        path: 'production-distribution',
+        name: 'ProductionDistribution',
+        component: ProductionDistribution,
+        meta: {
+          permissions: [PERMISSION_IDS.PRODUCTION_MANAGE_DISTRIBUTION],
+        },
+      },
+      {
+        path: 'production-history',
+        name: 'ProductionHistory',
+        component: ProductionHistory,
+        meta: {
+          permissions: [PERMISSION_IDS.PRODUCTION_MANAGE_HISTORY],
+        },
+      },
     ],
   },
   // Access Denied Router
