@@ -369,6 +369,36 @@ const routes = [
     name: 'Login',
     component: LoginPage,
   },
+  // Profile Route
+  {
+    path: '/profile',
+    name: 'EmployeeProfile',
+    component: () => import('@/views/Profile/EmployeeProfileView.vue'),
+    meta: {
+      requiresAuth: true,
+      title: 'Employee Profile'
+    },
+  },
+  // Edit Personal Information Route
+  {
+    path: '/profile/edit',
+    name: 'EditPersonalInfo',
+    component: () => import('@/components/Employee Profile/EditPersonalInfo.vue'),
+    meta: {
+      requiresAuth: true,
+      title: 'Edit Personal Information'
+    },
+  },
+  // Settings Route
+  {
+    path: '/settings',
+    name: 'Settings',
+    component: () => import('@/views/Profile/SettingsView.vue'),
+    meta: {
+      requiresAuth: true,
+      title: 'Account Settings'
+    }
+  },
   // Sales Router
   {
     path: '/sales',

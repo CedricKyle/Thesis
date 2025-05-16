@@ -13,6 +13,12 @@ router.post('/logout', employeeController.logout)
 // Employee routes
 router.get('/verify', verifyToken, employeeController.verifyToken)
 
+// Password change route
+router.post('/change-password', verifyToken, employeeController.changePassword)
+
+// New route for updating personal information without permission checks (just authentication)
+router.put('/personal-info/update', verifyToken, employeeController.updatePersonalInfo)
+
 // Use upload for profile image and resume uploads
 router.post('/', verifyToken, upload, employeeController.createEmployee)
 
@@ -25,6 +31,9 @@ router.delete('/:id', verifyToken, employeeController.deleteEmployee)
 
 // Add restore route
 router.post('/:id/restore', verifyToken, employeeController.restoreEmployee)
+
+// Add profile image update route
+router.post('/update-profile-image', verifyToken, upload, employeeController.updateProfileImage)
 
 // Add route for serving files - might want to protect this based on your requirements
 router.get('/files/:type/:filename', verifyToken, employeeController.getFile)
