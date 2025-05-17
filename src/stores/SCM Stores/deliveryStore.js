@@ -40,8 +40,10 @@ export const useDeliveryStore = defineStore('deliveryStore', {
         // Update the delivery in the list
         const idx = this.deliveries.findIndex((d) => d.id === id)
         if (idx !== -1) this.deliveries[idx] = res.data.delivery
+        return res.data // <-- return the full response data!
       } catch (err) {
         this.error = err.response?.data?.message || err.message
+        throw err // propagate error for frontend handling
       } finally {
         this.loading = false
       }

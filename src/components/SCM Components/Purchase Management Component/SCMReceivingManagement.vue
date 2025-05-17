@@ -44,7 +44,7 @@ const categoryOptions = [
 
 // Date filter for Received Supplies History
 const monthOptions = Array.from({ length: 12 }, (_, i) => i + 1)
-const yearOptions = [2023, 2024, 2025] // Adjust as needed
+const yearOptions = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i)
 
 const selectedMonth = ref(new Date().getMonth() + 1)
 const selectedYear = ref(new Date().getFullYear())
@@ -106,18 +106,52 @@ function closeReceiveModal() {
 
 async function confirmReceive() {
   try {
-    // 1. Update delivery details if edited
+    // 1. Prepare items for backend
+    const preparedItems = editItems.value.map((item) => {
+      let item_code = ''
+      if (item.stockStatus === 'Restock') {
+        item_code = item.selectedItemCode
+      }
+      // Only send reorder_point if user set it, otherwise let backend handle default
+      let reorder_point = item.reorder_point
+      if (
+        reorder_point === undefined ||
+        reorder_point === null ||
+        reorder_point === '' ||
+        isNaN(reorder_point)
+      ) {
+        reorder_point = undefined
+      }
+      return {
+        ...item,
+        item_code,
+        category: item.selectedCategory || '',
+        reorder_point: item.stockStatus === 'New Stock' ? reorder_point : undefined,
+      }
+    })
+
+    // 2. Update delivery details if edited
     await deliveryStore.updateDelivery(selectedDelivery.value.id, {
       supplier: editSupplier.value,
       delivery_date: editDeliveryDate.value,
-      items: editItems.value.filter((item) => item.item_name),
+      items: preparedItems.filter((item) => item.item_name),
     })
-    console.log('authStore.user:', authStore.user)
-    await deliveryStore.receiveDelivery(selectedDelivery.value.id, {
+
+    // 3. Receive delivery (triggers backend inventory logic)
+    const response = await deliveryStore.receiveDelivery(selectedDelivery.value.id, {
       received_by: authStore.user?.full_name || 'Unknown User',
       // Add receipt_url, remarks, etc. if needed
     })
+
     showToast('Delivery received successfully!', 'success')
+
+    // Show generated item codes if any
+    if (response?.generatedItemCodes && response.generatedItemCodes.length > 0) {
+      const codes = response.generatedItemCodes
+        .map((i) => `${i.item_name}: ${i.item_code}`)
+        .join('\n')
+      showToast('Generated Item Codes:\n' + codes, 'info')
+    }
   } catch (err) {
     showToast(deliveryStore.error || 'Failed to receive delivery', 'error')
   }
@@ -183,6 +217,10 @@ watch(showReceiveModal, (val) => {
           stockStatus: 'New Stock',
           selectedCategory: '',
           selectedItemCode: '',
+          reorder_point:
+            item.quantity && !isNaN(item.quantity)
+              ? Math.max(1, Math.floor(Number(item.quantity) * 0.3)) // never 0 by default
+              : undefined,
         }))
       : []
   }
@@ -468,6 +506,7 @@ function printReceipt() {
                 <th class="border px-2 py-1">Stock Status</th>
                 <th class="border px-2 py-1">Category</th>
                 <th class="border px-2 py-1">Item Code</th>
+                <th class="border px-2 py-1">Reorder Point</th>
               </tr>
             </thead>
             <tbody class="text-xs text-black">
@@ -513,6 +552,17 @@ function printReceipt() {
                     </option>
                   </select>
                 </td>
+                <td class="border px-2 py-1">
+                  <input
+                    v-if="item.stockStatus === 'New Stock'"
+                    v-model.number="item.reorder_point"
+                    type="number"
+                    min="1"
+                    class="input input-xs border border-gray-300 w-20"
+                    :placeholder="Math.floor(Number(item.quantity) * 0.3)"
+                  />
+                  <span v-else class="text-gray-400">—</span>
+                </td>
               </tr>
               <tr>
                 <td colspan="8" class="border px-2 py-1 text-right font-bold">Total Amount</td>
@@ -543,8 +593,7 @@ function printReceipt() {
           </div>
 
           <div class="text-xs text-black">
-            <b>Received By:</b> Cedric Kyle D. Belisario
-            <!-- Replace with current user -->
+            <b>Received By:</b> {{ authStore.user?.full_name || 'Charles A. Alvaran' }}
           </div>
         </div>
         <div class="flex justify-end gap-4 mt-4">

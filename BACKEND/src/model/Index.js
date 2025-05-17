@@ -37,6 +37,7 @@ const InventoryStockOut = require('./SCM Model/SCMStockOut')(sequelize)
 const ProductionBatch = require('./Production Model/ProductionBatch')(sequelize)
 const BatchRawMaterial = require('./Production Model/BatchRawMaterial')(sequelize)
 const ProductionFinishedGood = require('./Production Model/ProductionFinishedGood')(sequelize)
+const Supplier = require('./SCM Model/Suppliers')(sequelize)
 
 // Define relationships for other models (not EmployeeAttendance!)
 // (Keep only these if you need them)
@@ -211,6 +212,7 @@ const db = {
   ProductionBatch,
   BatchRawMaterial,
   ProductionFinishedGood,
+  Supplier,
 }
 
 // Call associate for all models

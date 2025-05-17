@@ -379,6 +379,7 @@ const totalSecondaryStock = computed(() =>
             <th>Expiry Date</th>
             <th>Image</th>
             <th>Type</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -500,10 +501,24 @@ const totalSecondaryStock = computed(() =>
               </div>
             </td>
             <td>
-              <select v-model="fg.type" class="select select-xs bg-white border border-gray-300">
+              <select
+                v-model="fg.type"
+                class="select select-xs bg-white border border-gray-300 text-black w-30"
+              >
                 <option value="New Stock">New Stock</option>
                 <option value="Restock">Restock</option>
               </select>
+            </td>
+            <td>
+              <button
+                v-if="finishedGoods.length > 1"
+                @click="finishedGoods.splice(idx, 1)"
+                class="text-red-600 font-bold px-2"
+                title="Remove"
+                type="button"
+              >
+                ×
+              </button>
             </td>
           </tr>
         </tbody>

@@ -39,10 +39,31 @@ const createReceiving = async (req, res) => {
     )
 
     for (const item of items) {
+      // 1. Generate item_code if missing
+      let itemCode = item.item_code
+      if (!itemCode || itemCode.trim() === '') {
+        const now = new Date()
+        const year = now.getFullYear()
+        const month = String(now.getMonth() + 1).padStart(2, '0')
+        const prefix = `RAW-${year}${month}`
+        const latest = await Inventory.findOne({
+          where: { item_code: { [Op.like]: `${prefix}%` } },
+          order: [['item_code', 'DESC']],
+        })
+        let next = 1
+        if (latest) {
+          const latestNum = parseInt(latest.item_code.split('-')[2])
+          next = latestNum + 1
+        }
+        itemCode = `${prefix}-${String(next).padStart(4, '0')}`
+        item.item_code = itemCode // update the item object for later use
+      }
+
+      // 2. Create receiving item record (use itemCode)
       await InventoryReceivingItem.create(
         {
           receiving_id,
-          item_code: item.item_code,
+          item_code: itemCode,
           item_name: item.item_name,
           quantity_received: item.quantity_received,
           unit: item.unit,
@@ -52,11 +73,29 @@ const createReceiving = async (req, res) => {
         { transaction: t },
       )
 
-      const inv = await Inventory.findOne({ where: { item_code: item.item_code } })
+      // 3. Update or create inventory record
+      const inv = await Inventory.findOne({ where: { item_code: itemCode } })
       if (inv) {
         inv.quantity = parseFloat(inv.quantity) + parseFloat(item.quantity_received)
         inv.last_received = new Date()
         await inv.save({ transaction: t })
+      } else {
+        await Inventory.create(
+          {
+            item_code: itemCode,
+            item_name: item.item_name,
+            description: item.description || '',
+            category: item.category || '',
+            unit: item.unit,
+            quantity: item.quantity_received,
+            reorder_point:
+              !item.reorder_point || isNaN(item.reorder_point) || Number(item.reorder_point) <= 0
+                ? Math.max(1, Math.floor(Number(item.quantity_received) * 0.3))
+                : Number(item.reorder_point),
+            last_received: new Date(),
+          },
+          { transaction: t },
+        )
       }
     }
 
