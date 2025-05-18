@@ -1043,7 +1043,7 @@ const paginatedReleasedHistory = computed(() =>
         </div>
       </div>
       <div class="overflow-x-auto">
-        <table class="table text-black w-full text-xs border border-gray-300 rounded-md">
+        <table class="table text-black w-full text-xs border border-gray-300 rounded-md bg-white">
           <thead class="text-black text-xs">
             <tr>
               <th>No.</th>

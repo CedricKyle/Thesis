@@ -288,9 +288,8 @@ Employee added successfully!
 
 Login Credentials:
 Employee ID: ${response.data.employeeId}
-Default Password: countryside123
+Default Password: ${response.data.userCredentials.defaultPassword}
 
-Please provide these credentials to the employee.
 Note: Employee will be required to change password on first login.`
 
     showToastMessage(credentialsMessage, 'success')
