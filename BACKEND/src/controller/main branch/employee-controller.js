@@ -179,13 +179,14 @@ const createEmployee = async (req, res) => {
 
     // Create user account
     const defaultPassword = employeeData.lastName.trim().toLowerCase()
-    const hashedPassword = await bcrypt.hash(defaultPassword, 10)
+    console.log('LAST NAME:', JSON.stringify(employeeData.lastName))
+    console.log('DEFAULT PASSWORD:', JSON.stringify(defaultPassword))
 
     await User.create(
       {
         employee_id: employeeId,
         email: employeeData.email,
-        password: hashedPassword,
+        password: defaultPassword,
       },
       { transaction: t },
     )
