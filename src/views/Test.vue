@@ -238,11 +238,7 @@ const handleLogout = async () => {
     <div class="w-80 h-screen overflow-y-auto bg-primaryColor">
       <div class="logo-section flex items-center p-4 gap-4">
         <div class="logo-content">
-          <img
-            src="../../assets/Images/countryside-logo.png"
-            alt="this is logo"
-            class="w-20 h-20"
-          />
+          <img src="/countryside-logo.png" alt="Logo" class="w-20 h-20" />
         </div>
         <div class="text-log">
           <h1 class="text-[25px] text-secondaryColor font-bold">Countryside</h1>
