@@ -6,6 +6,7 @@ import { computed, ref, onMounted } from 'vue'
 import profilePlaceholder from '@/assets/Images/profile-placeholder.png'
 import { Upload, ArrowLeft, Save } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
+import { Settings2 } from 'lucide-vue-next'
 
 const router = useRouter()
 const employeeStore = useEmployeeStore()
@@ -301,10 +302,14 @@ const roleName = computed(() => {
         </p>
 
         <!-- Settings link -->
-        <div class="mt-4">
-          <button @click="router.push('/settings')" class="btn btn-sm btn-outline btn-primary">
-            Account Settings
-          </button>
+        <div class="">
+          <a
+            @click="router.push('/settings')"
+            class="hover:underline text-gray-500 hover:text-primaryColor flex items-center gap-1 text-xs mt-2 cursor-pointer"
+          >
+            <Settings2 class="w-4 h-4" />
+            <span>Account Settings</span>
+          </a>
         </div>
       </div>
 
@@ -370,10 +375,7 @@ const roleName = computed(() => {
         <div class="bg-white rounded-lg shadow-md p-6 text-black">
           <div class="flex justify-between items-center mb-4">
             <h3 class="font-semibold text-lg text-primaryColor">Personal Information</h3>
-            <button
-              class="btn btn-sm btn-outline btn-warning flex items-center gap-1"
-              @click="router.push('/profile/edit')"
-            >
+            <button class="btn-secondaryStyle" @click="router.push('/profile/edit')">
               <span>Edit</span>
             </button>
           </div>
