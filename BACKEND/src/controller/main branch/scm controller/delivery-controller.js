@@ -77,6 +77,7 @@ exports.receiveDelivery = async (req, res) => {
   // --- AUTO-UPDATE INVENTORY ---
   let items = delivery.items
   if (typeof items === 'string') items = JSON.parse(items)
+  let generatedItemCodes = []
   for (const item of items) {
     // If user selected "Restock" and provided item_code, always restock
     if (item.stockStatus === 'Restock' && item.selectedItemCode) {
@@ -100,8 +101,13 @@ exports.receiveDelivery = async (req, res) => {
     }
 
     // Otherwise, create new inventory record
+    // --- GENERATE ITEM CODE IF NOT PROVIDED ---
+    let item_code = item.item_code
+    if (!item_code || item_code.trim() === '') {
+      item_code = await generateItemCode(item.selectedCategory)
+    }
     await Inventory.create({
-      item_code: item.item_code, // or generate if needed
+      item_code,
       item_name: item.item_name,
       category: item.selectedCategory,
       quantity: item.quantity,
@@ -109,10 +115,11 @@ exports.receiveDelivery = async (req, res) => {
       reorder_point: 0,
       last_received: new Date(),
     })
+    generatedItemCodes.push({ item_name: item.item_name, item_code })
   }
   // --- END AUTO-UPDATE ---
 
-  res.json({ message: 'Delivery received', delivery })
+  res.json({ message: 'Delivery received', delivery, generatedItemCodes })
 }
 
 // Cancel delivery

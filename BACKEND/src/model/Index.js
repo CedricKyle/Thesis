@@ -37,13 +37,21 @@ const InventoryStockOut = require('./SCM Model/SCMStockOut')(sequelize)
 const ProductionBatch = require('./Production Model/ProductionBatch')(sequelize)
 const BatchRawMaterial = require('./Production Model/BatchRawMaterial')(sequelize)
 const ProductionFinishedGood = require('./Production Model/ProductionFinishedGood')(sequelize)
-
+const Supplier = require('./SCM Model/Suppliers')(sequelize)
+const BranchDistributionRequest = require('./Production Model/BranchDistributionRequest')(sequelize)
+const BranchDistributionRequestItem = require('./Production Model/BranchDistributionRequestItem')(
+  sequelize,
+)
+const BranchOperationInventory = require('./Branch Operation Model/BranchOperationInventory')(
+  sequelize,
+)
 // Define relationships for other models (not EmployeeAttendance!)
 // (Keep only these if you need them)
 Employee.hasOne(EmergencyContact, {
   foreignKey: 'employee_id',
   as: 'emergencyContact',
 })
+
 EmergencyContact.belongsTo(Employee, {
   foreignKey: 'employee_id',
 })
@@ -211,6 +219,10 @@ const db = {
   ProductionBatch,
   BatchRawMaterial,
   ProductionFinishedGood,
+  Supplier,
+  BranchDistributionRequest,
+  BranchDistributionRequestItem,
+  BranchOperationInventory,
 }
 
 // Call associate for all models

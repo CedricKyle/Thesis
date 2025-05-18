@@ -32,7 +32,7 @@ const toastType = ref('')
 const searchInput = ref('')
 const filteredRoles = ref([])
 
-// Modal refs
+// Modal refsA
 const viewModal = ref(null)
 const deleteConfirmModal = ref(null)
 const roleToView = ref(null)

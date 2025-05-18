@@ -25,9 +25,14 @@ const getInventoryByCode = async (req, res) => {
 // CREATE new inventory item
 const createInventoryItem = async (req, res) => {
   try {
-    const { item_code, item_name, description, category, unit, quantity, reorder_point } = req.body
+    let { item_code, item_name, description, category, unit, quantity, reorder_point } = req.body
     const exists = await Inventory.findOne({ where: { item_code } })
     if (exists) return res.status(400).json({ message: 'Item code already exists' })
+
+    // Auto-set reorder_point to 30% of initial quantity if not provided
+    if (reorder_point === undefined || reorder_point === null || reorder_point === '') {
+      reorder_point = Math.floor(Number(quantity) * 0.3) // 30% of initial stock
+    }
 
     const item = await Inventory.create({
       item_code,

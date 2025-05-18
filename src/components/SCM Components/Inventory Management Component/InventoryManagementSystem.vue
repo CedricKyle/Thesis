@@ -93,10 +93,9 @@ const filteredInventory = computed(() => {
 // Stats Computed Properties
 const stats = computed(() => ({
   total: inventoryStore.inventory.length,
-  inStock: inventoryStore.inventory.filter((i) => i.quantity > i.reorder_point).length,
-  lowStock: inventoryStore.inventory.filter((i) => i.quantity <= i.reorder_point && i.quantity > 0)
-    .length,
-  outOfStock: inventoryStore.inventory.filter((i) => i.quantity === 0).length,
+  inStock: inventoryStore.inventory.filter((i) => getStockStatus(i) === 'In Stock').length,
+  lowStock: inventoryStore.inventory.filter((i) => getStockStatus(i) === 'Low Stock').length,
+  outOfStock: inventoryStore.inventory.filter((i) => getStockStatus(i) === 'Out of Stock').length,
 }))
 
 const receivedDeliveries = computed(() =>
@@ -219,6 +218,15 @@ function openStockOutModal(item) {
     unit: item.unit,
   }
   showStockOutModal.value = true
+}
+
+function getStockStatus(item) {
+  const qty = Number(item.quantity)
+  const reorder = Number(item.reorder_point)
+  if (qty === 0) return 'Out of Stock'
+  if (qty > 0 && qty <= reorder) return 'Low Stock'
+  if (qty > reorder) return 'In Stock'
+  return ''
 }
 </script>
 
@@ -352,20 +360,15 @@ function openStockOutModal(item) {
                 <td>
                   <span
                     :class="{
-                      'badge badge-sm badge-success badge-outline':
-                        item.quantity > item.reorder_point,
+                      'badge badge-sm badge-error badge-outline':
+                        getStockStatus(item) === 'Out of Stock',
                       'badge badge-sm badge-warning badge-outline':
-                        item.quantity <= item.reorder_point && item.quantity > 0,
-                      'badge badge-sm badge-error badge-outline': item.quantity === 0,
+                        getStockStatus(item) === 'Low Stock',
+                      'badge badge-sm badge-success badge-outline':
+                        getStockStatus(item) === 'In Stock',
                     }"
                   >
-                    {{
-                      item.quantity > item.reorder_point
-                        ? 'In Stock'
-                        : item.quantity === 0
-                          ? 'Out of Stock'
-                          : 'Low Stock'
-                    }}
+                    {{ getStockStatus(item) }}
                   </span>
                 </td>
                 <td>{{ new Date(item.updated_at).toLocaleDateString() }}</td>

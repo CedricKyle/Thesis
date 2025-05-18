@@ -1,13 +1,16 @@
 <script setup>
 import AttendanceLog from './AttendanceLog.vue'
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
+import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import { computed, ref, onMounted } from 'vue'
 import profilePlaceholder from '@/assets/Images/profile-placeholder.png'
 import { Upload, ArrowLeft, Save } from 'lucide-vue-next'
 import { useRouter } from 'vue-router'
+import { Settings2 } from 'lucide-vue-next'
 
 const router = useRouter()
 const employeeStore = useEmployeeStore()
+const rolesStore = useRolesStore()
 const employee = computed(() => employeeStore.currentUserEmployee)
 const hasPendingChanges = computed(() => employeeStore.hasPendingChanges())
 const profileImageFile = ref(null)
@@ -24,24 +27,24 @@ const displayData = computed(() => {
 // Separate computed property for preview after saving
 const previewWithChanges = computed(() => {
   if (!employee.value) return null
-  
+
   // Start with the current employee data
   const data = { ...employee.value }
-  
+
   // If there are pending changes, apply them
   if (employeeStore.pendingChanges) {
     // Apply all pending changes except for the profile image file
     const { profileImageFile: _, ...changes } = employeeStore.pendingChanges
-    
+
     // Merge changes into the display data
     Object.assign(data, changes)
-    
+
     // Make sure full_name is prioritized if it exists in changes
     if (changes.full_name) {
       data.full_name = changes.full_name
     }
   }
-  
+
   return data
 })
 
@@ -55,7 +58,7 @@ const formatDate = (dateString) => {
   })
 }
 
-// Profile image URL computed property 
+// Profile image URL computed property
 const profileImageUrl = computed(() => {
   // Use the existing profile image or placeholder
   if (!employee.value?.profile_image_path) return profilePlaceholder
@@ -68,7 +71,7 @@ const previewImageUrl = computed(() => {
   if (employeeStore.pendingChanges && employeeStore.pendingChanges.profileImageFile) {
     return URL.createObjectURL(employeeStore.pendingChanges.profileImageFile)
   }
-  
+
   // Otherwise use the existing profile image or placeholder
   return profileImageUrl.value
 })
@@ -81,13 +84,13 @@ const handleProfileUpload = async (event) => {
   try {
     // Create a copy of existing pending changes or start with an empty object
     const currentChanges = employeeStore.pendingChanges || {}
-    
+
     // Add the profile image file to pending changes
     employeeStore.setPendingChanges({
       ...currentChanges,
-      profileImageFile: file
+      profileImageFile: file,
     })
-    
+
     console.log('Profile image added to pending changes')
   } catch (error) {
     console.error('Error processing profile image:', error)
@@ -103,7 +106,7 @@ const handleProfileUpload = async (event) => {
 const goBack = () => {
   // Navigate to the appropriate dashboard based on user's department
   const userDepartment = employee.value?.department
-  
+
   if (userDepartment) {
     // Handle special cases for some departments
     if (userDepartment === 'HR Department') {
@@ -134,17 +137,17 @@ const saveChanges = async () => {
     isSaving.value = true
     saveMessage.value = ''
     saveStatus.value = ''
-    
+
     // Turn off preview mode while saving
     isPreviewMode.value = false
-    
+
     console.log('Starting to save changes...')
     const result = await employeeStore.savePendingChanges()
-    
+
     if (result) {
       saveMessage.value = 'Profile changes saved successfully!'
       saveStatus.value = 'success'
-      
+
       // Clear message after 3 seconds
       setTimeout(() => {
         saveMessage.value = ''
@@ -152,17 +155,18 @@ const saveChanges = async () => {
     } else {
       saveMessage.value = 'No changes were made.'
       saveStatus.value = 'success'
-      
+
       setTimeout(() => {
         saveMessage.value = ''
       }, 3000)
     }
   } catch (error) {
     console.error('Error saving profile changes:', error)
-    
+
     // Create more user-friendly error message
     if (error.message?.includes('Employee not found')) {
-      saveMessage.value = 'Could not find your employee record. Please refresh the page and try again.'
+      saveMessage.value =
+        'Could not find your employee record. Please refresh the page and try again.'
     } else if (error.response?.status === 404) {
       saveMessage.value = 'Employee record not found. Please refresh the page and try again.'
     } else if (error.response?.data?.message) {
@@ -170,16 +174,16 @@ const saveChanges = async () => {
     } else {
       saveMessage.value = `Error: ${error.message || 'An unknown error occurred while saving changes.'}`
     }
-    
+
     // Log detailed error information to the console
     console.log('Detailed save error:', {
       message: error.message,
       response: error.response?.data,
-      status: error.response?.status
+      status: error.response?.status,
     })
-    
+
     saveStatus.value = 'error'
-    
+
     // Clear error message after 5 seconds
     setTimeout(() => {
       saveMessage.value = ''
@@ -191,13 +195,26 @@ const saveChanges = async () => {
 
 // Log employee info on mount for debugging
 onMounted(() => {
-  console.log('EmployeeProfile mounted, current employee:', 
-    employee.value ? {
-      id: employee.value.id,
-      employee_id: employee.value.employee_id,
-      full_name: employee.value.full_name,
-      email: employee.value.email
-    } : 'No employee found'
+  console.log(
+    'EmployeeProfile mounted, current employee:',
+    employee.value
+      ? {
+          id: employee.value.id,
+          employee_id: employee.value.employee_id,
+          full_name: employee.value.full_name,
+          email: employee.value.email,
+        }
+      : 'No employee found',
+  )
+})
+
+const roleName = computed(() => {
+  const data = isPreviewMode.value ? previewWithChanges.value : displayData.value
+  if (!data) return 'N/A'
+  return (
+    data.roleInfo?.role_name ||
+    rolesStore.roles.find((r) => r.id === data.role_id)?.role_name ||
+    'N/A'
   )
 })
 </script>
@@ -207,8 +224,8 @@ onMounted(() => {
     <!-- Back Button and Title with Save Changes button -->
     <div class="flex items-center justify-between mb-6">
       <div class="flex items-center">
-        <button 
-          @click="goBack" 
+        <button
+          @click="goBack"
           class="mr-4 flex items-center gap-1 text-gray-600 hover:text-primaryColor transition-colors"
         >
           <ArrowLeft class="w-5 h-5" />
@@ -216,21 +233,21 @@ onMounted(() => {
         </button>
         <h2 class="text-2xl font-bold">My Profile</h2>
       </div>
-      
+
       <div class="flex items-center gap-2">
         <!-- Toggle Preview Button -->
-        <button 
+        <button
           v-if="hasPendingChanges"
-          @click="isPreviewMode = !isPreviewMode" 
+          @click="isPreviewMode = !isPreviewMode"
           class="btn btn-sm btn-outline"
         >
           {{ isPreviewMode ? 'Hide Preview' : 'Preview Changes' }}
         </button>
-        
+
         <!-- Save Changes Button -->
-        <button 
+        <button
           v-if="hasPendingChanges"
-          @click="saveChanges" 
+          @click="saveChanges"
           class="btn btn-primary btn-sm bg-primaryColor"
           :disabled="isSaving"
         >
@@ -240,12 +257,14 @@ onMounted(() => {
         </button>
       </div>
     </div>
-    
+
     <div v-if="displayData" class="grid md:grid-cols-3 gap-6">
       <!-- Profile Card -->
-      <div class="bg-white rounded-lg shadow-md p-6 flex flex-col items-center">
+      <div class="bg-white rounded-lg shadow-md p-6 flex flex-col items-center text-black">
         <div class="relative">
-          <div class="w-32 h-32 rounded-full overflow-hidden ring-2 ring-secondaryColor mb-4 group relative">
+          <div
+            class="w-32 h-32 rounded-full overflow-hidden ring-2 ring-secondaryColor mb-4 group relative"
+          >
             <!-- Image -->
             <img
               :src="isPreviewMode ? previewImageUrl : profileImageUrl"
@@ -253,16 +272,13 @@ onMounted(() => {
               alt="Profile"
               @error="$event.target.src = profilePlaceholder"
             />
-            
+
             <!-- Overlay and Upload Button -->
-            <div class="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+            <div
+              class="absolute inset-0 bg-black bg-opacity-50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+            >
               <label class="cursor-pointer">
-                <input 
-                  type="file" 
-                  accept="image/*" 
-                  class="hidden" 
-                  @change="handleProfileUpload"
-                />
+                <input type="file" accept="image/*" class="hidden" @change="handleProfileUpload" />
                 <div class="p-2 bg-white rounded-full">
                   <Upload class="w-6 h-6 text-primaryColor" />
                 </div>
@@ -270,61 +286,96 @@ onMounted(() => {
             </div>
           </div>
         </div>
-        
-        <h3 class="text-xl font-semibold mb-1">{{ isPreviewMode ? previewWithChanges.full_name : displayData.full_name }}</h3>
+
+        <h3 class="text-xl font-semibold mb-1">
+          {{ isPreviewMode ? previewWithChanges.full_name : displayData.full_name }}
+        </h3>
         <p class="badge badge-outline badge-warning mb-2">
-          {{ isPreviewMode ? previewWithChanges.positionInfo?.position_title : displayData.positionInfo?.position_title || 'Employee' }}
+          {{
+            isPreviewMode
+              ? previewWithChanges.positionInfo?.position_title
+              : displayData.positionInfo?.position_title || 'Employee'
+          }}
         </p>
-        <p class="text-gray-600 text-sm">{{ isPreviewMode ? previewWithChanges.department : displayData.department }}</p>
-        
+        <p class="text-gray-600 text-sm">
+          {{ isPreviewMode ? previewWithChanges.department : displayData.department }}
+        </p>
+
         <!-- Settings link -->
-        <div class="mt-4">
-          <button 
-            @click="router.push('/settings')" 
-            class="btn btn-sm btn-outline btn-primary"
+        <div class="">
+          <a
+            @click="router.push('/settings')"
+            class="hover:underline text-gray-500 hover:text-primaryColor flex items-center gap-1 text-xs mt-2 cursor-pointer"
           >
-            Account Settings
-          </button>
+            <Settings2 class="w-4 h-4" />
+            <span>Account Settings</span>
+          </a>
         </div>
       </div>
 
       <!-- Employee Info -->
       <div class="md:col-span-2 grid gap-6">
         <!-- Professional Information -->
-        <div class="bg-white rounded-lg shadow-md p-6">
-          <h3 class="font-semibold mb-4 text-lg text-primaryColor border-b pb-2">Professional Information</h3>
+        <div class="bg-white rounded-lg shadow-md p-6 text-black">
+          <h3 class="font-semibold mb-4 text-lg text-primaryColor border-b pb-2">
+            Professional Information
+          </h3>
           <div class="grid gap-3">
             <div class="flex">
               <div class="w-40 text-gray-500">Employee ID</div>
-              <div>{{ isPreviewMode ? previewWithChanges.employee_id : displayData.employee_id }}</div>
+              <div>
+                {{ isPreviewMode ? previewWithChanges.employee_id : displayData.employee_id }}
+              </div>
             </div>
             <div class="flex">
               <div class="w-40 text-gray-500">Department</div>
-              <div>{{ isPreviewMode ? previewWithChanges.department : displayData.department }}</div>
+              <div>
+                {{ isPreviewMode ? previewWithChanges.department : displayData.department }}
+              </div>
             </div>
             <div class="flex">
               <div class="w-40 text-gray-500">Date of Hire</div>
-              <div>{{ formatDate(isPreviewMode ? previewWithChanges.date_of_hire : displayData.date_of_hire) }}</div>
+              <div>
+                {{
+                  formatDate(
+                    isPreviewMode ? previewWithChanges.date_of_hire : displayData.date_of_hire,
+                  )
+                }}
+              </div>
             </div>
             <div class="flex">
               <div class="w-40 text-gray-500">Position</div>
-              <div>{{ isPreviewMode ? previewWithChanges.positionInfo?.position_title : displayData.positionInfo?.position_title || 'N/A' }}</div>
+              <div>
+                {{
+                  isPreviewMode
+                    ? previewWithChanges.positionInfo?.position_title
+                    : displayData.positionInfo?.position_title || 'N/A'
+                }}
+              </div>
             </div>
             <div class="flex">
               <div class="w-40 text-gray-500">Role</div>
-              <div>{{ isPreviewMode ? previewWithChanges.role : displayData.role || 'N/A' }}</div>
+              <div>
+                {{
+                  isPreviewMode
+                    ? previewWithChanges.roleInfo?.role_name ||
+                      rolesStore.roles.find((r) => r.id === previewWithChanges.role_id)
+                        ?.role_name ||
+                      'N/A'
+                    : displayData.roleInfo?.role_name ||
+                      rolesStore.roles.find((r) => r.id === displayData.role_id)?.role_name ||
+                      'N/A'
+                }}
+              </div>
             </div>
           </div>
         </div>
 
         <!-- Personal Information -->
-        <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="bg-white rounded-lg shadow-md p-6 text-black">
           <div class="flex justify-between items-center mb-4">
             <h3 class="font-semibold text-lg text-primaryColor">Personal Information</h3>
-            <button 
-              class="btn btn-sm btn-outline btn-warning flex items-center gap-1"
-              @click="router.push('/profile/edit')"
-            >
+            <button class="btn-secondaryStyle" @click="router.push('/profile/edit')">
               <span>Edit</span>
             </button>
           </div>
@@ -336,7 +387,13 @@ onMounted(() => {
             </div>
             <div class="flex">
               <div class="w-40 text-gray-500">Date of Birth</div>
-              <div>{{ formatDate(isPreviewMode ? previewWithChanges.date_of_birth : displayData.date_of_birth) }}</div>
+              <div>
+                {{
+                  formatDate(
+                    isPreviewMode ? previewWithChanges.date_of_birth : displayData.date_of_birth,
+                  )
+                }}
+              </div>
             </div>
             <div class="flex">
               <div class="w-40 text-gray-500">Gender</div>
@@ -344,7 +401,9 @@ onMounted(() => {
             </div>
             <div class="flex">
               <div class="w-40 text-gray-500">Contact Number</div>
-              <div>{{ isPreviewMode ? previewWithChanges.contact_number : displayData.contact_number }}</div>
+              <div>
+                {{ isPreviewMode ? previewWithChanges.contact_number : displayData.contact_number }}
+              </div>
             </div>
             <div class="flex">
               <div class="w-40 text-gray-500">Email</div>
@@ -352,7 +411,9 @@ onMounted(() => {
             </div>
             <div class="flex">
               <div class="w-40 text-gray-500">Address</div>
-              <div class="break-words">{{ isPreviewMode ? previewWithChanges.address : displayData.address }}</div>
+              <div class="break-words">
+                {{ isPreviewMode ? previewWithChanges.address : displayData.address }}
+              </div>
             </div>
           </div>
         </div>
@@ -367,20 +428,24 @@ onMounted(() => {
 
     <!-- Save Message -->
     <div v-if="saveMessage" class="mt-6">
-      <div 
+      <div
         :class="[
-          'p-3 rounded-md text-white text-sm text-center', 
-          saveStatus === 'error' ? 'bg-red-500' : 'bg-green-500'
+          'p-3 rounded-md text-white text-sm text-center',
+          saveStatus === 'error' ? 'bg-red-500' : 'bg-green-500',
         ]"
       >
         {{ saveMessage }}
       </div>
     </div>
-    
+
     <!-- Preview Mode Banner -->
-    <div v-if="isPreviewMode && hasPendingChanges" class="mb-4 bg-blue-50 p-3 rounded-md border border-blue-200">
+    <div
+      v-if="isPreviewMode && hasPendingChanges"
+      class="mb-4 bg-blue-50 p-3 rounded-md border border-blue-200"
+    >
       <p class="text-blue-700 text-sm font-medium">
-        <span class="font-bold">Preview Mode:</span> You are viewing how your profile will look after saving. These changes are not saved yet.
+        <span class="font-bold">Preview Mode:</span> You are viewing how your profile will look
+        after saving. These changes are not saved yet.
       </p>
     </div>
   </div>

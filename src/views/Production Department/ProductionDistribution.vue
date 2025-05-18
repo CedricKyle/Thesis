@@ -1,102 +1,72 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import Toast from '@/components/Admin Components/HR/Toast.vue'
 
-// State Management
-const activeTab = ref('new') // new, history, requests
+// Mock data
+const mockBranches = [
+  { id: 1, name: 'Main Branch' },
+  { id: 2, name: 'North Branch' },
+  { id: 3, name: 'South Branch' },
+]
+
+const mockBatches = [
+  {
+    id: 1,
+    batch_number: 'BATCH-001',
+    product_name: 'Product A',
+    quantity: 100,
+    unit: 'pcs',
+    expiry_date: '2024-12-31',
+  },
+  {
+    id: 2,
+    batch_number: 'BATCH-002',
+    product_name: 'Product B',
+    quantity: 50,
+    unit: 'boxes',
+    expiry_date: '2024-12-31',
+  },
+]
+
+const mockRequests = [
+  {
+    id: 1,
+    request_id: 'REQ-0001',
+    branch_name: 'Main Branch',
+    requested_at: '2024-03-20',
+    items: [
+      {
+        product_name: 'Product A',
+        category: 'Category 1',
+        quantity: 10,
+        unit: 'pcs',
+        notes: 'Urgent',
+      },
+    ],
+    status: 'pending',
+    requestedByEmployee: { full_name: 'John Doe' },
+  },
+]
+
+// State
+const activeTab = ref('new')
 const searchQuery = ref('')
 const selectedBatches = ref([])
 const selectedBranch = ref('')
 const distributionDate = ref(new Date().toISOString().split('T')[0])
 const remarks = ref('')
-
-// TODO: Import and use production batch store
-// const productionBatchStore = useProductionBatchStore()
-
-const toast = ref({
-  show: false,
-  message: '',
-  type: 'info',
-  customClass: '',
-})
-
-// Pagination
+const toast = ref({ show: false, message: '', type: 'info', customClass: '' })
 const page = ref(1)
 const rowsPerPage = ref(10)
-
-// Mock data - replace with actual data from store
-const availableBatches = ref([
-  {
-    id: 1,
-    batch_number: 'BN-001',
-    product_name: 'Frozen Lumpia',
-    quantity: 100,
-    unit: 'packs',
-    expiry_date: '2024-06-10',
-  },
-  {
-    id: 2,
-    batch_number: 'BN-002',
-    product_name: 'Ready-to-Cook Siomai',
-    quantity: 50,
-    unit: 'packs',
-    expiry_date: '2024-06-12',
-  },
-])
-
-const branches = ref([
-  { id: 1, name: 'Main Branch' },
-  { id: 2, name: 'North Branch' },
-  { id: 3, name: 'South Branch' },
-])
-
-// Add new state for branch requests
-const branchRequests = ref([
-  {
-    id: 1,
-    branch_name: 'Main Branch',
-    request_date: '2024-03-15',
-    status: 'pending', // pending, approved, rejected
-    items: [
-      {
-        product_name: 'Frozen Lumpia',
-        quantity: 50,
-        unit: 'packs',
-        priority: 'high', // high, medium, low
-        notes: 'Urgent request for weekend promotion',
-      },
-    ],
-    total_items: 1,
-    requested_by: 'John Doe',
-    approved_by: null,
-    approval_date: null,
-  },
-  {
-    id: 2,
-    branch_name: 'North Branch',
-    request_date: '2024-03-14',
-    status: 'approved',
-    items: [
-      {
-        product_name: 'Ready-to-Cook Siomai',
-        quantity: 30,
-        unit: 'packs',
-        priority: 'medium',
-        notes: 'Regular stock replenishment',
-      },
-    ],
-    total_items: 1,
-    requested_by: 'Jane Smith',
-    approved_by: 'Manager Name',
-    approval_date: '2024-03-15',
-  },
-])
-
-// Add new refs for request modal
+const availableBatches = ref([])
+const branches = ref([])
+const branchRequests = ref([])
+const loading = ref(false)
+const requestFilter = ref('all')
 const showRequestModal = ref(false)
 const selectedRequest = ref(null)
 
-// Computed
+// Computed properties
 const filteredBatches = computed(() => {
   return availableBatches.value.filter(
     (batch) =>
@@ -114,7 +84,55 @@ const paginatedBatches = computed(() => {
 
 const totalPages = computed(() => Math.ceil(filteredBatches.value.length / rowsPerPage.value))
 
-// Functions
+const filteredBranchRequests = computed(() => {
+  let filtered = branchRequests.value
+  if (requestFilter.value !== 'all') {
+    filtered = filtered.filter((request) => request.status === requestFilter.value)
+  }
+  if (searchQuery.value.trim()) {
+    const query = searchQuery.value.toLowerCase()
+    filtered = filtered.filter(
+      (request) =>
+        request.request_id?.toLowerCase().includes(query) ||
+        request.branch_name?.toLowerCase().includes(query) ||
+        request.requestedByEmployee?.full_name?.toLowerCase().includes(query),
+    )
+  }
+  return filtered
+})
+
+// Helper functions
+function showToast(message, type = 'info', customClass = '') {
+  toast.value = { show: true, message, type, customClass }
+  setTimeout(() => {
+    toast.value.show = false
+  }, 2500)
+}
+
+// Mock API calls
+async function fetchAvailableBatches() {
+  loading.value = true
+  try {
+    // Simulate API delay
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    availableBatches.value = mockBatches
+  } catch (error) {
+    showToast('Error loading available batches', 'error')
+  } finally {
+    loading.value = false
+  }
+}
+
+async function fetchBranches() {
+  try {
+    // Simulate API delay
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    branches.value = mockBranches
+  } catch (error) {
+    showToast('Error loading branches', 'error')
+  }
+}
+
 function addBatchToDistribution(batch) {
   if (selectedBatches.value.find((b) => b.id === batch.id)) {
     showToast('Batch already selected', 'warning')
@@ -148,54 +166,105 @@ function validateDistribution() {
 
 async function submitDistribution() {
   if (!validateDistribution()) return
-
+  loading.value = true
   try {
-    // TODO: Call API to submit distribution
-    // await productionBatchStore.submitDistribution({
-    //   branch_id: selectedBranch.value,
-    //   date: distributionDate.value,
-    //   batches: selectedBatches.value,
-    //   remarks: remarks.value
-    // })
-
+    // Simulate API delay
+    await new Promise((resolve) => setTimeout(resolve, 1000))
     showToast('Distribution submitted successfully', 'success')
-    // Reset form
     selectedBatches.value = []
     selectedBranch.value = ''
     distributionDate.value = new Date().toISOString().split('T')[0]
     remarks.value = ''
+    fetchAvailableBatches()
   } catch (error) {
     showToast('Error submitting distribution', 'error')
+  } finally {
+    loading.value = false
   }
 }
 
-function showToast(message, type = 'info', customClass = '') {
-  toast.value = { show: true, message, type, customClass }
-  setTimeout(() => {
-    toast.value.show = false
-  }, 2500)
-}
-
-// Add new functions for request management
-function viewRequestDetails(request) {
-  selectedRequest.value = request
-  showRequestModal.value = true
-}
-
-function updateRequestStatus(requestId, newStatus) {
-  const request = branchRequests.value.find((r) => r.id === requestId)
-  if (request) {
-    request.status = newStatus
-    request.approval_date = newStatus === 'approved' ? new Date().toISOString().split('T')[0] : null
-    request.approved_by = newStatus === 'approved' ? 'Current User' : null
-    showToast(`Request ${newStatus} successfully`, 'success')
+async function fetchBranchRequests() {
+  loading.value = true
+  try {
+    // Simulate API delay
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    branchRequests.value = mockRequests
+  } catch (error) {
+    showToast('Error loading branch requests', 'error')
+  } finally {
+    loading.value = false
   }
 }
 
+async function fetchDistributionHistory() {
+  loading.value = true
+  try {
+    // Simulate API delay
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    branchRequests.value = [] // Empty for now
+  } catch (error) {
+    showToast('Error loading distribution history', 'error')
+  } finally {
+    loading.value = false
+  }
+}
+
+async function viewRequestDetails(requestId) {
+  loading.value = true
+  try {
+    // Simulate API delay
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    selectedRequest.value = mockRequests.find((r) => r.id === requestId)
+    showRequestModal.value = true
+  } catch (error) {
+    showToast('Error loading request details', 'error')
+  } finally {
+    loading.value = false
+  }
+}
+
+async function updateRequestStatus(requestId, newStatus, notes = null) {
+  loading.value = true
+  try {
+    // Simulate API delay
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    const request = mockRequests.find((r) => r.id === requestId)
+    if (request) {
+      request.status = newStatus
+    }
+    showToast('Request status updated', 'success')
+  } catch (error) {
+    showToast('Error updating request status', 'error')
+  } finally {
+    loading.value = false
+  }
+}
+
+async function approveRequest(requestId) {
+  await updateRequestStatus(requestId, 'approved')
+}
+
+async function rejectRequest(requestId) {
+  await updateRequestStatus(requestId, 'rejected')
+}
+
+// Lifecycle hooks
 onMounted(() => {
-  // TODO: Fetch available batches and branches
-  // productionBatchStore.fetchAvailableBatches()
-  // productionBatchStore.fetchBranches()
+  fetchAvailableBatches()
+  fetchBranches()
+  if (activeTab.value === 'requests') {
+    fetchBranchRequests()
+  }
+})
+
+watch(activeTab, (newTab) => {
+  if (newTab === 'requests') {
+    fetchBranchRequests()
+  } else if (newTab === 'history') {
+    fetchDistributionHistory()
+  } else if (newTab === 'new') {
+    fetchAvailableBatches()
+  }
 })
 </script>
 
@@ -293,6 +362,12 @@ onMounted(() => {
                 </tr>
               </thead>
               <tbody class="text-xs text-black">
+                <tr v-if="loading">
+                  <td colspan="6" class="text-center py-4">Loading available batches...</td>
+                </tr>
+                <tr v-else-if="paginatedBatches.length === 0">
+                  <td colspan="6" class="text-center py-4 text-gray-500">No batches available</td>
+                </tr>
                 <tr v-for="batch in paginatedBatches" :key="batch.id" class="hover:bg-gray-50">
                   <td>{{ batch.batch_number }}</td>
                   <td>{{ batch.product_name }}</td>
@@ -307,9 +382,6 @@ onMounted(() => {
                       Add
                     </button>
                   </td>
-                </tr>
-                <tr v-if="!paginatedBatches.length">
-                  <td colspan="6" class="text-center py-4 text-gray-500">No batches available</td>
                 </tr>
               </tbody>
             </table>
@@ -384,8 +456,8 @@ onMounted(() => {
           </div>
 
           <div class="flex justify-end mt-4">
-            <button class="btn-secondaryStyle" @click="submitDistribution">
-              Submit Distribution
+            <button class="btn-secondaryStyle" @click="submitDistribution" :disabled="loading">
+              {{ loading ? 'Submitting...' : 'Submit Distribution' }}
             </button>
           </div>
         </div>
@@ -393,8 +465,31 @@ onMounted(() => {
 
       <!-- Distribution History Tab -->
       <div v-if="activeTab === 'history'">
-        <!-- TODO: Implement distribution history view -->
-        <div class="text-center py-8 text-gray-500">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-lg font-bold text-black">Distribution History</h2>
+          <div class="flex gap-2">
+            <input
+              v-model="searchQuery"
+              type="text"
+              placeholder="Search distributions..."
+              class="input-search input-sm w-64 border border-black"
+            />
+            <button
+              @click="fetchDistributionHistory"
+              class="btn btn-sm bg-primaryColor text-white"
+              :disabled="loading"
+            >
+              <span v-if="loading">Loading...</span>
+              <span v-else>Refresh</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="text-center py-8" v-if="loading">
+          <p class="text-gray-500">Loading distribution history...</p>
+        </div>
+
+        <div class="text-center py-8 text-gray-500" v-else>
           Distribution history will be implemented here
         </div>
       </div>
@@ -404,12 +499,33 @@ onMounted(() => {
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-lg font-bold text-black">Branch Requests</h2>
           <div class="flex gap-2">
+            <div class="flex gap-2 items-center">
+              <span class="text-sm text-gray-600">Status:</span>
+              <select
+                v-model="requestFilter"
+                class="select select-sm !bg-white !border-black !text-black"
+              >
+                <option value="all">All</option>
+                <option value="pending">Pending</option>
+                <option value="approved">Approved</option>
+                <option value="rejected">Rejected</option>
+                <option value="fulfilled">Fulfilled</option>
+              </select>
+            </div>
             <input
               v-model="searchQuery"
               type="text"
               placeholder="Search requests..."
               class="input-search input-sm w-64 border border-black"
             />
+            <button
+              @click="fetchBranchRequests"
+              class="btn btn-sm bg-primaryColor text-white"
+              :disabled="loading"
+            >
+              <span v-if="loading">Loading...</span>
+              <span v-else>Refresh</span>
+            </button>
           </div>
         </div>
 
@@ -421,32 +537,43 @@ onMounted(() => {
                 <th class="text-xs">Request ID</th>
                 <th class="text-xs">Branch</th>
                 <th class="text-xs">Request Date</th>
-                <th class="text-xs">Total Items</th>
-                <th class="text-xs">Priority</th>
+                <th class="text-xs">Items</th>
                 <th class="text-xs">Status</th>
                 <th class="text-xs">Requested By</th>
                 <th class="text-xs">Action</th>
               </tr>
             </thead>
             <tbody class="text-xs text-black">
-              <tr v-for="request in branchRequests" :key="request.id" class="hover:bg-gray-50">
-                <td>REQ-{{ request.id.toString().padStart(4, '0') }}</td>
-                <td>{{ request.branch_name }}</td>
-                <td>{{ new Date(request.request_date).toLocaleDateString() }}</td>
-                <td>{{ request.total_items }}</td>
+              <tr v-if="loading">
+                <td colspan="7" class="text-center py-4">Loading branch requests...</td>
+              </tr>
+              <tr v-else-if="filteredBranchRequests.length === 0">
+                <td colspan="7" class="text-center py-4">No branch requests found</td>
+              </tr>
+              <tr
+                v-for="request in filteredBranchRequests"
+                :key="request.id || request.request_id"
+                class="hover:bg-gray-50"
+              >
                 <td>
-                  <span
-                    :class="{
-                      'badge badge-sm badge-error badge-outline':
-                        request.items[0].priority === 'high',
-                      'badge badge-sm badge-warning badge-outline':
-                        request.items[0].priority === 'medium',
-                      'badge badge-sm badge-success badge-outline':
-                        request.items[0].priority === 'low',
-                    }"
-                  >
-                    {{ request.items[0].priority }}
-                  </span>
+                  {{ request.request_id || `REQ-${request.id?.toString().padStart(4, '0')}` }}
+                </td>
+                <td>{{ request.branch_name }}</td>
+                <td>
+                  {{
+                    new Date(
+                      request.requested_at || request.request_date || Date.now(),
+                    ).toLocaleDateString()
+                  }}
+                </td>
+                <td>
+                  {{
+                    typeof request.items === 'object' && request.items?.length
+                      ? request.items.length
+                      : request.total_items ||
+                        (request.product_names ? request.product_names.split(',').length : 0) ||
+                        '?'
+                  }}
                 </td>
                 <td>
                   <span
@@ -454,14 +581,22 @@ onMounted(() => {
                       'badge badge-sm badge-warning badge-outline': request.status === 'pending',
                       'badge badge-sm badge-success badge-outline': request.status === 'approved',
                       'badge badge-sm badge-error badge-outline': request.status === 'rejected',
+                      'badge badge-sm badge-info badge-outline': request.status === 'fulfilled',
                     }"
                   >
                     {{ request.status }}
                   </span>
                 </td>
-                <td>{{ request.requested_by }}</td>
                 <td>
-                  <button class="btn-secondaryStyle btn-xs" @click="viewRequestDetails(request)">
+                  {{
+                    request.requestedByEmployee?.full_name || request.requested_by || 'Branch User'
+                  }}
+                </td>
+                <td>
+                  <button
+                    class="btn-secondaryStyle btn-xs"
+                    @click="viewRequestDetails(request.id || request.request_id)"
+                  >
                     View
                   </button>
                 </td>
@@ -475,7 +610,7 @@ onMounted(() => {
 
   <!-- Request Details Modal -->
   <div v-if="showRequestModal" class="modal modal-open">
-    <div class="modal-box">
+    <div class="modal-box max-w-2xl">
       <h3 class="font-bold text-lg mb-4">Request Details</h3>
 
       <div v-if="selectedRequest" class="space-y-4">
@@ -483,7 +618,12 @@ onMounted(() => {
         <div class="grid grid-cols-2 gap-4">
           <div>
             <p class="text-sm font-semibold text-gray-600">Request ID</p>
-            <p class="text-sm">REQ-{{ selectedRequest.id.toString().padStart(4, '0') }}</p>
+            <p class="text-sm">
+              {{
+                selectedRequest.request_id ||
+                `REQ-${selectedRequest.id.toString().padStart(4, '0')}`
+              }}
+            </p>
           </div>
           <div>
             <p class="text-sm font-semibold text-gray-600">Branch</p>
@@ -491,7 +631,13 @@ onMounted(() => {
           </div>
           <div>
             <p class="text-sm font-semibold text-gray-600">Request Date</p>
-            <p class="text-sm">{{ new Date(selectedRequest.request_date).toLocaleDateString() }}</p>
+            <p class="text-sm">
+              {{
+                new Date(
+                  selectedRequest.requested_at || selectedRequest.request_date,
+                ).toLocaleDateString()
+              }}
+            </p>
           </div>
           <div>
             <p class="text-sm font-semibold text-gray-600">Status</p>
@@ -503,12 +649,19 @@ onMounted(() => {
                   'badge badge-sm badge-success badge-outline':
                     selectedRequest.status === 'approved',
                   'badge badge-sm badge-error badge-outline': selectedRequest.status === 'rejected',
+                  'badge badge-sm badge-info badge-outline': selectedRequest.status === 'fulfilled',
                 }"
               >
                 {{ selectedRequest.status }}
               </span>
             </p>
           </div>
+        </div>
+
+        <!-- Remarks -->
+        <div v-if="selectedRequest.remarks">
+          <p class="text-sm font-semibold text-gray-600">Remarks</p>
+          <p class="text-sm p-2 bg-gray-50 rounded">{{ selectedRequest.remarks }}</p>
         </div>
 
         <!-- Requested Items -->
@@ -519,29 +672,25 @@ onMounted(() => {
               <thead>
                 <tr class="bg-gray-100">
                   <th class="text-xs">Product</th>
+                  <th class="text-xs">Category</th>
                   <th class="text-xs">Quantity</th>
                   <th class="text-xs">Unit</th>
-                  <th class="text-xs">Priority</th>
                   <th class="text-xs">Notes</th>
                 </tr>
               </thead>
               <tbody class="text-xs">
-                <tr v-for="item in selectedRequest.items" :key="item.product_name">
+                <tr v-if="loading">
+                  <td colspan="5" class="text-center py-2">Loading items...</td>
+                </tr>
+                <tr v-else-if="!selectedRequest.items || selectedRequest.items.length === 0">
+                  <td colspan="5" class="text-center py-2">No items found</td>
+                </tr>
+                <tr v-for="(item, index) in selectedRequest.items" :key="index">
                   <td>{{ item.product_name }}</td>
+                  <td>{{ item.category }}</td>
                   <td>{{ item.quantity }}</td>
                   <td>{{ item.unit }}</td>
-                  <td>
-                    <span
-                      :class="{
-                        'badge badge-sm badge-error badge-outline': item.priority === 'high',
-                        'badge badge-sm badge-warning badge-outline': item.priority === 'medium',
-                        'badge badge-sm badge-success badge-outline': item.priority === 'low',
-                      }"
-                    >
-                      {{ item.priority }}
-                    </span>
-                  </td>
-                  <td>{{ item.notes }}</td>
+                  <td>{{ item.notes || '-' }}</td>
                 </tr>
               </tbody>
             </table>
@@ -551,22 +700,35 @@ onMounted(() => {
         <!-- Approval Actions -->
         <div v-if="selectedRequest.status === 'pending'" class="flex justify-end gap-2 mt-4">
           <button
-            class="btn-secondaryStyle"
-            @click="updateRequestStatus(selectedRequest.id, 'rejected')"
+            class="btn btn-error btn-sm"
+            @click="rejectRequest(selectedRequest.id || selectedRequest.request_id)"
+            :disabled="loading"
           >
-            Reject
+            {{ loading ? 'Processing...' : 'Reject' }}
           </button>
           <button
-            class="btn-secondaryStyle"
-            @click="updateRequestStatus(selectedRequest.id, 'approved')"
+            class="btn btn-success btn-sm"
+            @click="approveRequest(selectedRequest.id || selectedRequest.request_id)"
+            :disabled="loading"
           >
-            Approve
+            {{ loading ? 'Processing...' : 'Approve' }}
+          </button>
+        </div>
+
+        <!-- Fulfillment Action -->
+        <div v-if="selectedRequest.status === 'approved'" class="flex justify-end gap-2 mt-4">
+          <button
+            class="btn btn-primary btn-sm"
+            @click="createDistributionFromRequest(selectedRequest)"
+            :disabled="loading"
+          >
+            {{ loading ? 'Processing...' : 'Create Distribution' }}
           </button>
         </div>
       </div>
 
       <div class="modal-action">
-        <button class="btn-secondaryStyle" @click="showRequestModal = false">Close</button>
+        <button class="btn" @click="showRequestModal = false">Close</button>
       </div>
     </div>
   </div>
