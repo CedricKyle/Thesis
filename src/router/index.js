@@ -40,7 +40,6 @@ import BranchOperationDashboard from '@/views/Branch Operation/BranchOperationDa
 import BranchOperationPOS from '@/views/Branch Operation/BranchOperationPOS.vue'
 import BranchOperationSales from '@/views/Branch Operation/BranchOperationSales.vue'
 import BranchOperationInventory from '@/views/Branch Operation/BranchOperationInventory.vue'
-import BranchOperationSidebar from '@/views/Branch Operation/BranchOperationSidebar.vue'
 import BranchOperationEmployee from '@/views/Branch Operation/BranchOperationEmployee.vue'
 import {
   PERMISSION_IDS,
@@ -570,8 +569,12 @@ const routes = [
   // Branch Operation Router
   {
     path: '/branch-operation',
-    component: BranchOperationSidebar,
+    component: BranchOperation,
     children: [
+      {
+        path: '',
+        redirect: '/branch-operation/dashboard',
+      },
       {
         path: 'dashboard',
         name: 'BranchOperationDashboard',
@@ -615,7 +618,7 @@ const routes = [
     ],
   },
 
-  // Access Denied Router
+  // Access Denied Router 
   {
     path: '/access-denied',
     name: 'AccessDenied',
