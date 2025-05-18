@@ -10,6 +10,7 @@ const authStore = useAuthStore()
 // Calendar logic
 const today = new Date().toISOString().split('T')[0]
 const selectedDate = ref(today)
+const API_URL = import.meta.env.VITE_API_URL
 
 // Table columns
 const columns = [
@@ -28,7 +29,7 @@ const columns = [
       if (!value) return '-'
       const url = value.startsWith('http')
         ? value
-        : `http://localhost:3000/${value.startsWith('/') ? value.slice(1) : value}`
+        : `${API_URL}/${value.startsWith('/') ? value.slice(1) : value}`
       return `<img src="${url}" style="max-width:30px;max-height:30px;cursor:pointer;" onclick="window.open('${url}','_blank')" />`
     },
   },

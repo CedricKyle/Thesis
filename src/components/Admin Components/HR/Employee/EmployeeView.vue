@@ -5,16 +5,16 @@ import { computed } from 'vue'
 import { File } from 'lucide-vue-next'
 
 const store = useEmployeeStore()
-
+const API_URL = import.meta.env.VITE_API_URL
 // Simplified computed property for profile image
 const profileImageUrl = computed(() => {
   if (!store.selectedEmployee?.profile_image_path) return profilePlaceholder
-  return `http://localhost:3000/${store.selectedEmployee.profile_image_path}`
+  return `${API_URL}/${store.selectedEmployee.profile_image_path}`
 })
 
 const resumeUrl = computed(() => {
   if (!store.selectedEmployee?.resume_path) return null
-  return `http://localhost:3000/${store.selectedEmployee.resume_path}`
+  return `${API_URL}/${store.selectedEmployee.resume_path}`
 })
 
 // Updated emergency contact computed properties

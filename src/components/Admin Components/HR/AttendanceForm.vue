@@ -7,6 +7,8 @@ import { storeToRefs } from 'pinia'
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import axios from 'axios'
 
+const API_URL = import.meta.env.VITE_API_URL
+
 const props = defineProps({
   departments: {
     type: Array,
@@ -168,7 +170,7 @@ watch(
       if (rec.overtimeProof) {
         otProofPreview.value = rec.overtimeProof.startsWith('http')
           ? rec.overtimeProof
-          : `http://localhost:3000/${rec.overtimeProof.replace(/^\//, '')}`
+          : `${API_URL}/${rec.overtimeProof.replace(/^\//, '')}`
       } else {
         otProofPreview.value = null
       }

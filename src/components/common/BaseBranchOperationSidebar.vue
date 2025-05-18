@@ -24,6 +24,7 @@ const employeeStore = useEmployeeStore()
 const attendanceStore = useAttendanceStore()
 const currentUserEmployee = ref(null)
 const isLoading = ref(true)
+const API_URL = import.meta.env.VITE_API_URL
 
 // Profile image URL computed property
 const profileImageUrl = computed(() => {
@@ -36,7 +37,7 @@ const profileImageUrl = computed(() => {
     return profilePlaceholder
   }
 
-  return `http://localhost:3000/${employeeData.profile_image_path.replace(/^\//, '')}`
+  return `${API_URL}/${employeeData.profile_image_path.replace(/^\//, '')}`
 })
 
 // Navbar display data with proper null checks

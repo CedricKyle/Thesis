@@ -46,12 +46,13 @@ const addProductForm = ref({
   price: '',
   image: null,
 })
+const API_URL = import.meta.env.VITE_API_URL
 const addProductErrors = ref({})
 const addProductImagePreview = ref(null)
 const addProductIsDragging = ref(false)
 const addProductFileInput = ref(null)
 
-const backendUrl = 'http://localhost:3000' // or use import.meta.env.VITE_BACKEND_URL
+const backendUrl = `${API_URL}`
 
 // Add these with your other refs
 const showDeleteModal = ref(false)

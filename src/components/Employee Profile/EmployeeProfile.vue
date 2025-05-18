@@ -58,11 +58,13 @@ const formatDate = (dateString) => {
   })
 }
 
+const API_URL = import.meta.env.VITE_API_URL
+
 // Profile image URL computed property
 const profileImageUrl = computed(() => {
   // Use the existing profile image or placeholder
   if (!employee.value?.profile_image_path) return profilePlaceholder
-  return `http://localhost:3000/${employee.value.profile_image_path}`
+  return `${API_URL}/${employee.value.profile_image_path}`
 })
 
 // Preview image URL (for when there are pending changes)

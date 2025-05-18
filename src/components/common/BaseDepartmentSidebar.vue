@@ -143,6 +143,7 @@ watch(
   { deep: true },
 )
 
+const API_URL = import.meta.env.VITE_API_URL
 // Profile image URL computed property
 const profileImageUrl = computed(() => {
   if (isLoading.value) {
@@ -158,7 +159,7 @@ const profileImageUrl = computed(() => {
     return profilePlaceholder
   }
 
-  const imageUrl = `http://localhost:3000/${employeeData.profile_image_path.replace(/^\//, '')}`
+  const imageUrl = `${API_URL}/${employeeData.profile_image_path.replace(/^\//, '')}`
   console.log('Using image URL:', imageUrl)
   return imageUrl
 })

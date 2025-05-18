@@ -235,6 +235,8 @@ function isQtyInvalid(rm) {
   return rm.used_qty > rm.available_qty
 }
 
+const API_URL = import.meta.env.VITE_API_URL
+
 function onImageChange(event, idx) {
   const file = event.target.files[0]
   if (!file) return
@@ -245,7 +247,7 @@ function onImageChange(event, idx) {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
     .then((res) => {
-      const backendUrl = 'http://localhost:3000'
+      const backendUrl = `${API_URL}`
       finishedGoods.value[idx].image = backendUrl + res.data.imageUrl
       showToast('Image uploaded!', 'success')
     })

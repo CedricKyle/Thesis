@@ -250,6 +250,8 @@ function cancelEdit() {
   editImageFile.value = null
 }
 
+const API_URL = import.meta.env.VITE_API_URL
+
 async function saveEdit() {
   try {
     let imageUrl = editImage.value
@@ -259,7 +261,7 @@ async function saveEdit() {
       const res = await axios.post('/api/production/batch-upload-image', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       })
-      imageUrl = 'http://localhost:3000' + res.data.imageUrl
+      imageUrl = `${API_URL}` + res.data.imageUrl
     }
     await productionBatchStore.updateFinishedGood({
       id: selectedBatch.value.id,

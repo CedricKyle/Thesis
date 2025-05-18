@@ -1,9 +1,11 @@
 import axios from 'axios'
 import { useAuthStore } from '@/stores/Authentication/authStore'
 
+const API_URL = import.meta.env.VITE_API_URL
+
 // Create axios instance with default config
 const axiosInstance = axios.create({
-  baseURL: 'http://localhost:3000',
+  baseURL: `${API_URL}`,
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
@@ -17,7 +19,7 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
   (config) => {
     // Log API requests in development
-    console.log(`API Request: ${config.method.toUpperCase()} ${config.baseURL}${config.url}`);
+    console.log(`API Request: ${config.method.toUpperCase()} ${config.baseURL}${config.url}`)
     return config
   },
   (error) => {
@@ -41,7 +43,10 @@ axiosInstance.interceptors.response.use(
 
     // If it's a network error (e.g., server not running)
     if (error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED') {
-      console.error('Network error - please check if the backend server is running at:', error.config.baseURL);
+      console.error(
+        'Network error - please check if the backend server is running at:',
+        error.config.baseURL,
+      )
       // You can add custom error notification here
     }
 
@@ -76,7 +81,7 @@ axiosInstance.interceptors.response.use(
           },
         })
       } else {
-        console.warn('Session expired:', message);
+        console.warn('Session expired:', message)
         await authStore.logout()
         setTimeout(() => {
           window.location.href = '/login'
@@ -88,7 +93,7 @@ axiosInstance.interceptors.response.use(
 )
 
 // Set as default axios instance
-axios.defaults.baseURL = 'http://localhost:3000'
+axios.defaults.baseURL = `${API_URL}`
 axios.defaults.withCredentials = true
 axios.defaults.headers.common['Content-Type'] = 'application/json'
 axios.defaults.headers.common['Accept'] = 'application/json'

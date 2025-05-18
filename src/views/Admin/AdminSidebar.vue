@@ -4,17 +4,11 @@ import { useRouter } from 'vue-router'
 import { usePermissions } from '@/composables/Admin Composables/User & Role/role/usePermissions'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
 import { useAuthStore } from '@/stores/Authentication/authStore'
-import { 
-  Menu, 
-  X, 
-  ChevronRight, 
-  ChevronLeft, 
-  LogOut, 
-  User,
-  Settings
-} from 'lucide-vue-next'
+import { Menu, X, ChevronRight, ChevronLeft, LogOut, User, Settings } from 'lucide-vue-next'
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
 import profilePlaceholder from '@/assets/Images/profile-placeholder.png'
+
+const API_URL = import.meta.env.VITE_API_URL
 
 const router = useRouter()
 const rolesStore = useRolesStore()
@@ -190,7 +184,7 @@ const profileImageUrl = computed(() => {
   const employeeData = currentUserEmployee.value
   if (!employeeData?.profile_image_path) return profilePlaceholder
 
-  return `http://localhost:3000/${employeeData.profile_image_path.replace(/^\//, '')}`
+  return `${API_URL}/${employeeData.profile_image_path.replace(/^\//, '')}`
 })
 
 const navbarDisplayData = computed(() => {
