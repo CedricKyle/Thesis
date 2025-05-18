@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0 --port $PORT",
-    "start": "npm run preview",
+    "heroku-postbuild": "vite build",
+    "start": "serve -s dist",
     "format": "prettier --write src/"
   },
   "dependencies": {
@@ -23,6 +23,7 @@
     "pinia": "^3.0.1",
     "primeicons": "^6.0.1",
     "primevue": "^3.53.1",
+    "serve": "^14.2.4",
     "tabulator-tables": "^6.3.1",
     "tailwindcss": "^4.0.17",
     "vue": "^3.5.13",
