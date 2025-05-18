@@ -84,6 +84,9 @@ const handleSubmit = async (e) => {
       authStore.currentUser = response.data.user
       authStore.isAuthenticated = true
 
+      // Save token to localStorage!
+      localStorage.setItem('token', response.data.token)
+
       // Parse permissions if needed
       if (response.data.user.permissions) {
         authStore.userPermissions = Array.isArray(response.data.user.permissions)
