@@ -20,6 +20,13 @@ axiosInstance.interceptors.request.use(
   (config) => {
     // Log API requests in development
     console.log(`API Request: ${config.method.toUpperCase()} ${config.baseURL}${config.url}`)
+
+    // Attach token if exists
+    const token = localStorage.getItem('token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+
     return config
   },
   (error) => {

@@ -909,6 +909,7 @@ const login = async (req, res) => {
     // Send response
     res.json({
       message: 'Login successful',
+      token,
       user: {
         ...employee.toJSON(),
         permissions: permissions,
