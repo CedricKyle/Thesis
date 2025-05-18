@@ -38,6 +38,9 @@ const ProductionBatch = require('./Production Model/ProductionBatch')(sequelize)
 const BatchRawMaterial = require('./Production Model/BatchRawMaterial')(sequelize)
 const ProductionFinishedGood = require('./Production Model/ProductionFinishedGood')(sequelize)
 const Supplier = require('./SCM Model/Suppliers')(sequelize)
+const BranchDistributionRequest = require('./BranchDistributionRequest')(sequelize)
+const BranchDistributionRequestItem = require('./BranchDistributionRequestItem')(sequelize)
+const BranchInventory = require('./SCM Model/BranchInventory')(sequelize)
 
 // Define relationships for other models (not EmployeeAttendance!)
 // (Keep only these if you need them)
@@ -180,6 +183,58 @@ ProductionFinishedGood.belongsTo(ProductionBatch, {
   as: 'batch',
 })
 
+// Add Branch Distribution Request relationships
+BranchDistributionRequest.hasMany(BranchDistributionRequestItem, {
+  foreignKey: 'request_id',
+  sourceKey: 'request_id',
+  as: 'items',
+})
+
+BranchDistributionRequestItem.belongsTo(BranchDistributionRequest, {
+  foreignKey: 'request_id',
+  targetKey: 'request_id',
+  as: 'request',
+})
+
+// Employee relationships for BranchDistributionRequest
+BranchDistributionRequest.belongsTo(Employee, {
+  foreignKey: 'requested_by',
+  targetKey: 'employee_id',
+  as: 'requestedByEmployee',
+})
+
+BranchDistributionRequest.belongsTo(Employee, {
+  foreignKey: 'processed_by',
+  targetKey: 'employee_id',
+  as: 'processedByEmployee',
+})
+
+BranchDistributionRequest.belongsTo(Employee, {
+  foreignKey: 'fulfilled_by',
+  targetKey: 'employee_id',
+  as: 'fulfilledByEmployee',
+})
+
+// BranchInventory relationships
+BranchInventory.belongsTo(BranchDistributionRequest, {
+  foreignKey: 'last_distribution_id',
+  targetKey: 'request_id',
+  as: 'lastDistribution',
+})
+
+BranchDistributionRequest.hasMany(BranchInventory, {
+  foreignKey: 'last_distribution_id',
+  sourceKey: 'request_id',
+  as: 'branchInventory',
+})
+
+// BranchInventory to Inventory relationship for item details
+BranchInventory.belongsTo(Inventory, {
+  foreignKey: 'item_code',
+  targetKey: 'item_code',
+  as: 'inventoryItem',
+})
+
 // Export models and sequelize instance
 const db = {
   sequelize,
@@ -213,6 +268,9 @@ const db = {
   BatchRawMaterial,
   ProductionFinishedGood,
   Supplier,
+  BranchDistributionRequest,
+  BranchDistributionRequestItem,
+  BranchInventory,
 }
 
 // Call associate for all models

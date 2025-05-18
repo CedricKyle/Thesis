@@ -106,5 +106,46 @@ export const useSCMRequestStore = defineStore('scmRequest', {
         this.loading = false
       }
     },
+    async approveRequest(requestId) {
+      this.loading = true
+      this.error = null
+      try {
+        await axios.post(`/api/scm-requests/${requestId}/approve`)
+        await this.fetchRequests()
+      } catch (err) {
+        this.error = err.response?.data?.message || 'Failed to approve request'
+        throw err
+      } finally {
+        this.loading = false
+      }
+    },
+    async rejectRequest(requestId) {
+      this.loading = true
+      this.error = null
+      try {
+        await axios.post(`/api/scm-requests/${requestId}/reject`)
+        await this.fetchRequests()
+      } catch (err) {
+        this.error = err.response?.data?.message || 'Failed to reject request'
+        throw err
+      } finally {
+        this.loading = false
+      }
+    },
+    async fetchApprovedRequests() {
+      this.loading = true
+      this.error = null
+      try {
+        const res = await axios.get('/api/scm-requests', {
+          params: { request_status: 'Approved' },
+        })
+        return res.data
+      } catch (err) {
+        this.error = err.response?.data?.message || 'Failed to fetch approved requests'
+        throw err
+      } finally {
+        this.loading = false
+      }
+    },
   },
 })
