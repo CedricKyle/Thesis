@@ -1,11 +1,23 @@
 const { Sequelize } = require('sequelize')
-const config = require('../config/sequelize.config.js')[process.env.NODE_ENV || 'development']
+const env = process.env.NODE_ENV || 'development'
+const config = require('../config/sequelize.config.js')[env]
 
-const sequelize = new Sequelize(config.database, config.username, config.password, {
-  host: config.host,
-  dialect: config.dialect,
-  logging: false, // Set to console.log to see SQL queries
-})
+let sequelize
+
+if (env === 'production' && process.env.JAWSDB_URL) {
+  // Use JawsDB connection string on Heroku
+  sequelize = new Sequelize(process.env.JAWSDB_URL, {
+    dialect: 'mysql',
+    logging: false,
+  })
+} else {
+  // Use config for development or test
+  sequelize = new Sequelize(config.database, config.username, config.password, {
+    host: config.host,
+    dialect: config.dialect,
+    logging: false,
+  })
+}
 
 // Import models
 const Employee = require('./Employee')(sequelize)

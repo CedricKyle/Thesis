@@ -122,7 +122,8 @@ function getChangeColor(change) {
   return 'text-gray-600'
 }
 
-const backendUrl = 'http://localhost:3000'
+const API_URL = import.meta.env.VITE_API_URL
+const backendUrl = `${API_URL}`
 </script>
 
 <template>

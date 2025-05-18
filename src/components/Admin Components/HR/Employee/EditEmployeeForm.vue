@@ -15,6 +15,7 @@ import {
   permissionGroups,
 } from '@/composables/Admin Composables/User & Role/role/permissionsId'
 
+const API_URL = import.meta.env.VITE_API_URL
 const router = useRouter()
 const route = useRoute()
 const store = useEmployeeStore()
@@ -195,7 +196,7 @@ onMounted(async () => {
 
     // Set profile image if exists
     if (response.profile_image_path) {
-      profileImage.value = `http://localhost:3000/${response.profile_image_path}`
+      profileImage.value = `${API_URL}/${response.profile_image_path}`
     }
 
     // Debug log to verify data

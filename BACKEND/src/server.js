@@ -32,10 +32,12 @@ dotenv.config()
 
 const app = express()
 
+const allowedOrigin = process.env.FRONTEND_URL || 'http://localhost:5173'
+
 // Middleware
 app.use(
   cors({
-    origin: 'http://localhost:5173',
+    origin: allowedOrigin,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
     allowedHeaders: [
@@ -58,7 +60,7 @@ app.use(cookieParser())
 // Security headers middleware
 app.use((req, res, next) => {
   res.header('Access-Control-Allow-Credentials', 'true')
-  res.header('Access-Control-Allow-Origin', 'http://localhost:5173')
+  res.header('Access-Control-Allow-Origin', allowedOrigin)
   res.header(
     'Access-Control-Allow-Headers',
     'Origin, X-Requested-With, Content-Type, Accept, Authorization',
@@ -74,10 +76,6 @@ app.use('/uploads', express.static(path.join(__dirname, '../uploads')))
 app.use('/api/employees', employeeRoutes)
 app.use('/api/roles', roleRoutes)
 app.use('/api/attendance', attendanceRoutes)
-// app.use('/api/inventory', inventoryRoutes)
-// app.use('/api/stock-in', stockInRoutes)
-// app.use('/api/stock-out', stockOutRoutes)
-// app.use('/api/stock-adjustment', stockAdjustmentRoutes)
 app.use('/api/positions', positionRoutes)
 app.use('/api/employee-deductions', deductionRoutes)
 app.use('/api/available-schedules', availableScheduleRoutes)

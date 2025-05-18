@@ -10,7 +10,7 @@ const pool = require('../../config/database.js')
 const { deleteFile, saveFile } = require('../../utils/main branch/fileHandler.js')
 const path = require('path')
 const fs = require('fs').promises
-const bcrypt = require('bcrypt')
+const bcrypt = require('bcryptjs')
 const { generateToken, clearToken } = require('../../middleware/auth-middleware.js')
 const { Sequelize } = require('sequelize')
 
@@ -909,6 +909,7 @@ const login = async (req, res) => {
     // Send response
     res.json({
       message: 'Login successful',
+      token,
       user: {
         ...employee.toJSON(),
         permissions: permissions,

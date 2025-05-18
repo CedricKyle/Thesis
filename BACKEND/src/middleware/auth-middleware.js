@@ -17,7 +17,16 @@ const generateToken = (user) => {
 
 const verifyToken = async (req, res, next) => {
   try {
-    const token = req.cookies.jwt
+    let token = null
+
+    // 1. Check Authorization header (Bearer token)
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
+      token = req.headers.authorization.split(' ')[1]
+    }
+    // 2. Fallback: Check cookie
+    else if (req.cookies && req.cookies.jwt) {
+      token = req.cookies.jwt
+    }
 
     if (!token) {
       return res.status(401).json({ message: 'No token provided' })
