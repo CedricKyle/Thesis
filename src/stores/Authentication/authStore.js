@@ -51,6 +51,8 @@ export const useAuthStore = defineStore('auth', {
           this.currentUser = response.data.user
           console.log('Current User:', this.currentUser)
           this.isAuthenticated = true
+          // Save token
+          localStorage.setItem('token', response.data.token)
 
           // Handle permissions
           try {
@@ -153,7 +155,12 @@ export const useAuthStore = defineStore('auth', {
 
     async checkAuth() {
       try {
-        const response = await axios.get('/api/employees/verify')
+        const token = localStorage.getItem('token')
+        const response = await axios.get('/api/employees/verify', {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        })
         if (response.data.user) {
           // Check if role has changed
           if (this.currentUser && this.currentUser.role !== response.data.user.role) {
