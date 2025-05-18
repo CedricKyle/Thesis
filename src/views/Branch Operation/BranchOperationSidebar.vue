@@ -38,10 +38,5 @@ const menuItems = [
 </script>
 
 <template>
-  <div class="flex h-screen">
-    <BaseBranchOperationSidebar :menuItems="menuItems" basePath="/branch-operation" />
-    <div class="flex-1 bg-bgColor p-4 text-black">
-      <router-view />
-    </div>
-  </div>
+  <BaseBranchOperationSidebar :menuItems="menuItems" basePath="/branch-operation" />
 </template>

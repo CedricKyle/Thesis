@@ -7,9 +7,9 @@ import BranchOperationSidebar from './BranchOperationSidebar.vue'
   <div class="flex h-screen overflow-hidden">
     <!-- Sidebar -->
     <BranchOperationSidebar />
-    
+
     <!-- Main content area -->
-    <div class="flex-1 overflow-auto bg-gray-50">
+    <div class="flex-1 overflow-auto bg-gray-50 p-4 text-black">
       <!-- Router view to display child components -->
       <router-view />
     </div>
