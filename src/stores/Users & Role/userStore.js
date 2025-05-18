@@ -1,7 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import axios from 'axios'
-
+import axios from '@/plugins/axios'
 const API_URL = import.meta.env.VITE_API_URL
 export const useUserStore = defineStore('user', () => {
   const users = ref([])

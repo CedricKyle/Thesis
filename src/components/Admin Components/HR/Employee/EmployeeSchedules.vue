@@ -16,7 +16,7 @@ const showArchived = ref(false)
 // Combine active and archived for table display
 const tableData = computed(() => {
   if (showArchived.value) {
-    // Combine and deduplicate by id
+    // Combine and deduplicate by ie
     const combined = [...schedules.value, ...archivedSchedules.value]
     return combined.filter((v, i, a) => a.findIndex((t) => t.id === v.id) === i)
   }

@@ -7,7 +7,7 @@ import { useAttendanceStore } from '@/stores/HR Management/attendanceStore'
 import { LogOut, User, Settings, Timer, X } from 'lucide-vue-next'
 import profilePlaceholder from '@/assets/Images/profile-placeholder.png'
 import { useAttendanceLogic } from '@/composables/Admin Composables/Human Resource/useAttendanceLogic'
-import axios from 'axios'
+import axios from '@/plugins/axios'
 
 const props = defineProps({
   departmentName: {

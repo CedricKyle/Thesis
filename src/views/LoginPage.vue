@@ -4,7 +4,7 @@ import { Lock, IdCard } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/Authentication/authStore'
 import { useRouter } from 'vue-router'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
-import axios from 'axios'
+import axios from '@/plugins/axios'
 import { getFirstAccessibleRoute } from '@/composables/Admin Composables/User & Role/role/usePermissions'
 
 const router = useRouter()

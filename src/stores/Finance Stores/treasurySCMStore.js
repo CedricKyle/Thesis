@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import axios from 'axios'
+import axios from '@/plugins/axios'
 
 export const useTreasurySCMStore = defineStore('treasurySCM', {
   state: () => ({

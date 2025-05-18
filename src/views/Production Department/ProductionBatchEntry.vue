@@ -2,7 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useProductionBatchStore } from '@/stores/Production Store/productionBatchStore'
 import Toast from '@/components/Admin Components/HR/Toast.vue'
-import axios from 'axios'
+import axios from '@/plugins/axios'
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
 import { storeToRefs } from 'pinia'
 import {

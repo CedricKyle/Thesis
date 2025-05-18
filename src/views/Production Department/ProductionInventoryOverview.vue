@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useProductionBatchStore } from '@/stores/Production Store/productionBatchStore'
 import Toast from '@/components/Admin Components/HR/Toast.vue'
-import axios from 'axios'
+import axios from '@/plugins/axios'
 import ProductionForecasting from '@/components/Production Component/ProductionForecasting.vue'
 
 // State Management

@@ -5,7 +5,7 @@ import { useAttendanceStore } from '@/stores/HR Management/attendanceStore'
 import { useAttendanceLogic } from '@/composables/Admin Composables/Human Resource/useAttendanceLogic'
 import { storeToRefs } from 'pinia'
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
-import axios from 'axios'
+import axios from '@/plugins/axios'
 
 const API_URL = import.meta.env.VITE_API_URL
 

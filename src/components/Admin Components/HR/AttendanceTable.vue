@@ -9,7 +9,7 @@ import { PERMISSION_IDS } from '@/composables/Admin Composables/User & Role/role
 import { TriangleAlert } from 'lucide-vue-next'
 import { useEmployeeScheduleStore } from '@/stores/HR Management/employeeScheduleStore'
 import Toast from '@/components/Admin Components/HR/Toast.vue'
-import axios from 'axios'
+import axios from '@/plugins/axios'
 
 const { formatDate, calculateOvertime } = useAttendanceLogic()
 const employeeStore = useEmployeeStore()

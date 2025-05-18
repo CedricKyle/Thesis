@@ -14,7 +14,7 @@ import {
   CategoryScale,
   LinearScale,
 } from 'chart.js'
-import axios from 'axios'
+import axios from '@/plugins/axios'
 import { useSCMRequestStore } from '@/stores/SCM Stores/scmRequestStore'
 
 const productionBatchStore = useProductionBatchStore()

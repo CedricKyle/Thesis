@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useEmployeeStore } from '@/stores/HR Management/employeeStore'
 import { useAttendanceLogic } from '@/composables/Admin Composables/Human Resource/useAttendanceLogic'
-import axios from 'axios'
+import axios from '@/plugins/axios'
 import { useAuthStore } from '@/stores/Authentication/authStore'
 import { useEmployeeScheduleStore } from '@/stores/HR Management/employeeScheduleStore'
 
@@ -400,9 +400,7 @@ export const useAttendanceStore = defineStore('attendance', () => {
       console.log('Time-in request data:', timeInData)
 
       // First do time in
-      const timeInResponse = await axios.post('/api/attendance/time-in', timeInData, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-      })
+      const timeInResponse = await axios.post('/api/attendance/time-in', timeInData)
 
       if (timeInResponse.data.success) {
         // Prepare the time-out data
@@ -415,9 +413,7 @@ export const useAttendanceStore = defineStore('attendance', () => {
         console.log('Time-out request data:', timeOutData)
 
         // Then do time out with the same date
-        const timeOutResponse = await axios.post('/api/attendance/time-out', timeOutData, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-        })
+        const timeOutResponse = await axios.post('/api/attendance/time-out', timeOutData)
 
         if (timeOutResponse.data.success) {
           await loadRecords()
@@ -437,11 +433,7 @@ export const useAttendanceStore = defineStore('attendance', () => {
 
   const deleteRecord = async (recordId) => {
     try {
-      const response = await axios.delete(`/api/attendance/attendance/${recordId}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      })
+      const response = await axios.delete(`/api/attendance/attendance/${recordId}`)
 
       if (response.data.success) {
         // Remove the record from the local state
@@ -474,9 +466,7 @@ export const useAttendanceStore = defineStore('attendance', () => {
 
   async function loadRecords() {
     try {
-      const response = await axios.get('/api/attendance', {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-      })
+      const response = await axios.get('/api/attendance')
 
       if (response.data.success) {
         const allRecords = response.data.data
@@ -619,9 +609,7 @@ export const useAttendanceStore = defineStore('attendance', () => {
 
       console.log('Sending time in data:', timeInData)
 
-      const response = await axios.post('/api/attendance/time-in', timeInData, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-      })
+      const response = await axios.post('/api/attendance/time-in', timeInData)
 
       if (response.data.success) {
         // Map the response data to match the expected format
@@ -672,9 +660,7 @@ export const useAttendanceStore = defineStore('attendance', () => {
 
       console.log('Sending time out data:', timeOutData)
 
-      const response = await axios.post('/api/attendance/time-out', timeOutData, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-      })
+      const response = await axios.post('/api/attendance/time-out', timeOutData)
 
       if (response.data.success) {
         // Map the response data to match the expected format
@@ -713,7 +699,6 @@ export const useAttendanceStore = defineStore('attendance', () => {
 
       const response = await axios.get('/api/attendance/today', {
         params: { employee_id },
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
       })
 
       if (response.data.success) {
@@ -841,13 +826,9 @@ export const useAttendanceStore = defineStore('attendance', () => {
         }
       }
 
-      const response = await axios.post(
-        `/api/attendance/${attendanceId}/approve`,
-        {
-          approved_by: approverDetails.name, // Use the provided or found name
-        },
-        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } },
-      )
+      const response = await axios.post(`/api/attendance/${attendanceId}/approve`, {
+        approved_by: approverDetails.name, // Use the provided or found name
+      })
 
       if (response.data.success) {
         await loadRecords()
@@ -864,9 +845,6 @@ export const useAttendanceStore = defineStore('attendance', () => {
     try {
       const response = await axios.get('/api/attendance/today', {
         params: { employee_id: employeeId },
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
       })
 
       if (response.data.success) {
@@ -881,9 +859,7 @@ export const useAttendanceStore = defineStore('attendance', () => {
 
   const getAttendanceHistory = async (employeeId) => {
     try {
-      const response = await axios.get(`/api/attendance/history/${employeeId}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-      })
+      const response = await axios.get(`/api/attendance/history/${employeeId}`)
       return response.data.success ? response.data.data : []
     } catch (error) {
       console.error('Error fetching attendance history:', error)
@@ -895,7 +871,6 @@ export const useAttendanceStore = defineStore('attendance', () => {
     try {
       const response = await axios.get(
         `/api/attendance/department/${department}?start_date=${startDate}&end_date=${endDate}`,
-        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } },
       )
       return response.data.success ? response.data.data : []
     } catch (error) {
@@ -906,9 +881,7 @@ export const useAttendanceStore = defineStore('attendance', () => {
 
   const getMonthlyReport = async (employeeId) => {
     try {
-      const response = await axios.get(`/api/attendance/monthly/${employeeId}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-      })
+      const response = await axios.get(`/api/attendance/monthly/${employeeId}`)
       return response.data.success ? response.data.data : null
     } catch (error) {
       console.error('Error fetching monthly report:', error)
@@ -1072,9 +1045,6 @@ export const useAttendanceStore = defineStore('attendance', () => {
           start_date: formattedStartDate,
           end_date: formattedEndDate,
         },
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
       })
 
       if (!response.data.success) {
@@ -1212,11 +1182,7 @@ export const useAttendanceStore = defineStore('attendance', () => {
   // Add this action to update an attendance record (including OT proof)
   const updateAttendanceRecord = async (id, updates) => {
     try {
-      let config = {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-        },
-      }
+      let config = {}
       let data = updates
 
       // If updates is FormData (for file upload), set content type
@@ -1240,11 +1206,9 @@ export const useAttendanceStore = defineStore('attendance', () => {
 
   const rejectOvertime = async (attendanceId, remarks = '') => {
     try {
-      const response = await axios.put(
-        `/api/attendance/attendance/${attendanceId}/reject-ot`,
-        { remarks },
-        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } },
-      )
+      const response = await axios.put(`/api/attendance/attendance/${attendanceId}/reject-ot`, {
+        remarks,
+      })
       if (response.data.success) {
         await loadRecords()
         return response.data.data
@@ -1266,13 +1230,9 @@ export const useAttendanceStore = defineStore('attendance', () => {
         throw new Error('No authenticated user found')
       }
 
-      const response = await axios.put(
-        `/api/attendance/attendance/${attendanceId}/approve-ot`,
-        {
-          ot_approved_by: currentUser.full_name,
-        },
-        { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } },
-      )
+      const response = await axios.put(`/api/attendance/attendance/${attendanceId}/approve-ot`, {
+        ot_approved_by: currentUser.full_name,
+      })
       if (response.data.success) {
         await loadRecords()
         return response.data.data
@@ -1302,16 +1262,10 @@ export const useAttendanceStore = defineStore('attendance', () => {
     const authStore = useAuthStore()
     const currentUser = authStore.currentUser
     try {
-      const response = await axios.post(
-        '/api/attendance/bulk-approve',
-        {
-          ids,
-          approved_by: currentUser.full_name,
-        },
-        {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-        },
-      )
+      const response = await axios.post('/api/attendance/bulk-approve', {
+        ids,
+        approved_by: currentUser.full_name,
+      })
       if (response.data.success) {
         await loadRecords()
         return response.data

@@ -1,6 +1,5 @@
 import { defineStore } from 'pinia'
-import axios from 'axios'
-
+import axios from '@/plugins/axios'
 export const useSCMRequestStore = defineStore('scmRequest', {
   state: () => ({
     requests: [],

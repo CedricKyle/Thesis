@@ -3,7 +3,7 @@ import { ref, onMounted, watch } from 'vue'
 import BaseTable from '@/components/common/BaseTable.vue'
 import { useMandatoryDeductionStore } from '@/stores/HR Management/mandatoryDeductionStore'
 import { storeToRefs } from 'pinia'
-import axios from 'axios'
+import axios from '@/plugins/axios'
 import { useToast } from '@/composables/Admin Composables/Human Resource/useToast'
 
 const store = useMandatoryDeductionStore()

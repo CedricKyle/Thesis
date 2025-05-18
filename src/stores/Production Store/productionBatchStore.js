@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import axios from 'axios'
+import axios from '@/plugins/axios'
 import { watch } from 'vue'
 
 export const useProductionBatchStore = defineStore('productionBatchStore', {
