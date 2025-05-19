@@ -20,6 +20,8 @@ const isLoading = ref(false)
 const showLoader = ref(false)
 const loading = ref(false)
 const passwordVisible = ref(false)
+const userIdError = ref('')
+const passwordError = ref('')
 
 // Add this helper function at the top of the script
 function getDepartmentPath(department) {
@@ -56,9 +58,43 @@ function getDepartmentDefaultRoute(department) {
   return deptRouteMap[department] || `/${department.toLowerCase().replace(/\s+/g, '-')}/dashboard`
 }
 
+function validateForm() {
+  let valid = true
+  userIdError.value = ''
+  passwordError.value = ''
+
+  if (!userId.value) {
+    userIdError.value = 'Employee ID is required'
+    valid = false
+  }
+  // Example: Employee ID must be at least 4 characters
+  else if (userId.value.length < 4) {
+    userIdError.value = 'Employee ID must be at least 4 characters'
+    valid = false
+  }
+
+  if (!password.value) {
+    passwordError.value = 'Password is required'
+    valid = false
+  }
+  // Example: Password must be at least 6 characters
+  else if (password.value.length < 6) {
+    passwordError.value = 'Password must be at least 6 characters'
+    valid = false
+  }
+
+  return valid
+}
+
 const handleSubmit = async (e) => {
   e.preventDefault()
   error.value = ''
+
+  // Validate before submitting
+  if (!validateForm()) {
+    return
+  }
+
   isLoading.value = true
   showLoader.value = true
   loading.value = true
@@ -213,6 +249,7 @@ const handleSubmit = async (e) => {
                     :disabled="isLoading"
                   />
                 </label>
+                <div v-if="userIdError" class="text-red-500 text-xs mt-1">{{ userIdError }}</div>
               </div>
               <!-- Password Input -->
               <div class="relative w-full">
@@ -233,6 +270,9 @@ const handleSubmit = async (e) => {
                     <component :is="passwordVisible ? EyeOff : Eye" class="w-5 h-5 text-gray-500" />
                   </span>
                 </label>
+                <div v-if="passwordError" class="text-red-500 text-xs mt-1">
+                  {{ passwordError }}
+                </div>
               </div>
               <!-- Submit Button -->
               <button type="submit" class="btn-loginStyle w-full h-10" :disabled="isLoading">
