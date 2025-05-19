@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { Lock, IdCard } from 'lucide-vue-next'
+import { Lock, IdCard, Eye, EyeOff } from 'lucide-vue-next'
 import { useAuthStore } from '@/stores/Authentication/authStore'
 import { useRouter } from 'vue-router'
 import { useRolesStore } from '@/stores/Users & Role/roleStore'
@@ -19,6 +19,7 @@ const error = ref('')
 const isLoading = ref(false)
 const showLoader = ref(false)
 const loading = ref(false)
+const passwordVisible = ref(false)
 
 // Add this helper function at the top of the script
 function getDepartmentPath(department) {
@@ -219,12 +220,18 @@ const handleSubmit = async (e) => {
                   <Lock class="text-gray-500 w-4 h-4" />
                   <input
                     v-model="password"
-                    type="password"
+                    :type="passwordVisible ? 'text' : 'password'"
                     placeholder="Password"
                     class="placeholder:text-gray-500 text-black w-full"
                     required
                     :disabled="isLoading"
                   />
+                  <span
+                    class="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer"
+                    @click="passwordVisible = !passwordVisible"
+                  >
+                    <component :is="passwordVisible ? EyeOff : Eye" class="w-5 h-5 text-gray-500" />
+                  </span>
                 </label>
               </div>
               <!-- Submit Button -->
